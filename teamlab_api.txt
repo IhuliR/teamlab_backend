@@ -1,0 +1,1252 @@
+Пользовательские роли
+● Аноним — может просматривать страницы пользователей и проектов, но кнопки взаимодействия редиректят на страницу аутентификации
+● Аутентифицированный пользователь (user) — может, как и Аноним, читать всё, дополнительно он может создавать свои проекты, ставить "лайки" на другие проекты и настраивать свою страницу. Эта роль присваивается по умолчанию каждому новому пользователю.
+● Администратор (admin) (Суперюзер Django)— полные права на управление всем контентом проекта. Может создавать и удалять специализации и области. Может назначать пользователей администратором.
+
+ПОЛЬЗОВАТЕЛИ:
+
+    СПИСОК ПОЛЬЗОВАТЕЛЕЙ:
+
+        GET /api/v1/users/
+
+        query parameters:
+            page: integer - номер страницы
+            limit: integer - количество объектов на странице
+            search: string — поиск по названию скилла
+            filtr: string - фильтрация по grade, status
+
+        responses:
+            200: 
+                {
+                "count": 123,
+                "next": "http://example.ru/api/v1/users/?page=4",
+                "previous": "http://example.ru/api/v1/users/?page=2",
+                "results": [
+                    {
+                    "id": 0,
+                    "username": "string",
+                    "first_name": "Вася",
+                    "last_name": "Иванов",
+                    "grade": "middle",
+                    "avatar": "http://example.ru/media/users/image.png",
+                    "bio": "text",
+                    "status": "available",
+                    }
+                ]
+                }
+
+        Поля с ограниченными значениями:
+
+            - grade:
+
+            junior
+            middle
+            senior
+
+            - theme:
+
+            light
+            dark
+
+            - status:
+
+            available
+            in_team
+            unavailable
+
+    РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ:
+
+        POST /api/v1/users/
+
+        request body schema: application/json
+
+            email (required) <= 254 char: string (адрес электронной почты)
+            username (required) <= 150 char (^[\w.@+-]+$): string (уникальный юзернейм)
+            password: string (пароль)
+
+        request:
+            {
+                "email": "vpupkin@yandex.ru",
+                "username": "vasya.pupkin",
+                "first_name": "Вася",
+                "last_name": "Иванов",
+                "password": "Qwerty123"
+            }
+
+        responses:
+            201:
+
+                {
+                    "email": "vpupkin@yandex.ru",
+                    "id": 0,
+                    "username": "vasya.pupkin",
+                    "first_name": "Вася",
+                    "last_name": "Иванов"
+                }
+            
+            400 (ошибка валидации):
+
+                {
+                    "field_name": [
+                        "Обязательное поле."
+                    ]
+                }
+            
+                {
+                    "username": ["Пользователь с таким username уже существует"]
+                }            
+
+    ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ:
+
+        GET /api/v1/users/{id}/
+
+        path parameters:
+        id (required): integer (уникальный id этого пользователя)
+        
+        responses:
+            200:
+                {
+                    "id": 0,
+                    "username": "string",
+                    "grade": "middle",
+                    "first_name": "Вася",
+                    "last_name": "Иванов",
+                    "avatar": "http://example.ru/media/users/image.png",
+                    "bio": "text",
+                    "status": "available",
+                    "skills": [8,9],
+                    "specialization": 8,
+                }
+            
+            404:
+                {
+                    "detail": "Страница не найдена."
+                }
+
+    ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ:
+        GET /api/v1/users/me/
+
+        Authorization: Bearer <access_token>
+
+        responses:
+            200:
+                {
+                    "email": "user@example.com",
+                    "id": 0,
+                    "username": "string",
+                    "first_name": "Вася",
+                    "last_name": "Иванов",
+                    "grade": "middle",
+                    "avatar": "http://example.ru/media/users/image.png",
+                    "bio": "text",
+                    "theme": "light",
+                    "status": "available",
+                    "telegram": "@exemple_tg",
+                    "instagram": "@example_inst",
+                    "skills": [8,9],
+                    "specialization": 8,
+                }
+            
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+
+    ДОБАВЛЕНИЕ АВАТАРА:
+        PUT /api/v1/users/me/avatar/
+
+        Authorization: Bearer <access_token>
+
+        request body schema: application/json:
+            avatar: string<binary> (картинка, закодированная в base64)
+        
+        request:
+            {
+                "avatar": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywaAAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAACklEQVQImWNoAAAAggCByxOyYQAAAABJRU5ErkJggg=="
+            }
+        
+        responses:
+
+            200:
+                {
+                    "avatar": "http://foodgram.example.org/media/users/image.png"
+                }
+            400:
+                {
+                    "field_name": [
+                        "Обязательное поле."
+                    ]
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+
+    ИЗМЕНЕНИЕ ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ:
+        PATCH /api/v1/users/me/
+        Изменяет данные текущего пользователя. 
+        Можно передавать одно или несколько полей: username, grade, bio, theme,status, telegram, instagram, first_name, last_name, skills
+        Если поле skills передано, список скиллов пользователя полностью заменяется на переданный.
+
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+
+        request:
+            {
+                "first_name": "Вася",
+                "grade": "middle",
+                "status": "available",
+                "skills": [1, 3, 7],
+                "specialization": 2,
+            }
+        responses:
+            200:
+                {
+                    "email": "user@example.com",
+                    "id": 0,
+                    "username": "string",
+                    "first_name": "Вася",
+                    "last_name": "Иванов",
+                    "grade": "middle",
+                    "avatar": "http://example.ru/media/users/image.png",
+                    "bio": "text",
+                    "theme": "light",
+                    "status": "available",
+                    "telegram": "@example_tg",
+                    "instagram": "@example_inst",
+                    "skills": [
+                        {
+                        "id": 1,
+                        "name": "Python"
+                        },
+                        {
+                        "id": 3,
+                        "name": "Django"
+                        },
+                        {
+                        "id": 7,
+                        "name": "PostgreSQL"
+                        }
+                    ],
+                    "specialization": {
+                        "id": 2,
+                        "name": "Backend developer"
+                    },                
+                }
+            400:
+                {
+                    "grade": ["Недопустимое значение."]
+                }
+                или 
+                {
+                    "skills": ["Передан несуществующий skill id."]
+                }
+
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+
+
+
+    УДАЛЕНИЕ АВАТАРА:
+        DELETE /api/v1/users/me/avatar/
+
+        Authorization: Bearer <access_token>
+
+        responses:
+
+            204:
+                Тела ответа нет (аватар удалён).
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            
+    ИЗМЕНЕНИЕ ПАРОЛЯ: 
+
+        POST /api/v1/users/set_password/
+        Изменяет пароль текущего пользователя
+
+        Authorization: Bearer <access_token>
+        request body schema: application/json
+            new_password (required): string
+            current_password (required): string
+
+        request:
+            {
+                "new_password": "string",
+                "current_password": "string"
+            }
+
+        responses:
+            204:
+                тела ответа нет
+            400:
+                {
+                    "field_name": [
+                        "Обязательное поле."
+                    ]
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+
+    ПОЛУЧИТЬ ТОКЕН АВТОРИЗАЦИИ:
+        POST /api/v1/auth/token/login/
+        Используется для авторизации по емейлу и паролю, чтобы далее использовать токен при запросах
+
+        request body schema: application/json
+            password (required): string
+            email (required): string
+        
+        request:
+            {
+                "password": "string",
+                "email": "string"
+            }
+
+        responses:
+            200:
+                {
+                    "access": "string",
+                    "refresh": "string"
+                }
+    
+    ОБНОВИТЬ ТОКЕН АВТОРИЗАЦИИ:
+        POST /api/v1/auth/token/refresh/
+        Используется для обновления jwt-токена
+
+        request body schema: application/json
+            refresh (required): string
+        
+        request:
+            {
+                "refresh": "string",
+            }
+
+        responses:
+            200:
+                {
+                    "acces": "string",
+                }
+            401:
+                {
+                    "detail": "Токен недействителен или истёк.",
+                }
+
+    ДЕАКТИВАЦИЯ АККАУНТА:
+        DELETE /api/v1/users/me/
+        Деактивирует текущего пользователя. После выполнения пользователь не может авторизоваться.
+
+        Authorization: Bearer <access_token>
+
+        responses:
+            204:
+                Тела ответа нет (пользователь деактивирован).
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }                
+
+СКИЛЫ: 
+    ДОБАВЛЕНИЕ НОВОГО СКИЛА:
+        POST /api/v1/skills/
+        Добавляет новый скилл в базу. 
+        Доступно только администраторам.
+
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+
+        request:
+            {
+                "name": "Django"
+            }
+        
+        responses:
+            201:
+                {
+                    "id": 1,
+                    "name": "Django"
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }  
+            400:
+                {
+                    "name": ["Такой скилл уже существует."]
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+
+    ПОЛУЧЕНИЕ СПИСКА СКИЛОВ:
+        GET /api/v1/skills/
+        Доступно всем пользователям
+
+        Query parameters:
+            search: string — поиск по названию скилла
+            ordering: string — сортировка (например: name, -name)
+
+        responses:
+            200:
+                [
+                    {
+                        "id": 1,
+                        "name": "Django"
+                    },
+                    {
+                        "id": 2,
+                        "name": "React"
+                    }
+                ]
+
+СПЕЦИАЛИЗАЦИИ: 
+    ДОБАВЛЕНИЕ НОВОЙ СПЕЦИАЛИЗАЦИИ:
+        POST /api/v1/specializations/
+        Добавляет новую специализацию в базу. 
+        Доступно только администраторам.
+
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+
+        request:
+            {
+                "name": "frontend",
+                "area_id": 2,
+            }
+        
+        responses:
+            201:
+                {
+                    "id": 1,
+                    "name": "frontend"
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }  
+            400:
+                {
+                    "name": ["Такая специализация уже существует."]
+                }
+                или
+                {
+                    "area_id": ["Указанной области не существует."]
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+
+    ПОЛУЧЕНИЕ СПИСКА СПЕЦИАЛИЗАЦИЙ:
+        GET /api/v1/specializations/
+        Доступно всем пользователям
+
+        Query parameters:
+            search: string — поиск по названию специализации
+            area_id: integer — фильтрация по области
+
+        responses:
+            200:
+                [
+                    {
+                        "id": 0,
+                        "name": "фронтенд",
+                        "area_id": 2,
+                    },
+                    {
+                        "id": 1,
+                        "name": "бэкенд",
+                        "area_id": 2,
+                    }
+                ]
+ОБЛАСТИ:
+    ДОБАВЛЕНИЕ НОВОЙ ОБЛАСТИ:
+        POST /api/v1/areas/
+        Добавляет новую область в базу. Доступно только администраторам
+
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+
+        request:
+            {
+                "name": "Строительство"
+            }
+
+        responses:
+            201:
+                {
+                    "id": 3,
+                    "name": "Строительство"
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }  
+            400:
+                {
+                    "name": ["Такая область уже существует."]
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+    
+    ПОЛУЧЕНИЕ СПИСКА ОБЛАСТЕЙ: 
+        GET /api/v1/areas/
+        Доступно всем пользователям
+
+        Query parameters:
+            search: string — поиск по названию области
+
+        Список отсортирован по названию (по алфавиту)
+
+        responses:
+            200:
+                [
+                    {
+                        "id": 0,
+                        "name": "IT"
+                    },
+                    {
+                        "id": 1,
+                        "name": "Творчество"
+                    }
+                ]
+
+ПРОЕКТЫ: 
+    ПОЛУЧЕНИЕ СПИСКА ПРОЕКТОВ:
+        GET /api/v1/projects/
+        Доступно всем пользователям
+        Query parameters:
+            page: integer — номер страницы
+            limit: integer — количество объектов на странице
+            search: string — поиск по названию проекта
+            status: string — фильтрация по статусу проекта
+            area_id: integer — фильтрация по области
+
+        responses:
+            200: 
+                {
+                    "count": 123,
+                    "next": "http://example.ru/api/v1/projects/?page=4",
+                    "previous": "http://example.ru/api/v1/projects/?page=2",
+                    "results": [
+                            {
+                                "id": 0,
+                                "name": "string",
+                                "image": "http://example.ru/media/projects/image.png",
+                                "description": "text",
+                                "area_id": 1,
+                                "created_at": "2027-01-10T10:00:00Z",
+                                "status": "open",
+                                "benefits": "text",
+                                "owner": 1,
+                                "is_featured": true,
+                                "updated_at": "2027-01-10T12:00:00Z"
+                            }
+                    ]
+                }
+
+        Поля с ограниченными значениями:
+
+            - status:
+            
+            open - идёт набор
+            closed - команда собрана
+
+
+    ДОБАВЛЕНИЕ ПРОЕКТА:
+        POST /api/v1/projects/
+        Создаёт новый проект. 
+        Доступно только авторизованным пользователям
+
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+
+        request body schema: application/json
+            name (required): string — название проекта
+            description (required): string — краткое описание проекта
+            area_id (required): integer — id области проекта
+            benefits: string — что получат участники проекта
+            status: string — статус проекта
+            image: string<binary> — изображение проекта, закодированное в base64
+
+        request:
+            {
+                "name": "Стартап приложения для развития младенцев",
+                "description": "Мобильное приложение на базе искусственного интеллекта, которое помогает родителям развивать ребёнка в игровой форме",
+                "area_id": 1,
+                "benefits": "Опыт, кейс в портфолио, участие в стартапе",
+                "status": "open",
+                "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB..."
+            }
+
+        responses:
+            201:
+                {
+                    "id": 12,
+                    "name": "Стартап приложения для развития младенцев",
+                    "description": "Мобильное приложение на базе искусственного интеллекта, которое помогает родителям развивать ребёнка в игровой форме",
+                    "area_id": 1,
+                    "created_at": "2027-01-10T10:00:00Z",
+                    "status": "open",
+                    "benefits": "Опыт, кейс в портфолио, участие в стартапе",
+                    "owner": 5,
+                    "image": "http://example.ru/media/projects/image.png",
+                    "is_featured": false,
+                    "updated_at": "2027-01-10T10:00:00Z"
+                }
+            400:
+                {
+                    "name": ["Обязательное поле."]
+                }
+                или
+                {
+                    "area_id": ["Указанной области не существует."]
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+
+    ПОЛУЧЕНИЕ КОНКРЕТНОГО ПРОЕКТА: 
+        GET /api/v1/projects/{id}/
+        Возвращает информацию о проекте. 
+        Доступно всем пользователям.
+
+        path parameters:
+            id (required): integer — уникальный id проекта 
+    
+        responses:
+            200:
+                {
+                    "id": 12,
+                    "name": "Стартап приложения для развития младенцев",
+                    "description": "Мобильное приложение на базе искусственного интеллекта, которое помогает родителям развивать ребёнка в игровой форме",
+                    "area_id": 1,
+                    "created_at": "2027-01-10T10:00:00Z",
+                    "status": "open",
+                    "benefits": "Опыт, кейс в портфолио, участие в стартапе",
+                    "owner": 5,
+                    "image": "http://example.ru/media/projects/image.png",
+                    "is_featured": false,
+                    "updated_at": "2027-01-10T12:00:00Z"
+                }
+            404:
+                {
+                    "detail": "Страница не найдена."
+                }
+
+    ИЗМЕНЕНИЕ ПРОЕКТА:
+        PATCH /api/v1/projects/{id}/
+        Изменяет данные проекта. 
+        Доступно только автору проекта и администраторам.
+        Можно передавать одно или несколько полей: name, description, area_id, status, benefits, image.
+
+        Authorization: Bearer <access_token>
+
+        Content-Type: application/json
+
+        path parameters:
+            id (required): integer — уникальный id проекта
+
+        request:
+            {
+                "status": "closed",
+                "benefits": "Проект укомплектован, набор завершён"
+            }
+        
+        responses:
+            200:
+                {
+                    "id": 12,
+                    "name": "Стартап приложения для развития младенцев",
+                    "description": "Мобильное приложение на базе искусственного интеллекта, которое помогает родителям развивать ребёнка в игровой форме",
+                    "area_id": 1,
+                    "created_at": "2027-01-10T10:00:00Z",
+                    "status": "closed",
+                    "benefits": "Проект укомплектован, набор завершён",
+                    "owner": 5,
+                    "image": "http://example.ru/media/projects/image.png",
+                    "is_featured": false,
+                    "updated_at": "2027-01-10T12:30:00Z"
+                }
+            400:
+                {
+                    "status": ["Недопустимое значение."]
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Страница не найдена."
+                }
+    
+    УДАЛЕНИЕ ПРОЕКТА:
+        DELETE /api/v1/projects/{id}/
+        Доступно только администраторам и автору проекта
+        
+        authorizations: Bearer <access_token>
+        Path parameters:
+            id (required): integer — уникальный id проекта
+
+        responses:
+
+            204:
+                тела ответа нет
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Страница не найдена."
+                }
+
+РОЛИ В ПРОЕКТЕ:
+    ПОЛУЧЕНИЕ РОЛЕЙ ПРОЕКТА: 
+        GET /api/v1/projects/{id}/roles/
+        Доступно всем пользователям
+        path parameters:
+            id (required): integer — уникальный id проекта 
+        responses:
+            200:
+                {
+                    "results": [
+                        {
+                            "id": 10,
+                            "specialization": {
+                                    "id": 2,
+                                    "name": "Backend",
+                                    "area_id": 1
+                            },
+                            "status": "open",
+                            "role_description": "Нужен backend-разработчик на Django",
+                            "capacity": 2,
+                            "members_count": 1,
+                            "is_responded": false
+                        },
+                        {
+                            "id": 11,
+                            "specialization": {
+                                "id": 3,
+                                "name": "Frontend",
+                                "area_id": 1
+                            },
+                            "status": "closed",
+                            "role_description": "Frontend разработчик найден",
+                            "capacity": 1,
+                            "members_count": 1,
+                            "is_responded": true
+                        }
+                    ]
+                }
+
+            404:
+                {
+                    "detail": "Проект не найден."
+                }
+
+    ДОБАВЛЕНИЕ РОЛИ В ПРОЕКТ: 
+        POST /api/v1/projects/{id}/roles/
+        Добавление новой роли в проект. 
+        Доступно автору проекта и администратору.
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+        request:
+            {
+                "specialization_id": 2,
+                "role_description": "Нужен backend-разработчик на Django",
+                "capacity": 2
+            }
+        responses:
+            200:
+                {
+                    "id": 10,
+                    "specialization": {
+                        "id": 2,
+                        "name": "Backend",
+                        "area_id": 1
+                    },
+                    "status": "open",
+                    "role_description": "Нужен backend-разработчик на Django",
+                    "capacity": 2,
+                    "members_count": 0
+                }
+            400:
+                {
+                    "specialization_id": ["Указанной специализации не существует."]
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Проект не найден."
+                }
+    ИЗМЕНЕНИЕ РОЛИ В ПРОЕКТЕ: 
+        PATCH /api/v1/projects/{project_id}/roles/{role_id}/
+        Внесение изменений в роль в проекте. 
+        Доступно автору проекта и администратору.
+        Authorization: Bearer <access_token>
+        Content-Type: application/json
+        request:
+            {
+                "role_description": "Обновлённое описание",
+                "capacity": 3,
+                "status": "closed"
+            }
+        responses:
+            200:
+                {
+                    "id": 10,
+                    "specialization": {
+                        "id": 2,
+                        "name": "Backend",
+                        "area_id": 1
+                    },
+                    "status": "closed",
+                    "role_description": "Обновлённое описание",
+                    "capacity": 3,
+                    "members_count": 0
+                }
+            400:
+                {
+                    "status": ["Недопустимое значение."]
+                }
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Проект не найден."
+                }
+                или
+                {
+                    "detail": "Роль не найдена."
+                }
+
+    УДАЛЕНИЕ УЧАСТНИКА ИЗ ПРОЕКТА: 
+        DELETE /api/v1/projects/{project_id}/roles/{role_id}/
+        Удаление роли из проекта. 
+        Доступно автору проекта и администратору.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            project_id (required): integer — уникальный id проекта
+            role_id (required): integer — уникальный id роли
+        
+        responses:
+
+            204:
+                Тела ответа нет (роль успешно удалена)
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Проект не найден."
+                }
+                или
+                {
+                    "detail": "Роль не найдена."
+                }
+
+ОТКЛИКИ / УЧАСТИЕ:
+    ДОБАВЛЕНИЕ ОТКЛИКА НА РОЛЬ:
+        POST /api/v1/project-roles/{role_id}/respond/
+        Добавляет отклик текущего пользоватля на роль в проекте. 
+        Доступно только авторизованным пользователям.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            role_id (required): integer — уникальный id роли проекта
+        responses:
+            201:
+                {
+                    "detail": "Отклик успешно отправлен."
+                }
+            400:
+                {
+                    "detail": "Вы уже откликнулись на эту роль."
+                }
+                или
+                {
+                    "detail": "Нельзя откликнуться на закрытую роль."
+                }
+            404:
+                {
+                    "detail": "Роль не найдена."
+                }
+
+    ОТОЗВАТЬ ОТКЛИК НА РОЛЬ:
+        DELETE /api/v1/project-roles/{role_id}/respond/
+        Удаляет отклик текущего пользователя на роль в проекте. 
+        Доступно только авторизованным пользователям.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            role_id (required): integer — уникальный id роли проекта
+
+        responses:
+
+            204:
+                Тела ответа нет (отклик успешно отозван)
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            404:
+                {
+                    "detail": "Роль не найдена."
+                }
+                или
+                {
+                    "detail": "Отклик не найден."
+                }
+        
+    ПОЛУЧИТЬ КАНДИДАТОВ НА РОЛЬ:
+        GET /api/v1/project-roles/{role_id}/responses/
+        Возвращает пользователей откликнувшихся на роль. 
+        Доступно автору проекта и администраторам.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            role_id (required): integer — уникальный id роли проекта
+        responses:
+            200:
+                [
+                {
+                    "user": {
+                        "id": 5,
+                        "username": "vasya",
+                        "first_name": "Вася",
+                        "last_name": "Иванов",
+                        "avatar": "http://example.ru/media/users/avatar.png"
+                    },
+                    "responded_at": "2027-01-10T10:00:00Z",
+                    "status": "pending"
+                },
+                {
+                    "user": {
+                        "id": 8,
+                        "username": "petya",
+                        "first_name": "Пётр",
+                        "last_name": "Сидоров",
+                        "avatar": null
+                    },
+                    "responded_at": "2027-01-11T12:00:00Z",
+                    "status": "pending"
+                }
+                ]
+            401:
+                {
+                "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                "detail": "Роль не найдена."
+                }
+
+    ОДОБРИТЬ КАНДИДАТА НА РОЛЬ:
+        POST /api/v1/project-roles/{role_id}/responses/{user_id}/approve/
+        Одобряет кандидата на роль в проекте. 
+        Доступно автору проекта и администраторам.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            project_id (required): integer — уникальный id проекта
+            user_id (required): integer — уникальный id пользователя
+        responses:
+            204:
+                Тело ответа отсутсвует (кандидат успешно одобрен)
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Роль не найдена."
+                }
+                или
+                {
+                    "detail": "Отклик пользователя не найден."
+                }
+
+    ОТКЛОНИТЬ КАНДИДАТА НА РОЛЬ:
+        POST /api/v1/project-roles/{role_id}/responses/{user_id}/reject/
+        Отклоняет кандидата на роль в проекте. 
+        Доступно автору проекта и администраторам.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            project_id (required): integer — уникальный id проекта
+            user_id (required): integer — уникальный id пользователя
+        responses:
+            204:
+                Тело ответа отсутсвует (кандидат успешно отклонён)
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Роль не найдена."
+                }
+                или
+                {
+                    "detail": "Отклик пользователя не найден."
+                }
+
+    ПОЛУЧИТЬ УЧАСТНИКОВ ПРОЕКТА:
+        GET /api/v1/projects/{id}/members/
+        Возвращает список участников проекта. 
+        Доступно всем пользователям.
+        Path parameters:
+            project_id (required): integer — уникальный id проекта
+        responses:
+            200:
+                [
+                {
+                    "user": {
+                        "id": 5,
+                        "username": "vasya",
+                        "first_name": "Вася",
+                        "last_name": "Иванов",
+                        "avatar": "http://example.ru/media/users/avatar.png"
+                    },
+                    "role": {
+                        "id": 10,
+                        "specialization": {
+                            "id": 2,
+                            "name": "Backend"
+                        }
+                    },
+                    "joined_at": "2027-01-10T10:00:00Z"
+                },
+                {
+                    "user": {
+                        "id": 8,
+                        "username": "petya",
+                        "first_name": "Пётр",
+                        "last_name": "Сидоров",
+                        "avatar": null
+                    },
+                    "role": {
+                        "id": 11,
+                        "specialization": {
+                            "id": 3,
+                            "name": "Frontend"
+                        }
+                    },
+                    "joined_at": "2027-01-11T12:00:00Z"
+                }
+                ]
+            400:
+                {
+                    "detail": "Проект не найден."
+                }
+
+    УДАЛИТЬ УЧАСТНИКА ИЗ ПРОЕКТА:
+        DELETE /api/v1/projects/{id}/members/{user_id}/
+        Удаление участника из проекта. 
+        Доступно автору проекта и администраторам.
+        Authorization: Bearer <access_token>
+        Path parameters:
+            project_id (required): integer — уникальный id проекта
+            user_id (required): integer — уникальный id пользователя
+        
+        responses:
+
+            204:
+                Тела ответа нет (участник успешно удалён)
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            403:
+                {
+                    "detail": "Недостаточно прав."
+                }
+            404:
+                {
+                    "detail": "Проект не найден."
+                }
+                или
+                {
+                    "detail": "Участник не найден."
+                }
+
+
+МОЁ: 
+    ПОЛУЧИТЬ МОИ ПРОЕКТЫ:
+        GET /api/v1/users/me/projects/
+        Возвращает список всех проектов, с которыми связан текущий пользователь. 
+        Доступно только авторизованному пользователю. 
+        Пользователь может быть как автором проекта, так и участником. Это обозначено в параметре "relation"
+        Authorization: Bearer <access_token>
+        Query parameters:
+            page: integer — номер страницы
+            limit: integer — количество объектов на странице
+            status: string — фильтрация по статусу проекта
+            relation: string — фильтрация по типу связи пользователя с проектом (owner, member)
+            search: string — поиск по названию проекта
+        responses:
+            200:
+                {
+                    "count": 2,
+                    "next": null,
+                    "previous": null,
+                    "results": [
+                        {
+                            "id": 12,
+                            "name": "Стартап приложения для развития младенцев",
+                            "description": "Мобильное приложение на базе искусственного интеллекта, которое помогает родителям развивать ребёнка в игровой форме",
+                            "area_id": 1,
+                            "created_at": "2027-01-10T10:00:00Z",
+                            "status": "open",
+                            "benefits": "Опыт, кейс в портфолио, участие в стартапе",
+                            "owner": 5,
+                            "image": "http://example.ru/media/projects/image.png",
+                            "is_featured": false,
+                            "updated_at": "2027-01-10T12:00:00Z",
+                            "relation": "owner"
+                        },
+                        {
+                            "id": 18,
+                            "name": "Инди-игра в жанре sci-fi",
+                            "description": "Небольшая команда собирает вертикальный срез игры",
+                            "area_id": 2,
+                            "created_at": "2027-01-12T09:00:00Z",
+                            "status": "closed",
+                            "benefits": "Портфолио и опыт командной разработки",
+                            "owner": 8,
+                            "image": null,
+                            "is_featured": false,
+                            "updated_at": "2027-01-13T15:00:00Z",
+                            "relation": "member"
+                        }
+                    ]
+                }
+
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            
+        Поля с ограниченными значениями:
+
+            - relation:
+            
+                owner — пользователь является автором проекта
+                member — пользователь является участником проекта
+            
+            - status:
+
+                open — открыт набор
+                closed — команда собрана
+            
+    ПОЛУЧИТЬ МОИ ОТКЛИКИ:
+        GET /api/v1/users/me/responses/
+        Возвращает список ролей, на которые откликнулся текущий пользователь.
+        Доступно только авторизованному пользователю.
+        Включает только отклики со статусом pending или rejected (не принятые).
+        Authorization: Bearer <access_token>
+        Query parameters:
+            page: integer — номер страницы
+            limit: integer — количество объектов на странице
+            status: string — фильтрация по статусу проекта
+        responses:
+            200:
+                {
+                    "count": 2,
+                    "next": null,
+                    "previous": null,
+                    "results": [
+                        {
+                        "role_id": 10,
+                        "project": {
+                            "id": 2,
+                            "name": "Alexey Project",
+                            "image": "http://example.ru/media/projects/image.png"
+                        },
+                        "role": {
+                            "id": 10,
+                            "specialization": {
+                            "id": 2,
+                            "name": "Backend"
+                            },
+                            "status": "open"
+                        },
+                        "status": "pending",
+                        "responded_at": "2027-01-10T10:00:00Z"
+                        },
+                        {
+                        "role_id": 15,
+                        "project": {
+                            "id": 5,
+                            "name": "Инди-игра",
+                            "image": null
+                        },
+                        "role": {
+                            "id": 15,
+                            "specialization": {
+                                "id": 3,
+                                "name": "Frontend"
+                            },
+                            "status": "closed"
+                        },
+                        "status": "rejected",
+                        "responded_at": "2027-01-11T12:00:00Z"
+                        }
+                    ]
+                }
+            
+            401:
+                {
+                    "detail": "Учетные данные не были предоставлены."
+                }
+            
+        Поля с ограниченными значениями:
+
+            - status:
+            
+                pending — пользователь является автором проекта
+                rejected — пользователь является участником проекта
+            
