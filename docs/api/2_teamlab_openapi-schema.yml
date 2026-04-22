@@ -1,0 +1,1899 @@
+openapi: 3.0.3
+info:
+  title: TeamLab API
+  version: 1.0.1
+  description: |
+    API MVP-платформы для поиска участников в проекты.
+
+    Возможности:
+    - регистрация и JWT-аутентификация пользователей;
+    - управление профилем текущего пользователя;
+    - работа со справочниками навыков, специализаций и областей;
+    - создание и управление проектами;
+    - создание ролей в проектах;
+    - отклики на роли;
+    - одобрение и отклонение кандидатов;
+    - просмотр своих проектов и своих откликов.
+
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: Users
+    description: Пользователи и профиль
+  - name: Auth
+    description: JWT-аутентификация
+  - name: Skills
+    description: Справочник навыков
+  - name: Specializations
+    description: Справочник специализаций
+  - name: Areas
+    description: Справочник областей
+  - name: Projects
+    description: Проекты
+  - name: Project Roles
+    description: Роли внутри проектов
+  - name: Responses
+    description: Отклики и участие в проектах
+  - name: Me
+    description: Ресурсы текущего пользователя
+
+paths:
+  /api/v1/users/:
+    get:
+      tags: [Users]
+      summary: Список пользователей
+      description: Возвращает список пользователей. Доступно всем.
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          required: false
+          description: Поиск по username, имени, фамилии и связанным навыкам.
+          schema:
+            type: string
+        - name: grade
+          in: query
+          required: false
+          description: Фильтрация по грейду пользователя.
+          schema:
+            $ref: '#/components/schemas/UserGrade'
+        - name: status
+          in: query
+          required: false
+          description: Фильтрация по статусу пользователя.
+          schema:
+            $ref: '#/components/schemas/UserAvailabilityStatus'
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsers'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+    post:
+      tags: [Users]
+      summary: Регистрация пользователя
+      description: Создаёт нового пользователя.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Пользователь успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  /api/v1/users/{user_id}/:
+    get:
+      tags: [Users]
+      summary: Публичный профиль пользователя
+      description: Возвращает публичную информацию о пользователе.
+      operationId: retrieveUser
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '200':
+          description: Публичный профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+
+  /api/v1/users/me/:
+    get:
+      tags: [Users]
+      summary: Текущий пользователь
+      description: Возвращает профиль текущего авторизованного пользователя.
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Профиль текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+    patch:
+      tags: [Users]
+      summary: Изменение профиля пользователя
+      description: |
+        Изменяет данные текущего пользователя.
+        Можно передавать одно или несколько полей.
+        Если поле `skills` передано, список навыков пользователя полностью заменяется на переданный.
+      operationId: updateCurrentUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Профиль успешно обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+    delete:
+      tags: [Users]
+      summary: Деактивация аккаунта
+      description: |
+        Деактивирует текущего пользователя.
+        После выполнения пользователь не может авторизоваться.
+      operationId: deactivateCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Пользователь деактивирован
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+
+  /api/v1/users/me/avatar/:
+    put:
+      tags: [Users]
+      summary: Добавление или замена аватара
+      description: Принимает изображение в формате base64 внутри JSON.
+      operationId: uploadCurrentUserAvatar
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvatarUpdateRequest'
+      responses:
+        '200':
+          description: Аватар успешно сохранён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarResponse'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+    delete:
+      tags: [Users]
+      summary: Удаление аватара
+      operationId: deleteCurrentUserAvatar
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Аватар удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+
+  /api/v1/users/set_password/:
+    post:
+      tags: [Users]
+      summary: Изменение пароля
+      description: Изменяет пароль текущего пользователя.
+      operationId: setCurrentUserPassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+      responses:
+        '204':
+          description: Пароль успешно изменён
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+
+  /api/v1/auth/token/login/:
+    post:
+      tags: [Auth]
+      summary: Получить токены авторизации
+      description: Авторизация по email и паролю. Возвращает пару JWT-токенов.
+      operationId: tokenLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenLoginRequest'
+      responses:
+        '200':
+          description: Токены успешно выданы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairResponse'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                invalid_credentials:
+                  value:
+                    detail: Неверный email или пароль.
+
+  /api/v1/auth/token/refresh/:
+    post:
+      tags: [Auth]
+      summary: Обновить access-токен
+      description: Обновляет access-токен по refresh-токену.
+      operationId: tokenRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+      responses:
+        '200':
+          description: Access-токен успешно обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+        '401':
+          description: Токен недействителен или истёк
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                invalid_refresh:
+                  value:
+                    detail: Токен недействителен или истёк.
+
+  /api/v1/skills/:
+    get:
+      tags: [Skills]
+      summary: Получение списка навыков
+      description: Доступно всем пользователям.
+      operationId: listSkills
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Поиск по названию навыка.
+          schema:
+            type: string
+        - name: ordering
+          in: query
+          required: false
+          description: Сортировка, например `name` или `-name`.
+          schema:
+            type: string
+            example: name
+      responses:
+        '200':
+          description: Список навыков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Skill'
+    post:
+      tags: [Skills]
+      summary: Добавление нового навыка
+      description: Доступно только администраторам.
+      operationId: createSkill
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillCreateRequest'
+      responses:
+        '201':
+          description: Навык успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+
+  /api/v1/specializations/:
+    get:
+      tags: [Specializations]
+      summary: Получение списка специализаций
+      description: Доступно всем пользователям.
+      operationId: listSpecializations
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Поиск по названию специализации.
+          schema:
+            type: string
+        - name: area_id
+          in: query
+          required: false
+          description: Фильтрация по области.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Список специализаций
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Specialization'
+    post:
+      tags: [Specializations]
+      summary: Добавление новой специализации
+      description: Доступно только администраторам.
+      operationId: createSpecialization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecializationCreateRequest'
+      responses:
+        '201':
+          description: Специализация успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Specialization'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+
+  /api/v1/areas/:
+    get:
+      tags: [Areas]
+      summary: Получение списка областей
+      description: |
+        Доступно всем пользователям.
+        Список отсортирован по названию по алфавиту.
+      operationId: listAreas
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Поиск по названию области.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список областей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Area'
+    post:
+      tags: [Areas]
+      summary: Добавление новой области
+      description: Доступно только администраторам.
+      operationId: createArea
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AreaCreateRequest'
+      responses:
+        '201':
+          description: Область успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Area'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+
+  /api/v1/projects/:
+    get:
+      tags: [Projects]
+      summary: Получение списка проектов
+      description: Доступно всем пользователям.
+      operationId: listProjects
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          required: false
+          description: Поиск по названию проекта.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Фильтрация по статусу проекта.
+          schema:
+            $ref: '#/components/schemas/ProjectStatus'
+        - name: area_id
+          in: query
+          required: false
+          description: Фильтрация по области.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Список проектов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjects'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+    post:
+      tags: [Projects]
+      summary: Добавление проекта
+      description: Создаёт новый проект. Доступно только авторизованным пользователям.
+      operationId: createProject
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateRequest'
+      responses:
+        '201':
+          description: Проект успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+
+  /api/v1/projects/{project_id}/:
+    get:
+      tags: [Projects]
+      summary: Получение конкретного проекта
+      description: Возвращает детальную информацию о проекте. Доступно всем пользователям.
+      operationId: retrieveProject
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      responses:
+        '200':
+          description: Информация о проекте
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+    patch:
+      tags: [Projects]
+      summary: Изменение проекта
+      description: Изменяет данные проекта. Доступно только автору проекта и администраторам.
+      operationId: updateProject
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdateRequest'
+      responses:
+        '200':
+          description: Проект успешно обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+    delete:
+      tags: [Projects]
+      summary: Удаление проекта
+      description: Доступно только автору проекта и администраторам.
+      operationId: deleteProject
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      responses:
+        '204':
+          description: Проект успешно удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+
+  /api/v1/projects/{project_id}/roles/:
+    get:
+      tags: [Project Roles]
+      summary: Получение ролей проекта
+      description: Возвращает список ролей проекта. Доступно всем пользователям.
+      operationId: listProjectRoles
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      responses:
+        '200':
+          description: Список ролей проекта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRolesListResponse'
+        '404':
+          description: Проект не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                project_not_found:
+                  value:
+                    detail: Проект не найден.
+    post:
+      tags: [Project Roles]
+      summary: Добавление роли в проект
+      description: Доступно автору проекта и администраторам.
+      operationId: createProjectRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRoleCreateRequest'
+      responses:
+        '201':
+          description: Роль успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRole'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Проект не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                project_not_found:
+                  value:
+                    detail: Проект не найден.
+
+  /api/v1/projects/{project_id}/roles/{role_id}/:
+    patch:
+      tags: [Project Roles]
+      summary: Изменение роли в проекте
+      description: Доступно автору проекта и администраторам.
+      operationId: updateProjectRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+        - $ref: '#/components/parameters/RoleIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRoleUpdateRequest'
+      responses:
+        '200':
+          description: Роль успешно обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRole'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Проект или роль не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+    delete:
+      tags: [Project Roles]
+      summary: Удаление роли из проекта
+      description: Доступно автору проекта и администраторам.
+      operationId: deleteProjectRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+        - $ref: '#/components/parameters/RoleIdParam'
+      responses:
+        '204':
+          description: Роль успешно удалена
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Проект или роль не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+
+  /api/v1/project-roles/{role_id}/respond/:
+    post:
+      tags: [Responses]
+      summary: Добавление отклика на роль
+      description: Добавляет отклик текущего пользователя на роль в проекте. Доступно только авторизованным пользователям.
+      operationId: respondToProjectRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdParam'
+      responses:
+        '201':
+          description: Отклик успешно отправлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                success:
+                  value:
+                    detail: Отклик успешно отправлен.
+        '400':
+          description: Невозможно создать отклик
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                already_responded:
+                  value:
+                    detail: Вы уже откликнулись на эту роль.
+                role_closed:
+                  value:
+                    detail: Нельзя откликнуться на закрытую роль.
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          description: Роль не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                role_not_found:
+                  value:
+                    detail: Роль не найдена.
+    delete:
+      tags: [Responses]
+      summary: Отозвать отклик на роль
+      description: Удаляет отклик текущего пользователя на роль в проекте. Доступно только авторизованным пользователям.
+      operationId: withdrawResponseFromProjectRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdParam'
+      responses:
+        '204':
+          description: Отклик успешно отозван
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          description: Роль или отклик не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+
+  /api/v1/project-roles/{role_id}/responses/:
+    get:
+      tags: [Responses]
+      summary: Получить кандидатов на роль
+      description: Возвращает пользователей, откликнувшихся на роль. Доступно автору проекта и администраторам.
+      operationId: listResponsesForRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdParam'
+      responses:
+        '200':
+          description: Список откликов на роль
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleResponseItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Роль не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                role_not_found:
+                  value:
+                    detail: Роль не найдена.
+
+  /api/v1/project-roles/{role_id}/responses/{user_id}/approve/:
+    post:
+      tags: [Responses]
+      summary: Одобрить кандидата на роль
+      description: Одобряет кандидата на роль в проекте. Доступно автору проекта и администраторам.
+      operationId: approveRoleCandidate
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdParam'
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '204':
+          description: Кандидат успешно одобрен
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Роль или отклик пользователя не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+
+  /api/v1/project-roles/{role_id}/responses/{user_id}/reject/:
+    post:
+      tags: [Responses]
+      summary: Отклонить кандидата на роль
+      description: Отклоняет кандидата на роль в проекте. Доступно автору проекта и администраторам.
+      operationId: rejectRoleCandidate
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdParam'
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '204':
+          description: Кандидат успешно отклонён
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Роль или отклик пользователя не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+
+  /api/v1/projects/{project_id}/members/:
+    get:
+      tags: [Responses]
+      summary: Получить участников проекта
+      description: Возвращает список участников проекта. Доступно всем пользователям.
+      operationId: listProjectMembers
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      responses:
+        '200':
+          description: Список участников проекта
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectMember'
+        '404':
+          description: Проект не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+              examples:
+                project_not_found:
+                  value:
+                    detail: Проект не найден.
+
+  /api/v1/projects/{project_id}/members/{user_id}/:
+    delete:
+      tags: [Responses]
+      summary: Удалить участника из проекта
+      description: Доступно автору проекта и администраторам.
+      operationId: deleteProjectMember
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '204':
+          description: Участник успешно удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          description: Проект или участник не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailMessage'
+
+  /api/v1/users/me/projects/:
+    get:
+      tags: [Me]
+      summary: Получить мои проекты
+      description: |
+        Возвращает список всех проектов, с которыми связан текущий пользователь.
+        Пользователь может быть как автором проекта, так и участником.
+        Тип связи отражается в поле `relation`.
+      operationId: listMyProjects
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          required: false
+          description: Фильтрация по статусу проекта.
+          schema:
+            $ref: '#/components/schemas/ProjectStatus'
+        - name: relation
+          in: query
+          required: false
+          description: Фильтрация по типу связи пользователя с проектом.
+          schema:
+            $ref: '#/components/schemas/ProjectRelation'
+        - name: search
+          in: query
+          required: false
+          description: Поиск по названию проекта.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список проектов текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMyProjects'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+
+  /api/v1/users/me/responses/:
+    get:
+      tags: [Me]
+      summary: Получить мои отклики
+      description: |
+        Возвращает список ролей, на которые откликнулся текущий пользователь.
+        Включает только отклики со статусом `pending` или `rejected`.
+      operationId: listMyResponses
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          required: false
+          description: Фильтрация по статусу отклика.
+          schema:
+            $ref: '#/components/schemas/ResponseStatus'
+      responses:
+        '200':
+          description: Список откликов текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMyResponses'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Количество объектов на странице.
+      schema:
+        type: integer
+        minimum: 1
+        default: 10
+    UserIdParam:
+      name: user_id
+      in: path
+      required: true
+      description: Уникальный идентификатор пользователя.
+      schema:
+        type: integer
+    ProjectIdParam:
+      name: project_id
+      in: path
+      required: true
+      description: Уникальный идентификатор проекта.
+      schema:
+        type: integer
+    RoleIdParam:
+      name: role_id
+      in: path
+      required: true
+      description: Уникальный идентификатор роли проекта.
+      schema:
+        type: integer
+
+  responses:
+    ValidationErrorResponse:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    UnauthorizedResponse:
+      description: Учетные данные не были предоставлены
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedError'
+    ForbiddenResponse:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ForbiddenError'
+    NotFoundResponse:
+      description: Объект не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+  schemas:
+    UserGrade:
+      type: string
+      description: Грейд пользователя.
+      enum:
+        - junior
+        - middle
+        - senior
+
+    Theme:
+      type: string
+      description: Тема интерфейса пользователя.
+      enum:
+        - light
+        - dark
+
+    UserAvailabilityStatus:
+      type: string
+      description: Статус доступности пользователя.
+      enum:
+        - available
+        - in_team
+        - unavailable
+
+    ProjectStatus:
+      type: string
+      description: Статус проекта.
+      enum:
+        - open
+        - closed
+
+    ProjectRelation:
+      type: string
+      description: Тип связи пользователя с проектом.
+      enum:
+        - owner
+        - member
+
+    ResponseStatus:
+      type: string
+      description: Статус отклика.
+      enum:
+        - pending
+        - rejected
+
+    RoleStatus:
+      type: string
+      description: Статус роли.
+      enum:
+        - open
+        - closed
+
+    ValidationError:
+      type: object
+      description: |
+        Ошибка валидации. Ключи объекта соответствуют именам полей,
+        значения — массивы строк с сообщениями ошибок.
+      additionalProperties:
+        type: array
+        items:
+          type: string
+      example:
+        email:
+          - Пользователь с таким email уже существует.
+
+    DetailMessage:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+      example:
+        detail: Операция успешно выполнена.
+
+    UnauthorizedError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          example: Учетные данные не были предоставлены.
+
+    ForbiddenError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          example: Недостаточно прав.
+
+    NotFoundError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          example: Страница не найдена.
+
+    Skill:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+
+    SkillCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    Area:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+
+    AreaCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    Specialization:
+      type: object
+      required:
+        - id
+        - name
+        - area_id
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        area_id:
+          type: integer
+
+    SpecializationShort:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+
+    SpecializationCreateRequest:
+      type: object
+      required:
+        - name
+        - area_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        area_id:
+          type: integer
+
+    UserShort:
+      type: object
+      required:
+        - id
+        - username
+        - first_name
+        - last_name
+        - avatar
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+
+    UserPublic:
+      type: object
+      required:
+        - id
+        - username
+        - first_name
+        - last_name
+        - grade
+        - avatar
+        - bio
+        - status
+        - skills
+        - specialization
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        grade:
+          allOf:
+            - $ref: '#/components/schemas/UserGrade'
+          nullable: true
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        status:
+          allOf:
+            - $ref: '#/components/schemas/UserAvailabilityStatus'
+          nullable: true
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+        specialization:
+          allOf:
+            - $ref: '#/components/schemas/SpecializationShort'
+          nullable: true
+
+    CurrentUser:
+      type: object
+      required:
+        - email
+        - id
+        - username
+        - first_name
+        - last_name
+        - grade
+        - avatar
+        - bio
+        - theme
+        - status
+        - telegram
+        - instagram
+        - skills
+        - specialization
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        grade:
+          allOf:
+            - $ref: '#/components/schemas/UserGrade'
+          nullable: true
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        theme:
+          allOf:
+            - $ref: '#/components/schemas/Theme'
+          nullable: true
+        status:
+          allOf:
+            - $ref: '#/components/schemas/UserAvailabilityStatus'
+          nullable: true
+        telegram:
+          type: string
+          nullable: true
+        instagram:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+        specialization:
+          allOf:
+            - $ref: '#/components/schemas/SpecializationShort'
+          nullable: true
+
+    UserCreateRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+
+    UserCreatedResponse:
+      type: object
+      required:
+        - email
+        - id
+      properties:
+        email:
+          type: string
+          format: email
+        id:
+          type: integer
+          readOnly: true
+
+    UserUpdateRequest:
+      type: object
+      description: |
+        Частичное обновление профиля текущего пользователя.
+        Если поле `skills` передано, список навыков пользователя полностью заменяется на переданный.
+      properties:
+        username:
+          type: string
+          maxLength: 150
+          pattern: '^[\w.@+-]+$'
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        grade:
+          $ref: '#/components/schemas/UserGrade'
+        bio:
+          type: string
+          nullable: true
+        theme:
+          $ref: '#/components/schemas/Theme'
+        status:
+          $ref: '#/components/schemas/UserAvailabilityStatus'
+        telegram:
+          type: string
+          nullable: true
+        instagram:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          description: Список id навыков. Полностью заменяет текущий список навыков.
+          items:
+            type: integer
+        specialization:
+          type: integer
+          nullable: true
+          description: id специализации пользователя.
+
+    AvatarUpdateRequest:
+      type: object
+      required:
+        - avatar
+      properties:
+        avatar:
+          type: string
+          description: Изображение, закодированное в base64, например `data:image/png;base64,...`.
+
+    AvatarResponse:
+      type: object
+      required:
+        - avatar
+      properties:
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+
+    SetPasswordRequest:
+      type: object
+      required:
+        - new_password
+        - current_password
+      properties:
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        current_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+
+    TokenLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+
+    TokenPairResponse:
+      type: object
+      required:
+        - access
+        - refresh
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+
+    TokenRefreshRequest:
+      type: object
+      required:
+        - refresh
+      properties:
+        refresh:
+          type: string
+
+    TokenRefreshResponse:
+      type: object
+      required:
+        - access
+      properties:
+        access:
+          type: string
+
+    ProjectListItem:
+      type: object
+      required:
+        - id
+        - name
+        - image
+        - description
+        - area_id
+        - created_at
+        - status
+        - benefits
+        - owner
+        - is_featured
+        - updated_at
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        image:
+          type: string
+          format: uri
+          nullable: true
+        description:
+          type: string
+        area_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        benefits:
+          type: string
+          nullable: true
+        owner:
+          type: integer
+          readOnly: true
+        is_featured:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ProjectDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProjectListItem'
+
+    ProjectCreateRequest:
+      type: object
+      required:
+        - name
+        - description
+        - area_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        area_id:
+          type: integer
+        benefits:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        image:
+          type: string
+          description: Изображение проекта, закодированное в base64, например `data:image/png;base64,...`.
+
+    ProjectUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        area_id:
+          type: integer
+        benefits:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        image:
+          type: string
+          description: Изображение проекта, закодированное в base64, например `data:image/png;base64,...`.
+
+    ProjectRole:
+      type: object
+      required:
+        - id
+        - specialization
+        - status
+        - role_description
+        - capacity
+        - members_count
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        specialization:
+          $ref: '#/components/schemas/Specialization'
+        status:
+          $ref: '#/components/schemas/RoleStatus'
+        role_description:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          minimum: 1
+        members_count:
+          type: integer
+          readOnly: true
+        is_responded:
+          type: boolean
+          readOnly: true
+          description: |
+            Показывает, откликнулся ли текущий авторизованный пользователь на роль.
+            Может отсутствовать в некоторых ответах, где этот контекст не нужен.
+
+    ProjectRoleCreateRequest:
+      type: object
+      required:
+        - specialization_id
+        - role_description
+        - capacity
+      properties:
+        specialization_id:
+          type: integer
+        role_description:
+          type: string
+          minLength: 1
+        capacity:
+          type: integer
+          minimum: 1
+
+    ProjectRoleUpdateRequest:
+      type: object
+      properties:
+        role_description:
+          type: string
+          minLength: 1
+        capacity:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/RoleStatus'
+
+    ProjectRolesListResponse:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+
+    ProjectMemberRoleInfo:
+      type: object
+      required:
+        - id
+        - specialization
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        specialization:
+          $ref: '#/components/schemas/SpecializationShort'
+
+    ProjectMember:
+      type: object
+      required:
+        - user
+        - role
+        - joined_at
+      properties:
+        user:
+          $ref: '#/components/schemas/UserShort'
+        role:
+          $ref: '#/components/schemas/ProjectMemberRoleInfo'
+        joined_at:
+          type: string
+          format: date-time
+
+    RoleResponseItem:
+      type: object
+      required:
+        - user
+        - responded_at
+        - status
+      properties:
+        user:
+          $ref: '#/components/schemas/UserShort'
+        responded_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/ResponseStatus'
+
+    MyResponseProject:
+      type: object
+      required:
+        - id
+        - name
+        - image
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        image:
+          type: string
+          format: uri
+          nullable: true
+
+    MyResponseRole:
+      type: object
+      required:
+        - id
+        - specialization
+        - status
+      properties:
+        id:
+          type: integer
+        specialization:
+          $ref: '#/components/schemas/SpecializationShort'
+        status:
+          $ref: '#/components/schemas/RoleStatus'
+
+    MyResponseItem:
+      type: object
+      required:
+        - role_id
+        - project
+        - role
+        - status
+        - responded_at
+      properties:
+        role_id:
+          type: integer
+        project:
+          $ref: '#/components/schemas/MyResponseProject'
+        role:
+          $ref: '#/components/schemas/MyResponseRole'
+        status:
+          $ref: '#/components/schemas/ResponseStatus'
+        responded_at:
+          type: string
+          format: date-time
+
+    MyProjectItem:
+      allOf:
+        - $ref: '#/components/schemas/ProjectListItem'
+        - type: object
+          required:
+            - relation
+          properties:
+            relation:
+              $ref: '#/components/schemas/ProjectRelation'
+
+    PaginatedUsers:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPublic'
+
+    PaginatedProjects:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectListItem'
+
+    PaginatedMyProjects:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyProjectItem'
+
+    PaginatedMyResponses:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyResponseItem'
