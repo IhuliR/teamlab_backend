@@ -470,7 +470,7 @@ paths:
     post:
       tags: [Projects]
       summary: Добавление проекта
-      description: Создаёт новый проект. Доступно только авторизованным пользователям.
+      description: Создаёт новый проект. Доступно только пользователю с `account_type = owner`.
       operationId: createProject
       security:
         - BearerAuth: []
@@ -491,6 +491,8 @@ paths:
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/projects/{project_id}/:
     get:
@@ -651,6 +653,7 @@ paths:
       summary: Добавление отклика на роль
       description: |
         Создаёт RoleInterest текущего пользователя для указанной ProjectRole.
+        Доступно только пользователю с `account_type = participant`.
         Отклик возможен только для открытого проекта и открытой роли.
       operationId: createRoleInterest
       security:
@@ -668,6 +671,8 @@ paths:
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
 
@@ -930,7 +935,7 @@ paths:
     get:
       tags: [Me]
       summary: Получить избранные проекты
-      description: Возвращает список избранных проектов текущего пользователя.
+      description: Возвращает список карточек избранных проектов текущего пользователя. Доступно только пользователю с `account_type = participant`.
       operationId: listMyFavoriteProjects
       security:
         - BearerAuth: []
@@ -942,13 +947,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/FavoriteProject'
+                  $ref: '#/components/schemas/ProjectListItem'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
     post:
       tags: [Me]
       summary: Добавить проект в избранное
-      description: Создаёт FavoriteProject для текущего пользователя.
+      description: Создаёт FavoriteProject для текущего пользователя. Доступно только пользователю с `account_type = participant`.
       operationId: createFavoriteProject
       security:
         - BearerAuth: []
@@ -969,12 +976,14 @@ paths:
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/users/me/favorite-projects/{project_id}/:
     delete:
       tags: [Me]
       summary: Удалить проект из избранного
-      description: Удаляет FavoriteProject текущего пользователя.
+      description: Удаляет FavoriteProject текущего пользователя. Доступно только пользователю с `account_type = participant`.
       operationId: deleteFavoriteProject
       security:
         - BearerAuth: []
@@ -985,6 +994,8 @@ paths:
           description: Проект удалён из избранного
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
 
@@ -992,7 +1003,7 @@ paths:
     get:
       tags: [Me]
       summary: Получить избранных кандидатов
-      description: Возвращает список избранных кандидатов текущего пользователя.
+      description: Возвращает список карточек избранных кандидатов текущего пользователя. Доступно только пользователю с `account_type = owner`.
       operationId: listMyFavoriteCandidates
       security:
         - BearerAuth: []
@@ -1004,13 +1015,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/FavoriteCandidate'
+                  $ref: '#/components/schemas/UserPublic'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
     post:
       tags: [Me]
       summary: Добавить кандидата в избранное
-      description: Создаёт FavoriteCandidate для текущего пользователя.
+      description: Создаёт FavoriteCandidate для текущего пользователя. Доступно только пользователю с `account_type = owner`.
       operationId: createFavoriteCandidate
       security:
         - BearerAuth: []
@@ -1031,12 +1044,14 @@ paths:
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/users/me/favorite-candidates/{candidate_id}/:
     delete:
       tags: [Me]
       summary: Удалить кандидата из избранного
-      description: Удаляет FavoriteCandidate текущего пользователя.
+      description: Удаляет FavoriteCandidate текущего пользователя. Доступно только пользователю с `account_type = owner`.
       operationId: deleteFavoriteCandidate
       security:
         - BearerAuth: []
@@ -1047,6 +1062,8 @@ paths:
           description: Кандидат удалён из избранного
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
 
@@ -1433,11 +1450,8 @@ components:
           type: string
           nullable: true
         technologies:
-          type: array
+          type: string
           nullable: true
-          items:
-            type: string
-          example: ["React", "Figma", "Webflow"]
           description: Простое поле технологий в MVP.
         link:
           type: string
@@ -1464,12 +1478,8 @@ components:
           type: string
           nullable: true
         technologies:
-          type: array
+          type: string
           nullable: true
-          items:
-            type: string
-          example: ["React", "Figma", "Webflow"]
-          description: Простое поле технологий в MVP.
         link:
           type: string
           format: uri
@@ -1485,12 +1495,8 @@ components:
           type: string
           nullable: true
         technologies:
-          type: array
+          type: string
           nullable: true
-          items:
-            type: string
-          example: ["React", "Figma", "Webflow"]
-          description: Простое поле технологий в MVP.
         link:
           type: string
           format: uri
@@ -1516,7 +1522,14 @@ components:
           type: string
         payload:
           type: object
-          additionalProperties: true
+          description: Стандартизированный плоский JSON payload уведомления.
+          minProperties: 1
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+              - type: number
+              - type: boolean
         is_read:
           type: boolean
         created_at:
