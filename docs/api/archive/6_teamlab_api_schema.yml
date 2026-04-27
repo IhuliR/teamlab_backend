@@ -36,7 +36,7 @@ tags:
   - name: Specializations
     description: Справочник специализаций
   - name: Fields
-    description: Справочник областей 
+    description: Справочник областей Field
   - name: Projects
     description: Проекты
   - name: Project Roles
@@ -658,7 +658,7 @@ paths:
         - name: field_id
           in: query
           required: false
-          description: Фильтрация по области.
+          description: Фильтрация по Field.
           schema:
             type: integer
       responses:
@@ -720,7 +720,7 @@ paths:
   /api/v1/fields/:
     get:
       tags: [Fields]
-      summary: Получение списка областей
+      summary: Получение списка Field
       description: |
         Доступно всем пользователям.
         Список отсортирован по названию по алфавиту.
@@ -729,12 +729,12 @@ paths:
         - name: search
           in: query
           required: false
-          description: Поиск по названию области.
+          description: Поиск по названию Field.
           schema:
             type: string
       responses:
         '200':
-          description: Список областей
+          description: Список Field
           content:
             application/json:
               schema:
@@ -752,7 +752,7 @@ paths:
                   updated_at: '2026-02-01T08:10:00Z'
     post:
       tags: [Fields]
-      summary: Добавление новой области
+      summary: Добавление нового Field
       description: Доступно только администраторам.
       operationId: createField
       security:
@@ -767,7 +767,7 @@ paths:
               name: Городские сервисы
       responses:
         '201':
-          description: Область успешно создана
+          description: Field успешно создан
           content:
             application/json:
               schema:
@@ -802,7 +802,7 @@ paths:
         - name: field_id
           in: query
           required: false
-          description: Фильтрация по области.
+          description: Фильтрация по Field.
           schema:
             type: integer
       responses:
