@@ -14,9 +14,7 @@
 - RoleInterest
 - ProjectMembership
 - PortfolioWork
-- Notification
 - FavoriteProject
-- FavoriteCandidate
 
 Центр системы — процесс формирования команды, а не просто проекты.
 
@@ -59,9 +57,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - User → RoleInterest
 - User → ProjectMembership
 - User → PortfolioWork
-- User → Notification
 - User → FavoriteProject
-- User → FavoriteCandidate
 - User → Specialization
 
 **Ограничения:**
@@ -218,12 +214,13 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 ### RoleInterest
 
 **Назначение:**  
-Отклик пользователя.
+Интерес пользователя к роли.
 
 **Ключевые поля:**
 - id
 - user_id
 - project_role_id
+- source (`application` / `invitation`)
 - status (`pending` / `accepted` / `rejected`)
 - reviewed_at
 - created_at
@@ -236,10 +233,19 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 **Логическая связь:**
 - используется для создания ProjectMembership (через accepted_interest_id)
 
+**Source:**
+- `application` — пользователь сам откликнулся на роль
+- `invitation` — владелец проекта пригласил пользователя на роль
+
+**Решение:**
+- `application` принимает или отклоняет владелец проекта
+- `invitation` принимает или отклоняет приглашённый пользователь
+
 **Ограничения:**
 - уникальность (user_id, project_role_id)  
-- повторный отклик на одну и ту же роль НЕ поддерживается в MVP  
-- отклик возможен только если:
+- для пары (user, project_role) может существовать только один RoleInterest
+- `invitation` может создавать только владелец проекта
+- interest возможен только если:
   - проект открыт
   - роль открыта
 
@@ -271,6 +277,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - accepted_interest_id уникален  
 - количество активных участников не превышает capacity  
 - проект определяется через project_role (без отдельного FK)
+- контакты пользователя доступны только при `ProjectMembership.status = active`
 
 ---
 
@@ -283,7 +290,9 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - id
 - user_id
 - title
-- description
+- task
+- solution
+- image
 - technologies
 - link
 - created_at
@@ -295,29 +304,6 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 **Примечание:**
 - в MVP `technologies` хранится как простое поле (строка/список)
 - в будущем может быть нормализовано через связь с Skill
-
----
-
-### Notification
-
-**Назначение:**  
-Уведомление.
-
-**Ключевые поля:**
-- id
-- user_id
-- type
-- payload
-- is_read
-- created_at
-
-**Связи:**
-- Notification → User
-
-**Примечание:**
-- `payload` — JSON-данные  
-- структура зависит от `type`  
-- формат должен быть стандартизирован на уровне кода (не произвольный JSON)
 
 ---
 
@@ -337,22 +323,6 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 
 ---
 
-### FavoriteCandidate
-
-Избранные кандидаты владельца проекта.
-
-**Ключевые поля:**
-- id
-- owner_id
-- candidate_id
-- created_at
-
-**Ограничения:**
-- используется только для пользователей с `account_type = owner`
-- уникальность (owner_id, candidate_id)
-
----
-
 ## 3. Связи (relations)
 
 - User → Project — OneToMany
@@ -360,9 +330,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - User → RoleInterest — OneToMany
 - User → ProjectMembership — OneToMany
 - User → PortfolioWork — OneToMany
-- User → Notification — OneToMany
 - User → FavoriteProject — OneToMany
-- User → FavoriteCandidate — OneToMany
 
 - Field → Specialization — OneToMany
 - Field → Project — OneToMany
@@ -397,7 +365,7 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 - завершение: закрытие роли
 
 ### RoleInterest
-- создание: пользователь откликается
+- создание: пользователь откликается (`source = application`) или владелец приглашает (`source = invitation`)
 - изменение: смена статуса
 - завершение:
   - accepted → membership
@@ -432,15 +400,14 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 ## 6. Инварианты
 
 - membership только после accepted interest
-- нет дублей откликов
-- повторный отклик на одну и ту же роль не допускается в рамках MVP
+- для пары (user, project_role) может существовать только один RoleInterest
 - capacity не превышается
 - закрытые роли не принимают отклики
 - закрытый проект не принимает отклики
 - участие нельзя создать напрямую
 - UserSkill уникален
 - FavoriteProject уникален (user_id, project_id)
-- FavoriteCandidate уникален (owner_id, candidate_id)
+- contacts доступны только при active membership
 
 ---
 
@@ -449,10 +416,8 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 - одна или несколько специализаций у пользователя (расширяемо)
 - навыки для ролей отсутствуют
 - technologies в PortfolioWork не нормализованы
-- Notification.payload требует стандарта
-- разделение избранного на FavoriteProject и FavoriteCandidate (возможно объединение в будущем)
 - нет ролей внутри команды
-- повторные отклики на одну роль могут потребоваться в будущем, но в MVP не поддерживаются
+- повторные RoleInterest для одной пары (user, project_role) могут потребоваться в будущем, но в MVP не поддерживаются
 
 ---
 
@@ -460,11 +425,12 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 
 - нет email-сервиса
 - нет восстановления пароля
-- уведомления только in-app
+- уведомления не являются отдельной бизнес-сущностью; UI строит их как представление данных из RoleInterest и ProjectMembership
+- приглашения реализуются через RoleInterest.source, без отдельной Invitation-модели
 - нет сложного matching
 - нет требований навыков
 - нет истории откликов
-- повторные отклики на одну роль не поддерживаются
+- повторные RoleInterest для одной пары (user, project_role) не поддерживаются
 - нет сложной социальной логики
 
 ---

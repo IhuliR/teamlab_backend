@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from projects.models import Specialization
+from projects.models import Project, Specialization
 from .constants import (
     MAX_ACCOUNT_TYPE_LEN,
     MAX_CITY_LEN,
@@ -13,6 +13,8 @@ from .constants import (
     MAX_USERNAME_LEN,
     MAX_WORK_FORMAT_LEN,
     MIN_HOURS_PER_WEEK,
+    MAX_TASK_LEN,
+    MAX_DESIGION_LEN,
 )
 
 
@@ -151,7 +153,60 @@ class UserSkill(models.Model):
         verbose_name = 'Навыки пользователя'
         verbose_name_plural = 'Навыки пользователей'
         ordering = ('user', 'skill')
-        constraints
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'skill'],
+                name='unique_user_skill'
+            ),
+        ]
     
     def __str__(self):
         return self.name
+    
+class PortfolioWork(models.Model):
+    title = models.CharField(
+        verbose_name='Название проекта портфолио'
+    )
+    task = models.TextField(
+        max_length=MAX_TASK_LEN,
+        null=True,
+        blank=True,
+        verbose_name='Задача'
+    )
+    desigion = models.TextField(
+        max_length=MAX_DESIGION_LEN,
+        null=True,
+        blank=True,
+        verbose_name='Задача'
+    )
+    image = models.ImageField(
+        upload_to=('/portfolio_images'),
+        null=True,
+        blank=True,
+        verbose_name='Изображение работы портфолио'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class Notification(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Favorite_Project(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorite_projects',
+        verbose_name='Пользователь'
+    )
+    project = models.ForeignKey(
+        Project,
+        related_name='favorited_by',
+        verbose_name='Проект'
+    )
+    
+
+
+class Favorite_User(models.Model):
+    ...

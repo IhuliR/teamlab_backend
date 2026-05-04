@@ -143,8 +143,10 @@ CREATE TABLE "PortfolioWork"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
     "title" VARCHAR(255) NOT NULL,
-    "description" TEXT NOT NULL,
+    "task" TEXT NOT NULL,
+    "desigion" TEXT NOT NULL,
     "technologies" TEXT NOT NULL,
+    "image" VARCHAR(255) NOT NULL,
     "link" VARCHAR(255) NOT NULL,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP

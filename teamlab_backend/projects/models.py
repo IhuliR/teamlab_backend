@@ -44,3 +44,7 @@ class Specialization(models.Model):
     
     def __str__(self):
         return self.name
+
+
+class Project(models.Model):
+    ...

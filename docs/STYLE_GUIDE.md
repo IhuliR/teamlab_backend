@@ -12,6 +12,8 @@
 - Один источник истины — доменная модель  
 - Любая логика должна уважать цепочку:  
   Project → ProjectRole → RoleInterest → ProjectMembership  
+- Не создавать сущности под UI-представления, например под уведомления  
+- Invitation реализуется через RoleInterest.source  
 - Соблюдай существующий стиль проекта  
 
 ---
@@ -258,8 +260,12 @@ HTTP-коды:
 - дублирование логики  
 - изменение account_type  
 - новые модели вне DOMAIN_MODEL.md  
+- модели Invitation и Notification  
+- избранное участников для владельца проекта  
+- сущности только для UI-представлений  
 - side-effects в serializer  
 - запросы в цикле  
+- owner принимает invitation за участника
 
 ---
 
@@ -280,7 +286,7 @@ HTTP-коды:
     class RoleInterestSerializer(serializers.ModelSerializer):
         class Meta:
             model = RoleInterest
-            fields = ('id', 'project_role', 'status')
+            fields = ('id', 'project_role', 'source', 'status')
 
         def validate(self, data):
             if not data['project_role'].is_open:
@@ -306,6 +312,8 @@ HTTP-коды:
 - учитывать AGENTS.md  
 - проверять код после генерации  
 - не добавлять новые сущности  
+- не добавлять Invitation и Notification как модели  
+- не добавлять избранное участников для владельца проекта  
 - проверять инварианты  
 
 AI — инструмент, не источник истины.
