@@ -24,14 +24,14 @@ CREATE TABLE "User"(
     "username" VARCHAR(255) NOT NULL,
     "email" VARCHAR(255) NOT NULL,
     "password" VARCHAR(255) NOT NULL,
-    "bio" TEXT NOT NULL,
+    "bio" TEXT NULL,
     "account_type" VARCHAR(20) NOT NULL,
-    "specialization_id" BIGINT NOT NULL,
-    "level" VARCHAR(20) NOT NULL,
-    "workload_hours_per_week" SMALLINT NOT NULL,
-    "work_format" VARCHAR(20) NOT NULL,
-    "city" VARCHAR(255) NOT NULL,
-    "avatar" VARCHAR(255) NOT NULL,
+    "specialization_id" BIGINT NULL,
+    "level" VARCHAR(20) NULL,
+    "workload_hours_per_week" SMALLINT NULL,
+    "work_format" VARCHAR(20) NULL,
+    "city" VARCHAR(255) NULL,
+    "avatar" VARCHAR(255) NULL,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "theme" VARCHAR(20) NOT NULL DEFAULT 'light',
@@ -46,6 +46,14 @@ ALTER TABLE
     "User" ADD CONSTRAINT "user_username_unique" UNIQUE("username");
 ALTER TABLE
     "User" ADD CONSTRAINT "user_email_unique" UNIQUE("email");
+ALTER TABLE
+    "User" ADD CONSTRAINT "user_account_type_check" CHECK ("account_type" IN ('participant', 'owner'));
+ALTER TABLE
+    "User" ADD CONSTRAINT "user_level_check" CHECK ("level" IS NULL OR "level" IN ('junior', 'middle', 'senior'));
+ALTER TABLE
+    "User" ADD CONSTRAINT "user_work_format_check" CHECK ("work_format" IS NULL OR "work_format" IN ('remote', 'hybrid'));
+ALTER TABLE
+    "User" ADD CONSTRAINT "user_workload_hours_check" CHECK ("workload_hours_per_week" IS NULL OR "workload_hours_per_week" >= 0);
 ALTER TABLE
     "User" ADD CONSTRAINT "user_theme_check" CHECK ("theme" IN ('light', 'dark'));
 CREATE TABLE "Skill"(
@@ -70,20 +78,24 @@ ALTER TABLE
     "UserSkill" ADD CONSTRAINT "userskill_user_id_skill_id_unique" UNIQUE("user_id", "skill_id");
 ALTER TABLE
     "UserSkill" ADD PRIMARY KEY("id");
+ALTER TABLE
+    "UserSkill" ADD CONSTRAINT "userskill_level_check" CHECK ("level" IN ('basic', 'middle', 'advanced'));
 CREATE TABLE "Project"(
     "id" bigserial NOT NULL,
     "owner_id" BIGINT NOT NULL,
     "field_id" BIGINT NOT NULL,
     "title" VARCHAR(255) NOT NULL,
     "description" TEXT NOT NULL,
-    "idea" TEXT NOT NULL,
-    "benefits" TEXT NOT NULL,
+    "idea" TEXT NULL,
+    "benefits" TEXT NULL,
     "status" VARCHAR(20) NOT NULL DEFAULT 'open',
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ALTER TABLE
     "Project" ADD PRIMARY KEY("id");
+ALTER TABLE
+    "Project" ADD CONSTRAINT "project_status_check" CHECK ("status" IN ('open', 'closed'));
 CREATE INDEX "project_owner_id_index" ON
     "Project"("owner_id");
 CREATE INDEX "project_field_id_index" ON
@@ -108,8 +120,8 @@ CREATE TABLE "RoleInterest"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
     "project_role_id" BIGINT NOT NULL,
+    "source" VARCHAR(20) NOT NULL,
     "status" VARCHAR(20) NOT NULL DEFAULT 'pending',
-    "message" TEXT NOT NULL,
     "reviewed_at" TIMESTAMP(0) WITHOUT TIME ZONE NULL,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -118,6 +130,10 @@ ALTER TABLE
     "RoleInterest" ADD CONSTRAINT "roleinterest_user_id_project_role_id_unique" UNIQUE("user_id", "project_role_id");
 ALTER TABLE
     "RoleInterest" ADD PRIMARY KEY("id");
+ALTER TABLE
+    "RoleInterest" ADD CONSTRAINT "roleinterest_source_check" CHECK ("source" IN ('application', 'invitation'));
+ALTER TABLE
+    "RoleInterest" ADD CONSTRAINT "roleinterest_status_check" CHECK ("status" IN ('pending', 'accepted', 'rejected'));
 CREATE INDEX "roleinterest_project_role_id_index" ON
     "RoleInterest"("project_role_id");
 CREATE TABLE "ProjectMembership"(
@@ -135,6 +151,8 @@ ALTER TABLE
     "ProjectMembership" ADD CONSTRAINT "projectmembership_user_id_project_role_id_unique" UNIQUE("user_id", "project_role_id");
 ALTER TABLE
     "ProjectMembership" ADD PRIMARY KEY("id");
+ALTER TABLE
+    "ProjectMembership" ADD CONSTRAINT "projectmembership_status_check" CHECK ("status" IN ('active', 'left', 'removed'));
 CREATE INDEX "projectmembership_project_role_id_index" ON
     "ProjectMembership"("project_role_id");
 ALTER TABLE
@@ -143,28 +161,16 @@ CREATE TABLE "PortfolioWork"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
     "title" VARCHAR(255) NOT NULL,
-    "task" TEXT NOT NULL,
-    "desigion" TEXT NOT NULL,
-    "technologies" TEXT NOT NULL,
-    "image" VARCHAR(255) NOT NULL,
-    "link" VARCHAR(255) NOT NULL,
+    "task" TEXT NULL,
+    "solution" TEXT NULL,
+    "image" VARCHAR(255) NULL,
+    "technologies" jsonb NULL,
+    "link" VARCHAR(255) NULL,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ALTER TABLE
     "PortfolioWork" ADD PRIMARY KEY("id");
-CREATE TABLE "Notification"(
-    "id" bigserial NOT NULL,
-    "user_id" BIGINT NOT NULL,
-    "type" VARCHAR(255) NOT NULL,
-    "payload" jsonb NOT NULL DEFAULT '{}'::jsonb,
-    "is_read" BOOLEAN NOT NULL DEFAULT FALSE,
-    "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-ALTER TABLE
-    "Notification" ADD PRIMARY KEY("id");
-CREATE INDEX "notification_user_id_index" ON
-    "Notification"("user_id");
 CREATE TABLE "FavoriteProject"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
@@ -175,26 +181,12 @@ ALTER TABLE
     "FavoriteProject" ADD CONSTRAINT "favoriteproject_user_id_project_id_unique" UNIQUE("user_id", "project_id");
 ALTER TABLE
     "FavoriteProject" ADD PRIMARY KEY("id");
-CREATE TABLE "FavoriteCandidate"(
-    "id" bigserial NOT NULL,
-    "owner_id" BIGINT NOT NULL,
-    "candidate_id" BIGINT NOT NULL,
-    "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-ALTER TABLE
-    "FavoriteCandidate" ADD CONSTRAINT "favoritecandidate_owner_id_candidate_id_unique" UNIQUE("owner_id", "candidate_id");
-ALTER TABLE
-    "FavoriteCandidate" ADD PRIMARY KEY("id");
 ALTER TABLE
     "Specialization" ADD CONSTRAINT "specialization_field_id_foreign" FOREIGN KEY("field_id") REFERENCES "Field"("id");
-ALTER TABLE
-    "Notification" ADD CONSTRAINT "notification_user_id_foreign" FOREIGN KEY("user_id") REFERENCES "User"("id");
 ALTER TABLE
     "RoleInterest" ADD CONSTRAINT "roleinterest_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id");
 ALTER TABLE
     "Project" ADD CONSTRAINT "project_owner_id_foreign" FOREIGN KEY("owner_id") REFERENCES "User"("id");
-ALTER TABLE
-    "FavoriteCandidate" ADD CONSTRAINT "favoritecandidate_owner_id_foreign" FOREIGN KEY("owner_id") REFERENCES "User"("id");
 ALTER TABLE
     "ProjectMembership" ADD CONSTRAINT "projectmembership_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id");
 ALTER TABLE
@@ -203,8 +195,6 @@ ALTER TABLE
     "FavoriteProject" ADD CONSTRAINT "favoriteproject_project_id_foreign" FOREIGN KEY("project_id") REFERENCES "Project"("id");
 ALTER TABLE
     "Project" ADD CONSTRAINT "project_field_id_foreign" FOREIGN KEY("field_id") REFERENCES "Field"("id");
-ALTER TABLE
-    "FavoriteCandidate" ADD CONSTRAINT "favoritecandidate_candidate_id_foreign" FOREIGN KEY("candidate_id") REFERENCES "User"("id");
 ALTER TABLE
     "User" ADD CONSTRAINT "user_specialization_id_foreign" FOREIGN KEY("specialization_id") REFERENCES "Specialization"("id");
 ALTER TABLE

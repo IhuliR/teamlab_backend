@@ -20,7 +20,7 @@ User -> UserSkill -> Skill
 Project -> ProjectRole -> RoleInterest -> ProjectMembership
 ```
 
-Важно: UI является приоритетным источником пользовательских сценариев, но решения должны согласовываться с доменной моделью и этим документом. Схема БД и черновой OpenAPI — реализационная база, которая может корректироваться при расхождении с продуктовой логикой.
+Важно: DOMAIN_MODEL.md является источником истины для доменной логики, lifecycle и инвариантов. OpenAPI/API-контракт является источником истины для endpoints, request/response schemas, HTTP-кодов и API-visible полей. UI-сценарии должны согласовываться с этими источниками.
 
 ---
 
@@ -40,7 +40,7 @@ TeamLab **не является**:
 * HR-системой (не ведёт найм, зарплаты, процессы рекрутинга)
 * социальной сетью (нет фокуса на ленте, подписках и коммуникации ради коммуникации)
 
-Фокус системы — discovery, matching и формирование команды.
+Фокус системы — discovery, фильтрация по структурированным данным и формирование команды.
 
 ---
 
@@ -117,6 +117,7 @@ TeamLab **не является**:
 - email
 - bio
 - account_type (`participant` / `owner`)
+- specialization_id
 - level (`junior` / `middle` / `senior`)
 - workload_hours_per_week
 - work_format (`remote` / `hybrid`)
@@ -233,6 +234,8 @@ TeamLab **не является**:
 - field_id
 - title
 - description
+- idea
+- benefits
 - status
 - created_at
 - updated_at
@@ -281,8 +284,9 @@ TeamLab **не является**:
 - project_role_id
 - source (`application` / `invitation`)
 - status (`pending` / `accepted` / `rejected`)
-- message
+- reviewed_at
 - created_at
+- updated_at
 
 **Связи:**
 - RoleInterest → User
@@ -308,7 +312,10 @@ TeamLab **не является**:
 - project_role_id
 - accepted_interest_id
 - status (`active` / `left` / `removed`)
+- joined_at
+- ended_at
 - created_at
+- updated_at
 
 **Связи:**
 - ProjectMembership → User
@@ -334,7 +341,10 @@ TeamLab **не является**:
 - task
 - solution
 - image
+- technologies
 - link
+- created_at
+- updated_at
 
 **Связи:**
 - PortfolioWork → User
@@ -365,7 +375,7 @@ TeamLab **не является**:
 
 ### Создание проекта и ролей
 
-Владелец создаёт `Project`, затем добавляет `ProjectRole`. Реальный matching происходит на уровне ролей.
+Владелец создаёт `Project`, затем добавляет `ProjectRole`. Подбор и фильтрация происходят на уровне ролей и структурированных данных.
 
 ### Отклик и решение
 
@@ -444,7 +454,7 @@ TeamLab **не является**:
 * уведомления являются UI-представлением данных из `RoleInterest` и `ProjectMembership`;
 * onboarding упрощён;
 * избранное и портфолио могут развиваться постепенно;
-* схема БД и OpenAPI — рабочая отправная точка, а не финальный контракт.
+* OpenAPI/API-контракт — источник истины для API-поверхности; DOMAIN_MODEL.md — источник истины для доменной модели.
 * восстановление пароля не реализовано и заменено статичной страницей-заглушкой;
 * избранное реализовано в упрощённом виде:
   - без папок, тегов и дополнительной логики;

@@ -2,53 +2,72 @@
 
 ## 1. Общая идея API
 
-TeamLab API — это RESTful сервис для создания и управления проектами и формирования команд. Основной поток работы: владелец создаёт проект, добавляет в него роли, участники откликаются на эти роли или получают приглашения, после принятия interest формируется участие в проекте (ProjectMembership). API позволяет работать с основными сущностями системы: `User`, `Project`, `ProjectRole`, `RoleInterest`, `ProjectMembership` и `FavoriteProject`.  
+TeamLab API — это RESTful сервис для создания и управления проектами и формирования команд. Основной поток работы: владелец создаёт проект, добавляет в него роли, участники откликаются на эти роли или получают приглашения, после принятия interest формируется участие в проекте (ProjectMembership). API позволяет работать с основными сущностями системы: `User`, `Project`, `ProjectRole`, `RoleInterest`, `ProjectMembership` и `FavoriteProject`.
 
 API построено на HTTPS/JSON с авторизацией по JWT-токенам. Каждое действие через API отражает бизнес-логику доменной модели TeamLab: создание проектов, ролей, заявок на участие и т.д.
+
+Актуальный API-контракт использует префикс `/api/v1/...`. OpenAPI-схема является источником истины для endpoints, request/response schemas, HTTP-кодов и API-visible полей.
 
 ## 2. Основные сценарии
 
 ### Регистрация и авторизация
 
-1. **Регистрация.** Фронтенд вызывает `POST /users` с данными нового пользователя (имя, email, пароль, `account_type` (`owner` или `participant`), `specialization_id` и др.). В ответ возвращается созданный объект `User` с его `id`.  
-2. **Авторизация.** Фронтенд отправляет `POST /auth/login` с email и паролем. В ответ приходит JWT-токен. Этот токен нужно передавать в заголовке `Authorization: Bearer <token>` при всех последующих запросах.  
-После получения токена фронтенд может обращаться к защищённым эндпойнтам (создание проектов, ролей, заявок и т.д.).
+1. **Регистрация.** Фронтенд вызывает `POST /api/v1/users/` с `username`, `email`, `password`, `account_type` (`owner` или `participant`). В ответе `201` возвращается созданный пользователь: `id`, `username`, `email`, `account_type`.
+2. **Авторизация.** Фронтенд отправляет `POST /api/v1/auth/token/login/` с `email` и `password`. В ответе `200` приходит `access`, `refresh` и `user` (`id`, `username`, `account_type`).
+3. **Обновление токена.** Фронтенд отправляет `POST /api/v1/auth/token/refresh/` с `refresh`. В ответе `200` приходит новый `access` и данные `user` по контракту.
+
+`access` нужно передавать в заголовке защищённых запросов:
+
+```http
+Authorization: Bearer <access>
+```
 
 ### Создание проекта
 
-Владелец (`account_type = owner`) создаёт новый проект через `POST /projects`, передавая данные проекта (название, `field_id`, описание и др.). В ответе API возвращается `id` созданного проекта. Затем владелец может получить этот проект через `GET /projects/{projectId}` или список своих проектов (`GET /users/{userId}/projects`). Проект создаётся со статусом `open`.
+Владелец (`account_type = owner`) создаёт новый проект через `POST /api/v1/projects/`, передавая `field_id`, `title`, `description` и опциональные `idea`, `benefits`. В ответе `201` API возвращает `ProjectDetail`. Получение проекта: `GET /api/v1/projects/{project_id}/`. Список проектов текущего пользователя: `GET /api/v1/users/me/projects/`. Проект создаётся со статусом `open`.
 
 ### Создание роли в проекте
 
-Владелец проекта добавляет роль в проект вызовом `POST /projects/{projectId}/roles`. В теле запроса указываются параметры роли: `specialization_id` (направление внутри поля проекта), `description`, `capacity` (количество требуемых участников) и т.п. Новая роль создаётся с `is_open = true`. Её можно получить через `GET /projects/{projectId}/roles` или `GET /roles/{roleId}`. Роль остаётся открытой (можно на неё откликаться) до тех пор, пока владелец или система не закроют её (например, когда наберётся `capacity` участников).
+Владелец проекта добавляет роль вызовом `POST /api/v1/project-roles/`. В теле запроса указываются `project_id`, `specialization_id`, `description`, `capacity`. Новая роль создаётся с `is_open = true`. Роли можно получить через `GET /api/v1/project-roles/?project_id={project_id}` или `GET /api/v1/project-roles/{role_id}/`.
 
 ### Отклик на роль (RoleInterest)
 
-Пользователь-участник (`participant`) откликается на роль вызовом `POST /projects/{projectId}/roles/{roleId}/interests`. Сервер проверяет, что проект и роль открыты, и что для пары `(user, project_role)` ещё нет существующего **RoleInterest**. Если всё верно, создаётся объект **RoleInterest** со `source = application` и статусом `pending`. Участник видит, что заявка отправлена и ожидает решения владельца.
+Пользователь-участник (`participant`) откликается на роль вызовом `POST /api/v1/project-roles/{role_id}/interests/`. Request body отсутствует. Сервер проверяет, что проект и роль открыты, и что для пары `(user, project_role)` ещё нет существующего **RoleInterest**. Если всё верно, создаётся объект **RoleInterest** со `source = application` и статусом `pending`.
 
 ### Приглашение на роль (invite)
 
-Владелец проекта может пригласить участника на роль через тот же механизм **RoleInterest**. При invite создаётся `RoleInterest` со `source = invitation` и `status = pending`. Отдельная модель `Invitation` не создаётся. Создавать invitation может только владелец проекта, а принять или отклонить invitation может только приглашённый пользователь.
+Владелец проекта приглашает участника на роль через `POST /api/v1/project-roles/{role_id}/invite/` с телом:
+
+```json
+{
+  "user_id": 2
+}
+```
+
+При invite создаётся `RoleInterest` со `source = invitation` и `status = pending`. Отдельная модель `Invitation` не создаётся. Создавать invitation может только владелец проекта, а принять или отклонить invitation может только приглашённый пользователь.
 
 ### Принятие или отклонение RoleInterest
 
-Для `source = application` владелец проекта просматривает поступившие отклики и меняет их статус. Для `source = invitation` приглашённый участник принимает или отклоняет invitation. Для этого используется `PATCH /role-interests/{interestId}` с обновлением поля `status` на `accepted` или `rejected`.  
-- При `accepted` API создаёт новую запись **ProjectMembership** (связку через `accepted_interest_id`) и переводит заявку в статус `accepted`. После этого участник считается включённым в проект.  
-- При `rejected` статус `RoleInterest` меняется на `rejected`, и дополнительных действий не происходит.  
-Если после принятия заявки заполнится `capacity`, роль автоматически закрывается (`is_open = false`).
+Для `source = application` владелец проекта принимает или отклоняет отклик. Для `source = invitation` приглашённый участник принимает или отклоняет invitation.
+
+- `POST /api/v1/role-interests/{interest_id}/accept/` переводит RoleInterest в `accepted` и возвращает созданный **ProjectMembership**.
+- `POST /api/v1/role-interests/{interest_id}/reject/` переводит RoleInterest в `rejected` и возвращает обновлённый **RoleInterest**.
+
+PATCH status flow для RoleInterest в актуальном API-контракте не используется.
 
 ### Участие в проекте (ProjectMembership)
 
-После принятия заявки появляется запись **ProjectMembership** со `status = active`. Это означает, что пользователь участвует в проекте на указанной роли. Фронтенд может получить список своих участий через `GET /users/{userId}/memberships` или увидеть участников проекта через `GET /projects/{projectId}/memberships`.  
-При необходимости участник может выйти из роли — например, отправить `PATCH /memberships/{membershipId}` с `status = left`. В MVP других операций над участием (повторное присоединение и т.д.) нет.
+После принятия interest появляется запись **ProjectMembership** со `status = active`. Фронтенд получает участия через `GET /api/v1/project-memberships/` с фильтрами `project_id`, `project_role_id`, `user_id`, `status`. Создание ProjectMembership напрямую через API отсутствует.
+
+Завершение участия выполняется через `PATCH /api/v1/project-memberships/{membership_id}/` с `status = left` или `status = removed`. Этот endpoint не создаёт membership и не меняет `accepted_interest_id`.
 
 Контакты пользователя доступны только если существует `ProjectMembership.status = active`. До активного участия контакты скрыты.
 
 ### Работа с избранным
 
-- **Участник (favorite projects):** пользователь-участник добавляет проект в избранное вызовом `POST /favorites/projects` с `project_id`. Создаётся **FavoriteProject** (`user_id`, `project_id`). Уникальность пары `(user_id, project_id)` не позволит добавить проект повторно. Удаление: `DELETE /favorites/projects/{favoriteId}`. Список избранных проектов: `GET /favorites/projects`.  
+Пользователь-участник добавляет проект в избранное вызовом `POST /api/v1/users/me/favorite-projects/` с `project_id`. Создаётся **FavoriteProject** (`user_id`, `project_id`). Удаление выполняется через `DELETE /api/v1/users/me/favorite-projects/{project_id}/`. Список избранных проектов: `GET /api/v1/users/me/favorite-projects/`.
 
-Эта механика позволяет участнику быстро получить доступ к понравившимся проектам.
+Избранное существует только для проектов участника. Избранного участников для владельца проекта в MVP нет.
 
 ### Уведомления
 
@@ -56,62 +75,148 @@ API построено на HTTPS/JSON с авторизацией по JWT-то
 
 ## 3. Ключевые сущности API
 
-- **User:** единственная сущность пользователя и его профиля. Содержит `id`, `username`, `email`, `account_type` (`participant` или `owner`), `specialization_id` и другие поля (bio, avatar и т.п.). У каждого пользователя один тип аккаунта и одна специализация (в MVP они не меняются).  
-- **Project:** карточка проекта. Поля: `id`, `owner_id`, `field_id` (категория проекта), `title`, `description`, `status` (`open`/`closed`) и др. Проект связывает владельца (`User`) и несколько ролей (`ProjectRole`).  
-- **ProjectRole:** роль в проекте. Поля: `id`, `project_id`, `specialization_id`, `description`, `capacity`, `is_open` и др. Определяет требования к участнику. Роль связана с проектом и указывает специализацию и количество требуемых человек.  
-- **RoleInterest:** интерес к роли. Поля: `id`, `user_id`, `project_role_id`, `source` (`application`/`invitation`), `status` (`pending`/`accepted`/`rejected`) и др. При `source = application` участник сам откликнулся, а решение принимает владелец; при `source = invitation` владелец пригласил участника, а решение принимает приглашённый пользователь. При создании — `pending`; после решения — `accepted` или `rejected`.  
-- **ProjectMembership:** участие в проекте после принятия отклика. Поля: `id`, `user_id`, `project_role_id`, `accepted_interest_id`, `status` (`active`/`left`/`removed`) и др. Создаётся только после `RoleInterest.status = accepted`. Отображает текущее участие пользователя в проекте.  
-- **FavoriteProject:** избранный проект (для участника). Поля: `id`, `user_id`, `project_id`. Используется только когда `account_type = participant`. Позволяет участнику помечать интересные проекты.  
+- **User:** единственная сущность пользователя и его профиля. API-visible поля публичного профиля: `id`, `username`, `bio`, `account_type`, `specialization_id`, `level`, `workload_hours_per_week`, `work_format`, `city`, `avatar`, `created_at`, `updated_at`, `skills`, `portfolio_works`. Для текущего пользователя дополнительно возвращается `email`.
+- **UserSkill:** `id`, `user_id`, `skill_id`, `level`, `created_at`, `updated_at`.
+- **PortfolioWork:** `id`, `user_id`, `title`, `task`, `solution`, `image`, `technologies`, `link`, `created_at`, `updated_at`.
+- **Project:** `id`, `owner_id`, `field_id`, `title`, `description`, `idea`, `benefits`, `status`, `created_at`, `updated_at`.
+- **ProjectRole:** `id`, `project_id`, `specialization_id`, `description`, `capacity`, `is_open`, `created_at`, `updated_at`.
+- **RoleInterest:** `id`, `user_id`, `project_role_id`, `source`, `status`, `reviewed_at`, `created_at`, `updated_at`.
+- **ProjectMembership:** `id`, `user_id`, `project_role_id`, `accepted_interest_id`, `status`, `joined_at`, `ended_at`, `created_at`, `updated_at`.
+- **FavoriteProject:** `id`, `user_id`, `project_id`, `created_at`.
 
-## 4. Важные правила API
+## 4. Endpoint reference
 
-- **RoleInterest ≠ ProjectMembership.** Отклик и участие — разные сущности: отклик создаётся первым (`pending`), а участие появляется только после его принятия.  
-- **Участие создаётся только через отклик.** Нельзя создать ProjectMembership без существующего RoleInterest.  
-- **Invite создаётся через RoleInterest.** Отдельная сущность Invitation не создаётся; invitation отличается `RoleInterest.source = invitation`.  
-- **Контакты открываются только после участия.** До `ProjectMembership.status = active` контакты пользователя скрыты.  
-- **Один пользователь — один тип аккаунта.** В MVP `account_type` задаётся при регистрации и не меняется.  
-- **Одна специализация у пользователя.** Каждый пользователь связан ровно с одной специализацией (`specialization_id`).  
-- **Избранное есть только у участника.** `FavoriteProject` используется только когда `account_type = participant`.  
+### Users and auth
+
+| Endpoint | Method | Request | Response | Codes |
+|---|---:|---|---|---|
+| `/api/v1/users/` | GET | query: `page`, `limit`, `level`, `account_type` | `PaginatedUsers` (`count`, `next`, `previous`, `results`) | 200, 400 |
+| `/api/v1/users/` | POST | `UserCreateRequest`: required `username`, `email`, `password`, `account_type` | `UserCreatedResponse` | 201, 400 |
+| `/api/v1/users/{user_id}/` | GET | path `user_id` | `UserPublic` | 200, 404 |
+| `/api/v1/users/me/` | GET | Bearer token | `CurrentUser` | 200, 401 |
+| `/api/v1/users/me/` | PATCH | `UserUpdateRequest`: optional `username`, `bio`, `specialization_id`, `level`, `workload_hours_per_week`, `work_format`, `city`, `skills` | `CurrentUser` | 200, 400, 401 |
+| `/api/v1/users/me/avatar/` | PUT | `AvatarUpdateRequest`: required `avatar` | `AvatarResponse` | 200, 400, 401 |
+| `/api/v1/users/me/avatar/` | DELETE | Bearer token | empty body | 204, 401 |
+| `/api/v1/users/set_password/` | POST | required `new_password`, `current_password` | empty body | 204, 400, 401 |
+| `/api/v1/auth/token/login/` | POST | required `email`, `password` | `access`, `refresh`, `user` | 200, 400, 401 |
+| `/api/v1/auth/token/refresh/` | POST | required `refresh` | `access`, `user` | 200, 401 |
+
+`account_type` не изменяется через пользовательский интерфейс и отсутствует в `UserUpdateRequest`.
+
+### Dictionaries
+
+| Endpoint | Method | Request | Response | Codes |
+|---|---:|---|---|---|
+| `/api/v1/skills/` | GET | query: `search`, `ordering` | array of `Skill` | 200 |
+| `/api/v1/skills/` | POST | `SkillCreateRequest`: required `name` | `Skill` | 201, 400, 401, 403 |
+| `/api/v1/specializations/` | GET | query: `search`, `field_id` | array of `Specialization` | 200 |
+| `/api/v1/specializations/` | POST | required `field_id`, `name` | `Specialization` | 201, 400, 401, 403 |
+| `/api/v1/fields/` | GET | query: `search` | array of `Field` | 200 |
+| `/api/v1/fields/` | POST | required `name` | `Field` | 201, 400, 401, 403 |
+
+### Projects and roles
+
+| Endpoint | Method | Request | Response | Codes |
+|---|---:|---|---|---|
+| `/api/v1/projects/` | GET | query: `page`, `limit`, `status`, `field_id` | `PaginatedProjects` | 200, 400 |
+| `/api/v1/projects/` | POST | required `field_id`, `title`, `description`; optional `idea`, `benefits` | `ProjectDetail` | 201, 400, 401 |
+| `/api/v1/projects/{project_id}/` | GET | path `project_id` | `ProjectDetail` | 200, 404 |
+| `/api/v1/projects/{project_id}/` | PATCH | optional `field_id`, `title`, `description`, `idea`, `benefits`, `status` | `ProjectDetail` | 200, 400, 401, 403, 404 |
+| `/api/v1/project-roles/` | GET | query: `project_id`, `specialization_id`, `is_open` | `ProjectRolesListResponse` with `results` | 200, 404 |
+| `/api/v1/project-roles/` | POST | required `project_id`, `specialization_id`, `description`, `capacity` | `ProjectRole` | 201, 400, 401, 403, 404 |
+| `/api/v1/project-roles/{role_id}/` | GET | path `role_id` | `ProjectRole` | 200, 404 |
+| `/api/v1/project-roles/{role_id}/` | PATCH | optional `specialization_id`, `description`, `capacity`, `is_open` | `ProjectRole` | 200, 400, 401, 403, 404 |
+
+### Role interests and memberships
+
+| Endpoint | Method | Request | Response | Codes |
+|---|---:|---|---|---|
+| `/api/v1/role-interests/` | GET | query: `project_role_id`, `user_id`, `source`, `status` | array of `RoleInterest` | 200, 401, 403 |
+| `/api/v1/project-roles/{role_id}/interests/` | POST | path `role_id`; no request body | `RoleInterest` | 201, 400, 401, 403, 404, 409 |
+| `/api/v1/project-roles/{role_id}/invite/` | POST | required `user_id` | `RoleInterest` | 201, 400, 401, 403, 404, 409 |
+| `/api/v1/role-interests/{interest_id}/accept/` | POST | path `interest_id`; no request body | `ProjectMembership` | 200, 400, 401, 403, 404, 409 |
+| `/api/v1/role-interests/{interest_id}/reject/` | POST | path `interest_id`; no request body | `RoleInterest` | 200, 400, 401, 403, 404 |
+| `/api/v1/project-memberships/` | GET | query: `project_id`, `project_role_id`, `user_id`, `status` | array of `ProjectMembership` | 200, 401 |
+| `/api/v1/project-memberships/{membership_id}/` | PATCH | required `status` = `left` or `removed` | `ProjectMembership` | 200, 400, 401, 403, 404 |
+
+### Current user resources
+
+| Endpoint | Method | Request | Response | Codes |
+|---|---:|---|---|---|
+| `/api/v1/users/me/projects/` | GET | query: `page`, `limit`, `status`, `relation` | `PaginatedMyProjects` | 200, 401 |
+| `/api/v1/users/me/interests/` | GET | query: `page`, `limit`, `status` | `PaginatedMyInterests` | 200, 401 |
+| `/api/v1/users/me/portfolio-works/` | GET | Bearer token | array of `PortfolioWork` | 200, 401 |
+| `/api/v1/users/me/portfolio-works/` | POST | required `title`; optional `task`, `solution`, `image`, `technologies`, `link` | `PortfolioWork` | 201, 400, 401 |
+| `/api/v1/users/me/portfolio-works/{portfolio_work_id}/` | PATCH | optional `title`, `task`, `solution`, `image`, `technologies`, `link` | `PortfolioWork` | 200, 400, 401, 404 |
+| `/api/v1/users/me/portfolio-works/{portfolio_work_id}/` | DELETE | path `portfolio_work_id` | empty body | 204, 401, 404 |
+| `/api/v1/users/me/favorite-projects/` | GET | Bearer token | array of `FavoriteProject` | 200, 401 |
+| `/api/v1/users/me/favorite-projects/` | POST | required `project_id` | `FavoriteProject` | 201, 400, 401, 403, 409 |
+| `/api/v1/users/me/favorite-projects/{project_id}/` | DELETE | path `project_id` | empty body | 204, 401, 404 |
+
+## 5. Важные правила API
+
+- **RoleInterest ≠ ProjectMembership.** Отклик и участие — разные сущности: отклик создаётся первым (`pending`), а участие появляется только после его принятия.
+- **Участие создаётся только через отклик.** Нельзя создать ProjectMembership без существующего accepted RoleInterest.
+- **Invite создаётся через RoleInterest.** Отдельная сущность Invitation не создаётся; invitation отличается `RoleInterest.source = invitation`.
+- **Контакты открываются только после участия.** До `ProjectMembership.status = active` контакты пользователя скрыты.
+- **Один пользователь — один тип аккаунта.** В MVP `account_type` задаётся при регистрации и не меняется через пользовательский интерфейс.
+- **Одна специализация у пользователя.** Каждый пользователь связан с одной специализацией (`specialization_id`), если она заполнена.
+- **Избранное есть только у участника.** `FavoriteProject` используется только когда `account_type = participant`.
 - **Уведомления — UI-представление.** Отдельная бизнес-сущность Notification и отдельный notification API в MVP не используются.
 
-## 5. Авторизация
+## 6. Авторизация
 
-TeamLab API использует JWT-токены. После входа (`POST /auth/login`) фронтенд получает токен, который нужно включать в каждый защищённый запрос:  
+TeamLab API использует JWT-токены. После входа (`POST /api/v1/auth/token/login/`) фронтенд получает `access`, `refresh` и `user`. Защищённые запросы используют:
+
+```http
+Authorization: Bearer <access>
 ```
-Authorization: Bearer <token>
-```  
-- **Неавторизованные запросы:** большинство эндпойнтов требуют токена. Без него (или с неверным токеном) попытка создания проекта, отправки отклика и т.д. приведёт к ошибке 401 Unauthorized.  
-- **Права доступа по типу аккаунта:** некоторые операции доступны только определённому аккаунту. Например, создавать проекты/роли могут только владельцы (`owner`), а откликаться на роли — только участники (`participant`). Если пользователь пытается выполнить операцию не по своему типу, API возвращает 403 Forbidden.
 
-## 6. Ошибки и ответы
+- **Неавторизованные запросы:** без токена или с неверным токеном защищённые endpoint возвращают 401 Unauthorized.
+- **Права доступа по типу аккаунта:** некоторые операции доступны только определённому аккаунту или связанному пользователю. Если пользователь пытается выполнить недоступную операцию, API возвращает 403 Forbidden.
 
-API возвращает JSON-ответы. В случае ошибки приходит HTTP-код и сообщение. Типичные коды:  
-- **400 Bad Request:** неверные или неполные данные (например, пропущены обязательные поля, превышено `capacity`, проект/роль закрыты и т.п.). В ответе есть объяснение проблемы.  
-- **401 Unauthorized:** нет токена или он недействителен. Клиент должен повторно запросить вход.  
-- **403 Forbidden:** пользователь авторизован, но не имеет прав (например, участник пытается удалить проект, или владелец откликается на свою роль).  
-- **404 Not Found:** ресурс не найден (например, проект/роль с таким `id` не существует или недоступен).  
-- **409 Conflict:** конфликт логики (например, для пары `(user, project_role)` уже есть `RoleInterest`, или проект уже добавлен в избранное).  
-Фронтенд должен обрабатывать ошибки: показывать пользователю сообщение при 400/404/409, при 401 – предлагать залогиниться, при 403 – уведомлять о недостатке прав.
+## 7. Ошибки и ответы
 
-## 7. Ограничения MVP
+API возвращает JSON-ответы. В случае ошибки приходит HTTP-код и сообщение. Типичные коды:
+- **400 Bad Request:** неверные или неполные данные, некорректное состояние объекта, закрытый проект/роль и т.п.
+- **401 Unauthorized:** нет токена, токен недействителен или истёк.
+- **403 Forbidden:** пользователь авторизован, но не имеет прав.
+- **404 Not Found:** ресурс не найден.
+- **409 Conflict:** конфликт бизнес-правил, например существующий `RoleInterest` для пары `(user, project_role)` или уже добавленный в избранное проект.
 
-- **Нет восстановления пароля.** Эндпоинтов для сброса пароля нет (есть только статическая заглушка в UI).  
-- **Нет email-уведомлений.** Никаких писем не отправляется.  
-- **Нет Notification-модели.** Уведомления строятся во фронтенде как агрегат данных из `RoleInterest` и `ProjectMembership`.  
-- **Нет сложного matching.** Нет автоматического подбора участников или рекомендаций; вся логика основана на действиях пользователей.  
-- **Нет дублей RoleInterest.** Для пары `(user, project_role)` может существовать только один `RoleInterest`.  
-- **Нет мульти-ролей.** Пользователь не может одновременно занимать две роли в одном проекте (после заполнения `capacity` роль закрывается).  
-- **Один тип аккаунта и одна специализация.** Пользователь выбирает их при регистрации и не меняет.
+Типовой формат ошибки:
 
-## 8. Практические рекомендации
+```json
+{
+  "detail": "Недостаточно прав."
+}
+```
 
-- **Content-Type и JSON:** всегда передавайте заголовок `Content-Type: application/json` и формируйте корректный JSON по спецификации.  
-- **JWT-токен в заголовке:** не забывайте вставлять полученный токен в `Authorization: Bearer <token>` для всех защищённых вызовов.  
-- **Статусы проекта/роли:** перед отправкой отклика убедитесь, что проект (`status = open`) и роль (`is_open = true`) открыты. Если нет, сервер вернёт 400.  
-- **Проверка capacity:** следите за полем `capacity` роли. Как только требуемое число участников набрано, новые отклики блокируются.  
-- **Тип аккаунта:** проверяйте `account_type` пользователя перед вызовом: не вызывайте эндпоинты, недоступные для данного типа.  
-- **Обработка ошибок:** анализируйте сообщение из ответа API и выводите понятную информацию. Например, 409 может означать, что для пары `(user, project_role)` уже есть `RoleInterest` или проект уже добавлен в избранное.  
-- **Гонки и актуальность:** после принятия заявки роль может сразу закрыться. При обновлении данных проверяйте актуальный статус ролей и проектов.  
-- **Уведомления:** показывайте новые события как агрегат данных из `RoleInterest` и `ProjectMembership`, без вызова отдельного notification API.  
-- **Фильтрация списка:** при запросе списков проектов или ролей используйте фильтры (по специализации, статусу и т.д.), чтобы получать только нужные данные.  
-- **Соответствие сценариям:** не пытайтесь обходить логику: нельзя создавать ProjectMembership напрямую или менять `accepted_interest_id` вручную. Сервер поддерживает только описанные сценарии.
+Ошибка валидации может возвращаться как объект, где ключи соответствуют именам полей:
+
+```json
+{
+  "field": ["Обязательное поле."],
+  "non_field_errors": ["Некорректное состояние объекта."]
+}
+```
+
+## 8. Ограничения MVP
+
+- **Нет восстановления пароля.** Эндпоинтов для сброса пароля нет; `POST /api/v1/users/set_password/` меняет пароль только в авторизованном состоянии.
+- **Нет email-уведомлений.** Никаких писем не отправляется.
+- **Нет Notification-модели.** Уведомления строятся во фронтенде как агрегат данных из `RoleInterest` и `ProjectMembership`.
+- **Нет сложного matching.** Нет автоматического подбора участников или рекомендаций; вся логика основана на действиях пользователей и фильтрации по структурированным данным.
+- **Нет дублей RoleInterest.** Для пары `(user, project_role)` может существовать только один `RoleInterest`.
+- **Один тип аккаунта.** Пользователь выбирает `account_type` при регистрации и не меняет его через пользовательский интерфейс.
+
+## 9. Практические рекомендации
+
+- **Content-Type и JSON:** всегда передавайте заголовок `Content-Type: application/json` и формируйте JSON по OpenAPI-контракту.
+- **JWT-токен в заголовке:** используйте `Authorization: Bearer <access>` для защищённых вызовов.
+- **Статусы проекта/роли:** перед отправкой отклика убедитесь, что проект (`status = open`) и роль (`is_open = true`) открыты.
+- **Проверка capacity:** после принятия заявки роль может закрыться, если достигнут лимит `capacity`.
+- **Тип аккаунта:** проверяйте `account_type` пользователя перед вызовом endpoint, доступных только owner или participant.
+- **Обработка ошибок:** анализируйте `detail` или объект ошибок валидации.
+- **Уведомления:** показывайте новые события как агрегат данных из `RoleInterest` и `ProjectMembership`, без вызова отдельного notification API.
+- **Соответствие сценариям:** не пытайтесь обходить логику: нельзя создавать ProjectMembership напрямую или менять `accepted_interest_id` вручную.

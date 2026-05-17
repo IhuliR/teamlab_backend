@@ -9,7 +9,8 @@
 - Простота важнее гибкости  
 - Читаемость важнее “умного кода”  
 - Явная логика важнее магии  
-- Один источник истины — доменная модель  
+- DOMAIN_MODEL.md — источник истины для доменной логики, lifecycle и инвариантов
+- OpenAPI/API-контракт — источник истины для endpoints, request/response schemas и API-visible полей
 - Любая логика должна уважать цепочку:  
   Project → ProjectRole → RoleInterest → ProjectMembership  
 - Не создавать сущности под UI-представления, например под уведомления  
@@ -243,9 +244,9 @@ HTTP-коды:
 
 Примеры:
 
-/project-roles/  
-/role-interests/  
-/project-memberships/  
+/api/v1/project-roles/
+/api/v1/role-interests/
+/api/v1/project-memberships/
 
 ---
 
