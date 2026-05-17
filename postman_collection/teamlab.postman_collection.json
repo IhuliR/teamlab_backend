@@ -26,6 +26,7 @@
                   "  pm.expect(data).to.have.property(\"account_type\", \"owner\");",
                   "});",
                   "pm.environment.set(\"owner_id\", String(data.id));",
+                  "pm.environment.set(\"owner_email\", data.email);",
                   "pm.collectionVariables.set(\"owner_id\", String(data.id));",
                   "pm.collectionVariables.set(\"owner_email\", data.email);"
                 ]
@@ -42,7 +43,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"username\":\"owner_{{$timestamp}}\",\"email\":\"owner_{{$timestamp}}@example.com\",\"password\":\"OwnerPass123!\",\"account_type\":\"owner\"}",
+              "raw": "{\"username\":\"owner_{{$timestamp}}\",\"email\":\"owner_{{$timestamp}}@example.com\",\"password\":\"{{owner_password}}\",\"account_type\":\"owner\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -77,12 +78,18 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const data = pm.response.json();",
-                  "pm.test(\"Access token returned\", function () {",
+                  "pm.test(\"JWT pair and auth user returned\", function () {",
                   "  pm.expect(data).to.have.property(\"access\");",
                   "  pm.expect(data).to.have.property(\"refresh\");",
+                  "  pm.expect(data).to.have.property(\"user\");",
+                  "  pm.expect(data.user).to.have.property(\"id\");",
+                  "  pm.expect(data.user).to.have.property(\"username\");",
+                  "  pm.expect(data.user).to.have.property(\"account_type\", \"owner\");",
                   "});",
-                  "pm.environment.set(\"auth_token\", data.access);",
-                  "pm.collectionVariables.set(\"auth_token\", data.access);"
+                  "pm.environment.set(\"access_token\", data.access);",
+                  "pm.environment.set(\"refresh_token\", data.refresh);",
+                  "pm.collectionVariables.set(\"access_token\", data.access);",
+                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
                 ]
               }
             }
@@ -97,7 +104,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"OwnerPass123!\"}",
+              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"{{owner_password}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -119,6 +126,65 @@
               ]
             },
             "description": "Получение JWT для владельца."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Access token and auth user returned\", function () {",
+                  "  pm.expect(data).to.have.property(\"access\");",
+                  "  pm.expect(data).to.have.property(\"user\");",
+                  "  pm.expect(data.user).to.have.property(\"id\");",
+                  "  pm.expect(data.user).to.have.property(\"account_type\");",
+                  "});",
+                  "pm.environment.set(\"access_token\", data.access);",
+                  "pm.collectionVariables.set(\"access_token\", data.access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refresh\":\"{{refresh_token}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token",
+                "refresh",
+                ""
+              ]
+            },
+            "description": "Обновление access-токена по refresh-токену."
           },
           "response": []
         }
@@ -169,6 +235,43 @@
           "response": []
         },
         {
+          "name": "List Skills",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Skills list returned\", function () {",
+                  "  pm.expect(data).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/skills/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "skills",
+                ""
+              ]
+            },
+            "description": "Получение Skill справочника."
+          },
+          "response": []
+        },
+        {
           "name": "Create Project",
           "event": [
             {
@@ -196,7 +299,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               },
               {
                 "key": "Content-Type",
@@ -205,7 +308,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"field_id\":{{field_id}},\"title\":\"MVP TeamLab Project\",\"description\":\"Project created from Postman flow\",\"idea\":\"Validate canonical team formation flow\",\"benefits\":\"API QA coverage\",\"status\":\"open\"}",
+              "raw": "{\"field_id\":{{field_id}},\"title\":\"MVP TeamLab Project\",\"description\":\"Project created from Postman flow\",\"idea\":\"Validate canonical team formation flow\",\"benefits\":\"API QA coverage\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -303,7 +406,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               },
               {
                 "key": "Content-Type",
@@ -312,7 +415,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"specialization_id\":{{specialization_id}},\"description\":\"Backend engineer for MVP delivery\",\"capacity\":1,\"is_open\":true}",
+              "raw": "{\"project_id\":{{project_id}},\"specialization_id\":{{specialization_id}},\"description\":\"Backend engineer for MVP delivery\",\"capacity\":1}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -320,22 +423,124 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/roles/",
+              "raw": "{{base_url}}/api/v1/project-roles/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "projects",
-                "{{project_id}}",
-                "roles",
+                "project-roles",
                 ""
               ]
             },
-            "description": "Создание роли в проекте."
+            "description": "Создание роли проекта через top-level endpoint /api/v1/project-roles/."
           },
           "response": []
+        },
+        {
+          "name": "List Project Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Project roles response returned\", function () {",
+                  "  pm.expect(data).to.have.property(\"results\");",
+                  "  pm.expect(data.results).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/project-roles/?project_id={{project_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "project-roles",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "project_id",
+                  "value": "{{project_id}}"
+                }
+              ]
+            },
+            "description": "Список ролей проекта по контрактному top-level endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Reject Project Role",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/project-roles/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "project-roles",
+                ""
+              ]
+            },
+            "description": "Создание отдельной роли для независимого reject-сценария.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"project_id\":{{project_id}},\"specialization_id\":{{specialization_id}},\"description\":\"QA reject-flow role\",\"capacity\":1}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Reject-flow role created\", function () {",
+                  "  pm.expect(data).to.have.property(\"id\");",
+                  "  pm.expect(data).to.have.property(\"project_id\");",
+                  "  pm.expect(data).to.have.property(\"is_open\", true);",
+                  "});",
+                  "pm.environment.set(\"reject_role_id\", String(data.id));",
+                  "pm.collectionVariables.set(\"reject_role_id\", String(data.id));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -360,7 +565,10 @@
                   "  pm.expect(data).to.have.property(\"account_type\", \"participant\");",
                   "});",
                   "pm.environment.set(\"user_id\", String(data.id));",
+                  "pm.environment.set(\"participant_id\", String(data.id));",
+                  "pm.environment.set(\"participant_email\", data.email);",
                   "pm.collectionVariables.set(\"user_id\", String(data.id));",
+                  "pm.collectionVariables.set(\"participant_id\", String(data.id));",
                   "pm.collectionVariables.set(\"participant_email\", data.email);"
                 ]
               }
@@ -376,7 +584,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"username\":\"participant_{{$timestamp}}\",\"email\":\"participant_{{$timestamp}}@example.com\",\"password\":\"ParticipantPass123!\",\"account_type\":\"participant\"}",
+              "raw": "{\"username\":\"participant_{{$timestamp}}\",\"email\":\"participant_{{$timestamp}}@example.com\",\"password\":\"{{participant_password}}\",\"account_type\":\"participant\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -411,12 +619,18 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const data = pm.response.json();",
-                  "pm.test(\"Participant token returned\", function () {",
+                  "pm.test(\"JWT pair and auth user returned\", function () {",
                   "  pm.expect(data).to.have.property(\"access\");",
                   "  pm.expect(data).to.have.property(\"refresh\");",
+                  "  pm.expect(data).to.have.property(\"user\");",
+                  "  pm.expect(data.user).to.have.property(\"id\");",
+                  "  pm.expect(data.user).to.have.property(\"username\");",
+                  "  pm.expect(data.user).to.have.property(\"account_type\", \"participant\");",
                   "});",
-                  "pm.environment.set(\"auth_token\", data.access);",
-                  "pm.collectionVariables.set(\"auth_token\", data.access);"
+                  "pm.environment.set(\"access_token\", data.access);",
+                  "pm.environment.set(\"refresh_token\", data.refresh);",
+                  "pm.collectionVariables.set(\"access_token\", data.access);",
+                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
                 ]
               }
             }
@@ -431,7 +645,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"ParticipantPass123!\"}",
+              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"{{participant_password}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -475,7 +689,9 @@
                   "  pm.expect(data.id).to.eql(Number(pm.environment.get(\"user_id\")));",
                   "});",
                   "pm.environment.set(\"user_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"user_id\", String(data.id));"
+                  "pm.environment.set(\"participant_id\", String(data.id));",
+                  "pm.collectionVariables.set(\"user_id\", String(data.id));",
+                  "pm.collectionVariables.set(\"participant_id\", String(data.id));"
                 ]
               }
             }
@@ -485,7 +701,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               }
             ],
             "url": {
@@ -502,6 +718,51 @@
               ]
             },
             "description": "Проверка профиля текущего участника."
+          },
+          "response": []
+        },
+        {
+          "name": "List Portfolio Works",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Portfolio works list returned\", function () {",
+                  "  pm.expect(data).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/me/portfolio-works/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me",
+                "portfolio-works",
+                ""
+              ]
+            },
+            "description": "Список работ портфолио текущего пользователя."
           },
           "response": []
         }
@@ -539,7 +800,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               }
             ],
             "url": {
@@ -561,6 +822,56 @@
           "response": []
         },
         {
+          "name": "Create Reject Role Interest",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/project-roles/{{reject_role_id}}/interests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "project-roles",
+                "{{reject_role_id}}",
+                "interests",
+                ""
+              ]
+            },
+            "description": "Создание отдельного pending RoleInterest для reject-сценария.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Reject RoleInterest created\", function () {",
+                  "  pm.expect(data).to.have.property(\"id\");",
+                  "  pm.expect(data).to.have.property(\"project_role_id\", Number(pm.environment.get(\"reject_role_id\")));",
+                  "  pm.expect(data).to.have.property(\"source\", \"application\");",
+                  "  pm.expect(data).to.have.property(\"status\", \"pending\");",
+                  "});",
+                  "pm.environment.set(\"reject_interest_id\", String(data.id));",
+                  "pm.collectionVariables.set(\"reject_interest_id\", String(data.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Switch Auth To Owner",
           "event": [
             {
@@ -572,11 +883,18 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const data = pm.response.json();",
-                  "pm.test(\"Owner token returned\", function () {",
+                  "pm.test(\"JWT pair and auth user returned\", function () {",
                   "  pm.expect(data).to.have.property(\"access\");",
+                  "  pm.expect(data).to.have.property(\"refresh\");",
+                  "  pm.expect(data).to.have.property(\"user\");",
+                  "  pm.expect(data.user).to.have.property(\"id\");",
+                  "  pm.expect(data.user).to.have.property(\"username\");",
+                  "  pm.expect(data.user).to.have.property(\"account_type\", \"owner\");",
                   "});",
-                  "pm.environment.set(\"auth_token\", data.access);",
-                  "pm.collectionVariables.set(\"auth_token\", data.access);"
+                  "pm.environment.set(\"access_token\", data.access);",
+                  "pm.environment.set(\"refresh_token\", data.refresh);",
+                  "pm.collectionVariables.set(\"access_token\", data.access);",
+                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
                 ]
               }
             }
@@ -591,7 +909,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"OwnerPass123!\"}",
+              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"{{owner_password}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -646,26 +964,70 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/project-roles/{{role_id}}/interests/{{user_id}}/accept/",
+              "raw": "{{base_url}}/api/v1/role-interests/{{interest_id}}/accept/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "project-roles",
-                "{{role_id}}",
-                "interests",
-                "{{user_id}}",
+                "role-interests",
+                "{{interest_id}}",
                 "accept",
                 ""
               ]
             },
-            "description": "Принятие отклика владельцем. Membership создаётся только после accepted RoleInterest."
+            "description": "Принятие RoleInterest владельцем. Membership создаётся только после accepted RoleInterest."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Role Interest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Pending RoleInterest rejected\", function () {",
+                  "  pm.expect(data).to.have.property(\"id\", Number(pm.environment.get(\"reject_interest_id\")));",
+                  "  pm.expect(data).to.have.property(\"status\", \"rejected\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/role-interests/{{reject_interest_id}}/reject/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "role-interests",
+                "{{reject_interest_id}}",
+                "reject",
+                ""
+              ]
+            },
+            "description": "Отклонение отдельного pending RoleInterest; не использует accepted interest из happy path."
           },
           "response": []
         }
@@ -703,22 +1065,90 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/memberships/",
+              "raw": "{{base_url}}/api/v1/project-memberships/?project_id={{project_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "projects",
-                "{{project_id}}",
-                "memberships",
+                "project-memberships",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "project_id",
+                  "value": "{{project_id}}"
+                }
+              ]
+            },
+            "description": "Проверка созданного membership через /api/v1/project-memberships/ после accepted RoleInterest.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Leave Project Membership",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/project-memberships/{{membership_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "project-memberships",
+                "{{membership_id}}",
                 ""
               ]
             },
-            "description": "Проверка созданного membership после accepted RoleInterest."
+            "description": "Завершение участия через контрактный PATCH endpoint. Не создаёт membership.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"left\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.test(\"Membership status updated\", function () {",
+                  "  pm.expect(data).to.have.property(\"id\", Number(pm.environment.get(\"membership_id\")));",
+                  "  pm.expect(data).to.have.property(\"status\", \"left\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -737,11 +1167,18 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const data = pm.response.json();",
-                  "pm.test(\"Participant token returned\", function () {",
+                  "pm.test(\"JWT pair and auth user returned\", function () {",
                   "  pm.expect(data).to.have.property(\"access\");",
+                  "  pm.expect(data).to.have.property(\"refresh\");",
+                  "  pm.expect(data).to.have.property(\"user\");",
+                  "  pm.expect(data.user).to.have.property(\"id\");",
+                  "  pm.expect(data.user).to.have.property(\"username\");",
+                  "  pm.expect(data.user).to.have.property(\"account_type\", \"participant\");",
                   "});",
-                  "pm.environment.set(\"auth_token\", data.access);",
-                  "pm.collectionVariables.set(\"auth_token\", data.access);"
+                  "pm.environment.set(\"access_token\", data.access);",
+                  "pm.environment.set(\"refresh_token\", data.refresh);",
+                  "pm.collectionVariables.set(\"access_token\", data.access);",
+                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
                 ]
               }
             }
@@ -756,7 +1193,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"ParticipantPass123!\"}",
+              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"{{participant_password}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -807,7 +1244,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               },
               {
                 "key": "Content-Type",
@@ -853,14 +1290,15 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const data = pm.response.json();",
-                  "pm.test(\"Favorite projects cards returned\", function () {",
+                  "pm.test(\"FavoriteProject list returned\", function () {",
                   "  pm.expect(data).to.be.an(\"array\");",
-                  "  const project = data.find(function (item) {",
-                  "    return String(item.id) === pm.environment.get(\"project_id\");",
+                  "  const favorite = data.find(function (item) {",
+                  "    return String(item.project_id) === pm.environment.get(\"project_id\");",
                   "  });",
-                  "  pm.expect(project).to.exist;",
-                  "  pm.expect(project).to.have.property(\"title\");",
-                  "  pm.expect(project).to.have.property(\"status\");",
+                  "  pm.expect(favorite).to.exist;",
+                  "  pm.expect(favorite).to.have.property(\"id\");",
+                  "  pm.expect(favorite).to.have.property(\"user_id\");",
+                  "  pm.expect(favorite).to.have.property(\"created_at\");",
                   "});"
                 ]
               }
@@ -871,7 +1309,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
+                "value": "Bearer {{access_token}}"
               }
             ],
             "url": {
@@ -888,110 +1326,35 @@
                 ""
               ]
             },
-            "description": "Список карточек избранных проектов."
+            "description": "Список FavoriteProject объектов текущего participant."
           },
           "response": []
         },
         {
-          "name": "Switch Auth To Owner For Candidate Favorites",
+          "name": "Delete Favorite Project",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Owner token returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "});",
-                  "pm.environment.set(\"auth_token\", data.access);",
-                  "pm.collectionVariables.set(\"auth_token\", data.access);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"OwnerPass123!\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/login/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "token",
-                "login",
-                ""
-              ]
-            },
-            "description": "Переключение токена на владельца для работы с FavoriteCandidate."
-          },
-          "response": []
-        },
-        {
-          "name": "Add Favorite Candidate",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Favorite candidate created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"candidate_id\", Number(pm.environment.get(\"user_id\")));",
-                  "  pm.expect(data).to.have.property(\"owner_id\");",
+                  "pm.test(\"Status code is 204\", function () {",
+                  "  pm.response.to.have.status(204);",
                   "});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "POST",
+            "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+                "value": "Bearer {{access_token}}"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"candidate_id\":{{user_id}}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{base_url}}/api/v1/users/me/favorite-candidates/",
+              "raw": "{{base_url}}/api/v1/users/me/favorite-projects/{{project_id}}/",
               "host": [
                 "{{base_url}}"
               ],
@@ -1000,174 +1363,12 @@
                 "v1",
                 "users",
                 "me",
-                "favorite-candidates",
+                "favorite-projects",
+                "{{project_id}}",
                 ""
               ]
             },
-            "description": "Добавление участника в избранное владельцем."
-          },
-          "response": []
-        },
-        {
-          "name": "List Favorite Candidates",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Favorite candidates cards returned\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "  const candidate = data.find(function (item) {",
-                  "    return String(item.id) === pm.environment.get(\"user_id\");",
-                  "  });",
-                  "  pm.expect(candidate).to.exist;",
-                  "  pm.expect(candidate).to.have.property(\"username\");",
-                  "  pm.expect(candidate).to.have.property(\"account_type\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/me/favorite-candidates/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "me",
-                "favorite-candidates",
-                ""
-              ]
-            },
-            "description": "Список карточек избранных кандидатов."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "item": [
-        {
-          "name": "Switch Auth To Participant For Notifications",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Participant token returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "});",
-                  "pm.environment.set(\"auth_token\", data.access);",
-                  "pm.collectionVariables.set(\"auth_token\", data.access);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"ParticipantPass123!\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/login/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "token",
-                "login",
-                ""
-              ]
-            },
-            "description": "Переключение токена на участника для проверки уведомлений."
-          },
-          "response": []
-        },
-        {
-          "name": "List Notifications",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Notifications list returned\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "  if (data.length > 0) {",
-                  "    pm.expect(data[0]).to.have.property(\"id\");",
-                  "    pm.expect(data[0]).to.have.property(\"type\");",
-                  "    pm.expect(data[0]).to.have.property(\"payload\");",
-                  "    pm.expect(data[0]).to.have.property(\"is_read\");",
-                  "  }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/me/notifications/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "me",
-                "notifications",
-                ""
-              ]
-            },
-            "description": "Проверка in-app уведомлений участника после принятия отклика."
+            "description": "Удаление проекта из избранного текущего participant."
           },
           "response": []
         }
@@ -1180,12 +1381,40 @@
       "value": "http://localhost:8000"
     },
     {
-      "key": "auth_token",
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "owner_id",
+      "value": ""
+    },
+    {
+      "key": "owner_email",
+      "value": "owner@example.test"
+    },
+    {
+      "key": "owner_password",
+      "value": "CHANGE_ME_OWNER_PASSWORD"
+    },
+    {
+      "key": "participant_id",
       "value": ""
     },
     {
       "key": "user_id",
       "value": ""
+    },
+    {
+      "key": "participant_email",
+      "value": "participant@example.test"
+    },
+    {
+      "key": "participant_password",
+      "value": "CHANGE_ME_PARTICIPANT_PASSWORD"
     },
     {
       "key": "project_id",
@@ -1196,23 +1425,19 @@
       "value": ""
     },
     {
+      "key": "reject_role_id",
+      "value": ""
+    },
+    {
       "key": "interest_id",
       "value": ""
     },
     {
+      "key": "reject_interest_id",
+      "value": ""
+    },
+    {
       "key": "membership_id",
-      "value": ""
-    },
-    {
-      "key": "owner_id",
-      "value": ""
-    },
-    {
-      "key": "owner_email",
-      "value": ""
-    },
-    {
-      "key": "participant_email",
       "value": ""
     },
     {

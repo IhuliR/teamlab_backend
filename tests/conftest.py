@@ -203,7 +203,6 @@ def project_payload(field):
         'description': 'Project description',
         'idea': 'Useful idea',
         'benefits': 'Useful benefits',
-        'status': 'open',
     }
 
 
@@ -213,7 +212,6 @@ def role_payload(specialization):
         'specialization_id': _pk_value(specialization),
         'description': 'Need one participant',
         'capacity': 1,
-        'is_open': True,
     }
 
 
@@ -290,6 +288,8 @@ def role_in_closed_project(db, closed_project, specialization):
 def role_interest(db, participant, project_role):
     role_interest_model = _model_by_name('RoleInterest')
     kwargs = {'status': 'pending'}
+    if 'source' in _field_names(role_interest_model):
+        kwargs['source'] = 'application'
     kwargs.update(_fk_kwargs(role_interest_model, 'user', participant))
     kwargs.update(_fk_kwargs(role_interest_model, 'project_role', project_role))
     return role_interest_model.objects.create(**kwargs)

@@ -13,8 +13,8 @@ def test_owner_can_create_project_role(
     response = api_request(
         owner_client,
         'post',
-        f'/api/v1/projects/{project.pk}/roles/',
-        data=role_payload,
+        '/api/v1/project-roles/',
+        data=dict(role_payload, project_id=project.pk),
     )
 
     assert response.status_code == 201
@@ -37,12 +37,14 @@ def test_project_role_capacity_must_be_positive(
     response = api_request(
         owner_client,
         'post',
-        f'/api/v1/projects/{project.pk}/roles/',
-        data=payload,
+        '/api/v1/project-roles/',
+        data=dict(payload, project_id=project.pk),
     )
 
     assert response.status_code == 400
-    assert 'capacity' in response.json()
+    data = response.json()
+    assert 'capacity' in data
+    assert isinstance(data['capacity'], list)
 
 
 def test_closed_role_rejects_new_interest(

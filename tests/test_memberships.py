@@ -13,10 +13,7 @@ def test_accept_interest_creates_project_membership(
     accept_response = api_request(
         owner_client,
         'post',
-        (
-            f'/api/v1/project-roles/{role_interest.project_role_id}/'
-            f'interests/{role_interest.user_id}/accept/'
-        ),
+        f'/api/v1/role-interests/{role_interest.pk}/accept/',
     )
 
     assert accept_response.status_code == 200
@@ -28,7 +25,8 @@ def test_accept_interest_creates_project_membership(
     list_response = api_request(
         owner_client,
         'get',
-        f'/api/v1/projects/{project.pk}/memberships/',
+        '/api/v1/project-memberships/',
+        data={'project_id': project.pk},
     )
 
     assert list_response.status_code == 200
@@ -59,11 +57,11 @@ def test_project_membership_cannot_be_created_directly(
     response = api_request(
         owner_client,
         'post',
-        f'/api/v1/projects/{project.pk}/memberships/',
+        '/api/v1/project-memberships/',
         data=payload,
     )
 
-    assert response.status_code in {403, 405}
+    assert response.status_code == 405
 
 
 def test_accept_interest_respects_role_capacity(
@@ -77,26 +75,21 @@ def test_accept_interest_respects_role_capacity(
     second_interest = role_interest_model.objects.create(
         user=second_participant,
         project_role=project_role,
+        source='application',
         status='pending',
     )
 
     first_accept_response = api_request(
         owner_client,
         'post',
-        (
-            f'/api/v1/project-roles/{role_interest.project_role_id}/'
-            f'interests/{role_interest.user_id}/accept/'
-        ),
+        f'/api/v1/role-interests/{role_interest.pk}/accept/',
     )
     assert first_accept_response.status_code == 200
 
     second_accept_response = api_request(
         owner_client,
         'post',
-        (
-            f'/api/v1/project-roles/{second_interest.project_role_id}/'
-            f'interests/{second_interest.user_id}/accept/'
-        ),
+        f'/api/v1/role-interests/{second_interest.pk}/accept/',
     )
 
-    assert second_accept_response.status_code == 400
+    assert second_accept_response.status_code == 409

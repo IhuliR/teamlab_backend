@@ -44,47 +44,27 @@ def test_duplicate_favorite_project_returns_validation_error(
         data=payload,
     )
 
-    assert second_response.status_code == 400
+    assert second_response.status_code == 409
+    data = second_response.json()
+    assert 'detail' in data
+    assert isinstance(data['detail'], str)
 
 
-def test_owner_can_add_candidate_to_favorites(
+def test_owner_cannot_add_project_to_favorites(
     owner_client,
     api_request,
-    participant,
+    project,
 ):
-    payload = {'candidate_id': participant.pk}
+    payload = {'project_id': project.pk}
 
     response = api_request(
         owner_client,
         'post',
-        '/api/v1/users/me/favorite-candidates/',
+        '/api/v1/users/me/favorite-projects/',
         data=payload,
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 403
     data = response.json()
-    assert data['candidate_id'] == participant.pk
-
-
-def test_duplicate_favorite_candidate_returns_validation_error(
-    owner_client,
-    api_request,
-    participant,
-):
-    payload = {'candidate_id': participant.pk}
-    first_response = api_request(
-        owner_client,
-        'post',
-        '/api/v1/users/me/favorite-candidates/',
-        data=payload,
-    )
-    assert first_response.status_code == 201
-
-    second_response = api_request(
-        owner_client,
-        'post',
-        '/api/v1/users/me/favorite-candidates/',
-        data=payload,
-    )
-
-    assert second_response.status_code == 400
+    assert 'detail' in data
+    assert isinstance(data['detail'], str)
