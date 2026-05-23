@@ -15,6 +15,12 @@
   Project → ProjectRole → RoleInterest → ProjectMembership  
 - Не создавать сущности под UI-представления, например под уведомления  
 - Invitation реализуется через RoleInterest.source  
+- Match не является моделью; состояние совпадения выводится из active ProjectMembership
+- IncomingInterest не является моделью; это read-only API response/view поверх RoleInterest для owner-заявок
+- ProjectRole.key_skills допустим как простой список строк для UI-чипов, но не как связь со Skill
+- contacts_visible не хранится в БД, а вычисляется для API-ответа
+- соцсети пользователя хранятся единым `User.social_links`, без отдельных backend-полей под конкретные соцсети
+- light/dark theme и прочие UI-only режимы не добавляются в API/SQL
 - Соблюдай существующий стиль проекта  
 
 ---
@@ -262,7 +268,12 @@ HTTP-коды:
 - изменение account_type  
 - новые модели вне DOMAIN_MODEL.md  
 - модели Invitation и Notification  
+- модели Match и ProjectRoleSkill
+- модели IncomingInterest
+- ManyToMany/foreign key между ProjectRole.key_skills и Skill
 - избранное участников для владельца проекта  
+- theme, grid/list view, tooltip hints и другие UI-only состояния
+- отдельные поля соцсетей вместо `social_links`
 - сущности только для UI-представлений  
 - side-effects в serializer  
 - запросы в цикле  
@@ -314,7 +325,11 @@ HTTP-коды:
 - проверять код после генерации  
 - не добавлять новые сущности  
 - не добавлять Invitation и Notification как модели  
+- не добавлять Match и ProjectRoleSkill как модели MVP  
+- не добавлять IncomingInterest как модель  
+- не нормализовывать ProjectRole.key_skills через Skill без отдельного решения  
 - не добавлять избранное участников для владельца проекта  
+- не хранить contacts_visible или UI-only состояния в SQL  
 - проверять инварианты  
 
 AI — инструмент, не источник истины.

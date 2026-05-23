@@ -36,6 +36,9 @@ Backend:
 - Уведомления не являются отдельной бизнес-сущностью.  
   UI строит их как представление данных из `RoleInterest` и `ProjectMembership`.
 
+- `IncomingInterest` не является моделью.  
+  Это read-only API response/view schema поверх `RoleInterest` для pending applications в проекты текущего owner.
+
 - Email-функционал отсутствует (включая восстановление пароля).
 
 - Сложный matching отсутствует.  
@@ -57,6 +60,12 @@ Backend:
 
 - В MVP у пользователя одна `Specialization`, но много `Skill`.
 
+- `social_links` хранится единым JSONB-полем профиля. `contacts_visible` вычисляется в API-ответе и не хранится в БД.
+
+- `search_status` описывает текущее состояние поиска пользователя и не заменяет `account_type`.
+
+- `work_format` описывает remote/hybrid, `employment_type` описывает full_time/part_time/combined.
+
 - Отклик реализуется как `RoleInterest` — интерес пользователя к конкретной `ProjectRole`.
 
 - Приглашение также реализуется через `RoleInterest`, с `source = invitation`.
@@ -68,6 +77,8 @@ Backend:
   Логика избранного остаётся простой: только добавление, удаление и список карточек.
 
 - Восстановление пароля в MVP не реализуется. Вместо этого используется статичная заглушка с информацией о том, что функция находится в разработке, и с контактом администратора.
+
+- Light/dark theme является UI-only настройкой и не входит в API/SQL-контракт MVP.
 ---
 
 ## 3. MVP Scope
@@ -82,6 +93,8 @@ Backend:
 - участие (`ProjectMembership`)
 - профиль пользователя
 - базовый поиск и фильтрация
+- `image`, `city`, `work_format` проекта для карточек и фильтров
+- `roles_preview`, `roles`, `is_favorited` и `my_*` поля ролей как read-only API-представления
 - поиск только по структурированным данным
 - избранное:
   - проекты для участников
@@ -98,6 +111,9 @@ Backend:
 - роли внутри команды
 - социальные механики
 - email-функции (включая восстановление пароля)
+- delete account endpoint
+- ProjectRoleSkill и нормализованные skill requirements ролей
+- Notification, Invitation и Match как отдельные модели
 
 ---
 
@@ -105,6 +121,10 @@ Backend:
 
 - одна специализация у пользователя
 - `technologies` — простое поле
+- `PortfolioWork.technologies` не связано с `Skill`
+- роль может иметь `ProjectRole.key_skills` как простой список строк для UI-чипов
+- `key_skills` не связано со `Skill`; нормализованные skill requirements через `Skill`/`ProjectRoleSkill` отложены
+- фильтр проектов по навыкам отложен; структурный фильтр ролей — `role_specialization_id`
 - invitation/application различаются через `RoleInterest.source`
 - нет истории изменений
 - нет soft-delete
@@ -129,6 +149,7 @@ Backend НЕ отвечает за:
 
 - управление задачами внутри проекта
 - поведение UI
+- UI-only настройки и режимы: light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, tooltip hints, режимы отображения портфолио и избранного
 - социальную сеть
 - чат
 - сложную аналитику

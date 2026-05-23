@@ -71,6 +71,54 @@ paths:
           description: Фильтрация по account_type пользователя.
           schema:
             $ref: '#/components/schemas/AccountType'
+        - name: specialization_id
+          in: query
+          required: false
+          description: Фильтрация по специализации пользователя.
+          schema:
+            type: integer
+        - name: field_id
+          in: query
+          required: false
+          description: Фильтрация через user.specialization.field_id.
+          schema:
+            type: integer
+        - name: skills
+          in: query
+          required: false
+          description: Фильтрация по навыкам пользователя через UserSkill/Skill. Формат значения определяется backend-фильтром.
+          schema:
+            type: string
+        - name: city
+          in: query
+          required: false
+          description: Фильтрация по городу пользователя.
+          schema:
+            type: string
+        - name: work_format
+          in: query
+          required: false
+          description: Фильтрация по формату работы пользователя.
+          schema:
+            $ref: '#/components/schemas/WorkFormat'
+        - name: employment_type
+          in: query
+          required: false
+          description: Фильтрация по типу занятости пользователя.
+          schema:
+            $ref: '#/components/schemas/EmploymentType'
+        - name: search_status
+          in: query
+          required: false
+          description: Фильтрация по текущему статусу поиска пользователя.
+          schema:
+            $ref: '#/components/schemas/SearchStatus'
+        - name: period
+          in: query
+          required: false
+          description: 'Фильтрация по created_at пользователя: day = 24 часа, week = 7 дней, month = 30 дней, year = 365 дней.'
+          schema:
+            $ref: '#/components/schemas/Period'
       responses:
         '200':
           description: Список пользователей
@@ -85,16 +133,13 @@ paths:
                 results:
                   - id: 2
                     username: ivan_backend
-                    bio: Backend-разработчик, который делает API для образовательных продуктов.
-                    account_type: participant
+                    avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
                     specialization_id: 1
                     level: middle
+                    city: Санкт-Петербург
                     workload_hours_per_week: 20
                     work_format: remote
-                    city: Санкт-Петербург
-                    avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
-                    created_at: '2026-03-12T09:15:00Z'
-                    updated_at: '2026-04-20T12:30:00Z'
+                    employment_type: part_time
                     skills:
                       - id: 1
                         user_id: 2
@@ -108,43 +153,16 @@ paths:
                         level: middle
                         created_at: '2026-03-12T09:21:00Z'
                         updated_at: '2026-04-01T10:05:00Z'
-                    portfolio_works:
-                      - id: 1
-                        user_id: 2
-                        title: API прогресса студентов
-                        task: Реализовать API для отслеживания прогресса группы и обратной связи наставников.
-                        solution: Спроектировали и разработали по системе REST
-                        image: 'https://cdn.teamlab.example/portfolio_images/ivan_backend.png'
-                        technologies:
-                          - Python
-                          - Django
-                        link: https://github.com/ivan-backend/student-progress-api
-                        created_at: '2026-03-18T11:00:00Z'
-                        updated_at: '2026-04-05T14:20:00Z'
-                      - id: 2
-                        user_id: 2
-                        title: Дашборд аналитики курсов
-                        task: Backend-сервисы для агрегации метрик вовлеченности на курсах.
-                        solution: Реализовали сервис на Flask с подключением различных модулей
-                        technologies:
-                          - PostgreSQL
-                          - Celery
-                          - Flask
-                        link: https://github.com/ivan-backend/course-analytics
-                        created_at: '2026-03-25T15:40:00Z'
-                        updated_at: '2026-04-12T08:35:00Z'
+                    search_status: looking_for_team
                   - id: 3
                     username: maria_ux
-                    bio: UX-дизайнер, который проектирует онбординг на основе исследований и доступности.
-                    account_type: participant
+                    avatar: https://cdn.teamlab.example/avatars/maria_ux.png
                     specialization_id: 2
                     level: middle
+                    city: Москва
                     workload_hours_per_week: 16
                     work_format: hybrid
-                    city: Москва
-                    avatar: https://cdn.teamlab.example/avatars/maria_ux.png
-                    created_at: '2026-03-14T08:10:00Z'
-                    updated_at: '2026-04-18T09:45:00Z'
+                    employment_type: combined
                     skills:
                       - id: 3
                         user_id: 3
@@ -158,29 +176,7 @@ paths:
                         level: middle
                         created_at: '2026-03-14T08:16:00Z'
                         updated_at: '2026-04-02T13:05:00Z'
-                    portfolio_works:
-                      - id: 3
-                        user_id: 3
-                        title: Сценарий подбора наставника
-                        task: Провести исследование и прототипы для подбора наставников студентам.
-                        solution: Использовали различные подходы и социологические методы.
-                        technologies:
-                          - Figma
-                          - Maze
-                        link: https://portfolio.example.com/maria/mentor-selection
-                        created_at: '2026-03-20T10:25:00Z'
-                        updated_at: '2026-04-08T16:15:00Z'
-                      - id: 4
-                        user_id: 3
-                        title: Редизайн доступной регистрации
-                        task: Модернизировать систему регистрации.
-                        solution: Реализовали улучшенный сценарий регистрации с состояниями интерфейса по WCAG. 
-                        technologies:
-                          - Figma
-                          - User Research
-                        link: https://portfolio.example.com/maria/signup-redesign
-                        created_at: '2026-03-28T12:10:00Z'
-                        updated_at: '2026-04-10T11:30:00Z'
+                    search_status: looking_for_team
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
     post:
@@ -199,6 +195,7 @@ paths:
               email: maria.ux@example.com
               password: strong-password-2026
               account_type: participant
+              specialization_id: 2
       responses:
         '201':
           description: Пользователь успешно создан
@@ -211,6 +208,7 @@ paths:
                 username: maria_ux
                 email: maria.ux@example.com
                 account_type: participant
+                specialization_id: 2
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
 
@@ -238,8 +236,12 @@ paths:
                 level: middle
                 workload_hours_per_week: 20
                 work_format: remote
+                employment_type: part_time
+                search_status: looking_for_team
                 city: Санкт-Петербург
                 avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
+                contacts_visible: false
+                social_links: null
                 created_at: '2026-03-12T09:15:00Z'
                 updated_at: '2026-04-20T12:30:00Z'
                 skills:
@@ -306,8 +308,16 @@ paths:
                 level: middle
                 workload_hours_per_week: 20
                 work_format: remote
+                employment_type: part_time
+                search_status: looking_for_team
+                profile_visibility: public
+                notifications_enabled: true
                 city: Санкт-Петербург
+                social_links:
+                  telegram: ivan_backend
+                  github: ivan-backend
                 avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
+                contacts_visible: true
                 created_at: '2026-03-12T09:15:00Z'
                 updated_at: '2026-04-20T12:30:00Z'
                 skills:
@@ -370,7 +380,14 @@ paths:
               level: middle
               workload_hours_per_week: 24
               work_format: remote
+              employment_type: part_time
+              search_status: looking_for_team
+              profile_visibility: public
+              notifications_enabled: true
               city: Санкт-Петербург
+              social_links:
+                telegram: ivan_backend
+                github: ivan-backend
               skills:
                 - skill_id: 1
                   level: advanced
@@ -393,8 +410,16 @@ paths:
                 level: middle
                 workload_hours_per_week: 24
                 work_format: remote
+                employment_type: part_time
+                search_status: looking_for_team
+                profile_visibility: public
+                notifications_enabled: true
                 city: Санкт-Петербург
+                social_links:
+                  telegram: ivan_backend
+                  github: ivan-backend
                 avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
+                contacts_visible: true
                 created_at: '2026-03-12T09:15:00Z'
                 updated_at: '2026-04-22T10:15:00Z'
                 skills:
@@ -823,7 +848,31 @@ paths:
         - name: field_id
           in: query
           required: false
-          description: Фильтрация по области.
+          description: Фильтрация по Project.field_id.
+          schema:
+            type: integer
+        - name: period
+          in: query
+          required: false
+          description: 'Фильтрация проектов по created_at: day = последние 24 часа, week = последние 7 дней, month = последние 30 дней, year = последние 365 дней.'
+          schema:
+            $ref: '#/components/schemas/Period'
+        - name: city
+          in: query
+          required: false
+          description: Фильтрация по Project.city.
+          schema:
+            type: string
+        - name: work_format
+          in: query
+          required: false
+          description: Фильтрация по Project.work_format.
+          schema:
+            $ref: '#/components/schemas/WorkFormat'
+        - name: role_specialization_id
+          in: query
+          required: false
+          description: Фильтрация проектов через ProjectRole.specialization_id.
           schema:
             type: integer
       responses:
@@ -845,7 +894,19 @@ paths:
                     description: Платформа для подбора наставников студентам и отслеживания учебных целей.
                     idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
                     benefits: Участники получают работу для портфолио и обратную связь от опытных наставников.
+                    image: https://cdn.teamlab.example/project_images/skillbridge.png
+                    city: Санкт-Петербург
+                    work_format: remote
                     status: open
+                    is_favorited: false
+                    roles_preview:
+                      - id: 1
+                        specialization_id: 1
+                        specialization_name: Backend-разработчик
+                        key_skills:
+                          - Python
+                          - Django
+                        is_open: true
                     created_at: '2026-03-10T08:00:00Z'
                     updated_at: '2026-04-21T12:00:00Z'
                   - id: 2
@@ -855,7 +916,19 @@ paths:
                     description: Сервис для координации волонтерских визитов в клиники.
                     idea: Сократить ручное планирование для координаторов медицинских НКО.
                     benefits: Волонтеры получают опыт работы над полезным продуктом.
+                    image: null
+                    city: Москва
+                    work_format: hybrid
                     status: open
+                    is_favorited: false
+                    roles_preview:
+                      - id: 3
+                        specialization_id: 3
+                        specialization_name: Мобильный разработчик
+                        key_skills:
+                          - Flutter
+                          - REST API
+                        is_open: true
                     created_at: '2026-03-16T09:30:00Z'
                     updated_at: '2026-04-19T15:45:00Z'
         '400':
@@ -879,6 +952,9 @@ paths:
               description: Веб-платформа для планирования учебных групп и воркшопов.
               idea: Дать студенческим сообществам простой способ публиковать события и искать участников.
               benefits: Участники тренируются работать в команде и выпускают публичный проект для портфолио.
+              image: null
+              city: Казань
+              work_format: hybrid
       responses:
         '201':
           description: Проект успешно создан
@@ -894,7 +970,13 @@ paths:
                 description: Веб-платформа для планирования учебных групп и воркшопов.
                 idea: Дать студенческим сообществам простой способ публиковать события и искать участников.
                 benefits: Участники тренируются работать в команде и выпускают публичный проект для портфолио.
+                image: null
+                city: Казань
+                work_format: hybrid
                 status: open
+                is_favorited: false
+                roles_preview: []
+                roles: []
                 created_at: '2026-04-24T11:00:00Z'
                 updated_at: '2026-04-24T11:00:00Z'
         '400':
@@ -925,7 +1007,37 @@ paths:
                 description: Платформа для подбора наставников студентам и отслеживания учебных целей.
                 idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
                 benefits: Участники получают работу для портфолио и обратную связь от опытных наставников.
+                image: https://cdn.teamlab.example/project_images/skillbridge.png
+                city: Санкт-Петербург
+                work_format: remote
                 status: open
+                is_favorited: true
+                roles_preview:
+                  - id: 1
+                    specialization_id: 1
+                    specialization_name: Backend-разработчик
+                    key_skills:
+                      - Python
+                      - Django
+                    is_open: true
+                roles:
+                  - id: 1
+                    project_id: 1
+                    specialization_id: 1
+                    description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
+                    key_skills:
+                      - Python
+                      - Django
+                      - PostgreSQL
+                    capacity: 2
+                    is_open: true
+                    my_interest_id: 4
+                    my_interest_status: pending
+                    my_interest_source: application
+                    my_membership_id: null
+                    my_membership_status: null
+                    created_at: '2026-03-11T09:00:00Z'
+                    updated_at: '2026-04-23T10:20:00Z'
                 created_at: '2026-03-10T08:00:00Z'
                 updated_at: '2026-04-21T12:00:00Z'
         '404':
@@ -950,6 +1062,9 @@ paths:
               description: Платформа для подбора наставников студентам и отслеживания учебных целей.
               idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
               benefits: Участники получают работу для портфолио, обратную связь наставников и опыт релиза.
+              image: https://cdn.teamlab.example/project_images/skillbridge.png
+              city: Санкт-Петербург
+              work_format: remote
               status: open
       responses:
         '200':
@@ -966,7 +1081,37 @@ paths:
                 description: Платформа для подбора наставников студентам и отслеживания учебных целей.
                 idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
                 benefits: Участники получают работу для портфолио, обратную связь наставников и опыт релиза.
+                image: https://cdn.teamlab.example/project_images/skillbridge.png
+                city: Санкт-Петербург
+                work_format: remote
                 status: open
+                is_favorited: false
+                roles_preview:
+                  - id: 1
+                    specialization_id: 1
+                    specialization_name: Backend-разработчик
+                    key_skills:
+                      - Python
+                      - Django
+                    is_open: true
+                roles:
+                  - id: 1
+                    project_id: 1
+                    specialization_id: 1
+                    description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
+                    key_skills:
+                      - Python
+                      - Django
+                      - PostgreSQL
+                    capacity: 2
+                    is_open: true
+                    my_interest_id: null
+                    my_interest_status: null
+                    my_interest_source: null
+                    my_membership_id: null
+                    my_membership_status: null
+                    created_at: '2026-03-11T09:00:00Z'
+                    updated_at: '2026-04-23T10:20:00Z'
                 created_at: '2026-03-10T08:00:00Z'
                 updated_at: '2026-04-24T12:10:00Z'
         '400':
@@ -1016,16 +1161,34 @@ paths:
                     project_id: 1
                     specialization_id: 1
                     description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
+                    key_skills:
+                      - Python
+                      - Django
+                      - PostgreSQL
                     capacity: 2
                     is_open: true
+                    my_interest_id: null
+                    my_interest_status: null
+                    my_interest_source: null
+                    my_membership_id: null
+                    my_membership_status: null
                     created_at: '2026-03-11T09:00:00Z'
                     updated_at: '2026-04-23T10:20:00Z'
                   - id: 2
                     project_id: 1
                     specialization_id: 2
                     description: UX-дизайнер для исследования онбординга и подготовки кликабельных прототипов в Figma.
+                    key_skills:
+                      - Figma
+                      - UX research
+                      - Адаптивы
                     capacity: 1
                     is_open: false
+                    my_interest_id: null
+                    my_interest_status: null
+                    my_interest_source: null
+                    my_membership_id: null
+                    my_membership_status: null
                     created_at: '2026-03-11T09:20:00Z'
                     updated_at: '2026-04-23T11:00:00Z'
         '404':
@@ -1049,6 +1212,9 @@ paths:
               project_id: 2
               specialization_id: 3
               description: Мобильный разработчик для экранов расписания волонтеров.
+              key_skills:
+                - Flutter
+                - REST API
               capacity: 2
       responses:
         '201':
@@ -1062,8 +1228,16 @@ paths:
                 project_id: 2
                 specialization_id: 3
                 description: Мобильный разработчик для экранов расписания волонтеров.
+                key_skills:
+                  - Flutter
+                  - REST API
                 capacity: 2
                 is_open: true
+                my_interest_id: null
+                my_interest_status: null
+                my_interest_source: null
+                my_membership_id: null
+                my_membership_status: null
                 created_at: '2026-04-24T12:30:00Z'
                 updated_at: '2026-04-24T12:30:00Z'
         '400':
@@ -1095,8 +1269,17 @@ paths:
                 project_id: 1
                 specialization_id: 1
                 description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
+                key_skills:
+                  - Python
+                  - Django
+                  - PostgreSQL
                 capacity: 2
                 is_open: true
+                my_interest_id: null
+                my_interest_status: null
+                my_interest_source: null
+                my_membership_id: null
+                my_membership_status: null
                 created_at: '2026-03-11T09:00:00Z'
                 updated_at: '2026-04-23T10:20:00Z'
         '404':
@@ -1118,6 +1301,10 @@ paths:
               $ref: '#/components/schemas/ProjectRoleUpdateRequest'
             example:
               description: Backend-разработчик для поддержки API, фоновых задач и аналитики проекта.
+              key_skills:
+                - Python
+                - Django
+                - Celery
               capacity: 2
               is_open: false
       responses:
@@ -1132,8 +1319,17 @@ paths:
                 project_id: 1
                 specialization_id: 1
                 description: Backend-разработчик для поддержки API, фоновых задач и аналитики проекта.
+                key_skills:
+                  - Python
+                  - Django
+                  - Celery
                 capacity: 2
                 is_open: false
+                my_interest_id: null
+                my_interest_status: null
+                my_interest_source: null
+                my_membership_id: null
+                my_membership_status: null
                 created_at: '2026-03-11T09:00:00Z'
                 updated_at: '2026-04-24T12:45:00Z'
         '400':
@@ -1530,7 +1726,19 @@ paths:
                     description: Платформа для подбора наставников студентам и отслеживания учебных целей.
                     idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
                     benefits: Участники получают работу для портфолио и обратную связь от опытных наставников.
+                    image: https://cdn.teamlab.example/project_images/skillbridge.png
+                    city: Санкт-Петербург
+                    work_format: remote
                     status: open
+                    is_favorited: false
+                    roles_preview:
+                      - id: 1
+                        specialization_id: 1
+                        specialization_name: Backend-разработчик
+                        key_skills:
+                          - Python
+                          - Django
+                        is_open: true
                     created_at: '2026-03-10T08:00:00Z'
                     updated_at: '2026-04-21T12:00:00Z'
                     relation: member
@@ -1541,7 +1749,19 @@ paths:
                     description: Сервис для координации волонтерских визитов в клиники.
                     idea: Сократить ручное планирование для координаторов медицинских НКО.
                     benefits: Волонтеры получают опыт работы над полезным продуктом.
+                    image: null
+                    city: Москва
+                    work_format: hybrid
                     status: open
+                    is_favorited: false
+                    roles_preview:
+                      - id: 3
+                        specialization_id: 3
+                        specialization_name: Мобильный разработчик
+                        key_skills:
+                          - Flutter
+                          - REST API
+                        is_open: true
                     created_at: '2026-03-22T13:00:00Z'
                     updated_at: '2026-04-20T17:30:00Z'
                     relation: member
@@ -1595,6 +1815,78 @@ paths:
                     updated_at: '2026-04-24T13:00:00Z'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+
+  /api/v1/users/me/incoming-interests/:
+    get:
+      tags: [Me]
+      summary: Получить входящие заявки owner
+      description: |
+        Возвращает pending-заявки на роли проектов текущего owner:
+        `RoleInterest.source = application`, `RoleInterest.status = pending`,
+        `project_role.project.owner = request.user`.
+        Endpoint не создаёт отдельную Notification-сущность.
+      operationId: listMyIncomingInterests
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Список входящих заявок текущего owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedIncomingInterests'
+              example:
+                count: 1
+                next: null
+                previous: null
+                results:
+                  - id: 4
+                    source: application
+                    status: pending
+                    reviewed_at: null
+                    created_at: '2026-04-24T13:00:00Z'
+                    user:
+                      id: 2
+                      username: ivan_backend
+                      avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
+                      specialization_id: 1
+                      level: middle
+                      city: Санкт-Петербург
+                      workload_hours_per_week: 20
+                      work_format: remote
+                      employment_type: part_time
+                      search_status: looking_for_team
+                      skills:
+                        - id: 1
+                          user_id: 2
+                          skill_id: 1
+                          level: advanced
+                          created_at: '2026-03-12T09:20:00Z'
+                          updated_at: '2026-04-01T10:00:00Z'
+                    project:
+                      id: 2
+                      title: Карта волонтерских маршрутов CareRoute
+                      image: null
+                      city: Москва
+                      work_format: hybrid
+                      status: open
+                    project_role:
+                      id: 3
+                      project_id: 2
+                      specialization_id: 3
+                      description: Мобильный разработчик для экранов расписания волонтеров.
+                      key_skills:
+                        - Flutter
+                        - REST API
+                      capacity: 2
+                      is_open: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/users/me/portfolio-works/:
     get:
@@ -1971,10 +2263,65 @@ components:
 
     WorkFormat:
       type: string
-      description: Предпочитаемый формат работы.
+      description: 'Формат работы/участия: remote или hybrid. Не путать с User.employment_type.'
       enum:
         - remote
         - hybrid
+
+    EmploymentType:
+      type: string
+      description: Тип занятости или доступности пользователя.
+      enum:
+        - full_time
+        - part_time
+        - combined
+
+    SearchStatus:
+      type: string
+      description: Текущий статус поиска пользователя. Не заменяет account_type.
+      enum:
+        - looking_for_team
+        - looking_for_members
+        - not_looking
+
+    ProfileVisibility:
+      type: string
+      description: Настройка видимости профиля текущего пользователя.
+      enum:
+        - public
+        - matched_only
+        - hidden
+
+    Period:
+      type: string
+      description: Период фильтрации по created_at.
+      enum:
+        - day
+        - week
+        - month
+        - year
+
+    SocialLinks:
+      type: object
+      description: |
+        Соцсети пользователя как единое поле профиля. Разрешены только ключи:
+        instagram, telegram, github, behance, vk.
+      additionalProperties: false
+      properties:
+        instagram:
+          type: string
+        telegram:
+          type: string
+        github:
+          type: string
+        behance:
+          type: string
+        vk:
+          type: string
+      example:
+        telegram: asheskali
+        github: asheskali
+        behance: asheskali
 
     UserSkillLevel:
       type: string
@@ -2370,12 +2717,71 @@ components:
           maxLength: 150
         account_type:
           $ref: '#/components/schemas/AccountType'
+
+    UserListItem:
+      type: object
+      description: |
+        Карточка пользователя в списке. Не содержит social_links; контакты раскрываются только в публичном профиле при contacts_visible = true.
+      required:
+        - id
+        - username
+        - avatar
+        - specialization_id
+        - level
+        - city
+        - workload_hours_per_week
+        - work_format
+        - employment_type
+        - skills
+        - search_status
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        specialization_id:
+          type: integer
+          nullable: true
+        level:
+          allOf:
+            - $ref: '#/components/schemas/UserLevel'
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        workload_hours_per_week:
+          type: integer
+          nullable: true
+        work_format:
+          allOf:
+            - $ref: '#/components/schemas/WorkFormat'
+          nullable: true
+        employment_type:
+          allOf:
+            - $ref: '#/components/schemas/EmploymentType'
+          nullable: true
+        skills:
+          type: array
+          description: Preview/list навыков пользователя.
+          items:
+            $ref: '#/components/schemas/UserSkill'
+        search_status:
+          allOf:
+            - $ref: '#/components/schemas/SearchStatus'
+          nullable: true
         
     UserPublic:
       type: object
       description: |
         Публичный профиль пользователя. Контакты скрыты до активного участия:
-        contacts доступны только если между сторонами существует ProjectMembership.status = active.
+        contacts_visible вычисляется на backend и не хранится в БД. social_links возвращается как null,
+        если contacts_visible = false.
       required:
         - id
         - username
@@ -2385,8 +2791,12 @@ components:
         - level
         - workload_hours_per_week
         - work_format
+        - employment_type
+        - search_status
         - city
         - avatar
+        - contacts_visible
+        - social_links
         - created_at
         - updated_at
         - skills
@@ -2417,6 +2827,14 @@ components:
           allOf:
             - $ref: '#/components/schemas/WorkFormat'
           nullable: true
+        employment_type:
+          allOf:
+            - $ref: '#/components/schemas/EmploymentType'
+          nullable: true
+        search_status:
+          allOf:
+            - $ref: '#/components/schemas/SearchStatus'
+          nullable: true
         city:
           type: string
           nullable: true
@@ -2424,6 +2842,18 @@ components:
           type: string
           format: uri
           nullable: true
+        contacts_visible:
+          type: boolean
+          readOnly: true
+          description: |
+            Вычисляемое поле. false для anonymous; true для собственного профиля;
+            true для owner, если profile user имеет active ProjectMembership в проекте этого owner;
+            false при отсутствии active ProjectMembership.
+        social_links:
+          allOf:
+            - $ref: '#/components/schemas/SocialLinks'
+          nullable: true
+          description: Возвращается как null, если contacts_visible = false.
         created_at:
           type: string
           format: date-time
@@ -2449,8 +2879,12 @@ components:
         level: middle
         workload_hours_per_week: 20
         work_format: remote
+        employment_type: part_time
+        search_status: looking_for_team
         city: Санкт-Петербург
         avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
+        contacts_visible: false
+        social_links: null
         created_at: '2026-03-12T09:15:00Z'
         updated_at: '2026-04-20T12:30:00Z'
         skills:
@@ -2477,8 +2911,8 @@ components:
     CurrentUser:
       type: object
       description: |
-        Профиль текущего пользователя. Контакты других пользователей скрыты до active ProjectMembership;
-        contacts доступны только если существует ProjectMembership.status = active между сторонами.
+        Профиль текущего пользователя. Текущий пользователь всегда видит свои social_links.
+        contacts_visible вычисляется на backend и не хранится в БД.
       required:
         - id
         - username
@@ -2489,8 +2923,14 @@ components:
         - level
         - workload_hours_per_week
         - work_format
+        - employment_type
+        - search_status
+        - profile_visibility
+        - notifications_enabled
         - city
+        - social_links
         - avatar
+        - contacts_visible
         - created_at
         - updated_at
         - skills
@@ -2525,13 +2965,32 @@ components:
           allOf:
             - $ref: '#/components/schemas/WorkFormat'
           nullable: true
+        employment_type:
+          allOf:
+            - $ref: '#/components/schemas/EmploymentType'
+          nullable: true
+        search_status:
+          allOf:
+            - $ref: '#/components/schemas/SearchStatus'
+          nullable: true
+        profile_visibility:
+          $ref: '#/components/schemas/ProfileVisibility'
+        notifications_enabled:
+          type: boolean
+          description: Настройка пользователя, не Notification-модель.
         city:
           type: string
           nullable: true
+        social_links:
+          $ref: '#/components/schemas/SocialLinks'
         avatar:
           type: string
           format: uri
           nullable: true
+        contacts_visible:
+          type: boolean
+          readOnly: true
+          description: Для собственного профиля текущего пользователя возвращается true.
         created_at:
           type: string
           format: date-time
@@ -2558,8 +3017,16 @@ components:
         level: middle
         workload_hours_per_week: 20
         work_format: remote
+        employment_type: part_time
+        search_status: looking_for_team
+        profile_visibility: public
+        notifications_enabled: true
         city: Санкт-Петербург
+        social_links:
+          telegram: ivan_backend
+          github: ivan-backend
         avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
+        contacts_visible: true
         created_at: '2026-03-12T09:15:00Z'
         updated_at: '2026-04-20T12:30:00Z'
         skills:
@@ -2605,6 +3072,11 @@ components:
           minLength: 1
         account_type:
           $ref: '#/components/schemas/AccountType'
+        specialization_id:
+          type: integer
+          nullable: true
+          description: |
+            Опциональная специализация при регистрации. Если не передана, профиль можно заполнить позже через PATCH /api/v1/users/me/.
 
     UserCreatedResponse:
       type: object
@@ -2613,6 +3085,7 @@ components:
         - username
         - email
         - account_type
+        - specialization_id
       properties:
         id:
           type: integer
@@ -2625,6 +3098,9 @@ components:
           format: email
         account_type:
           $ref: '#/components/schemas/AccountType'
+        specialization_id:
+          type: integer
+          nullable: true
 
     UserUpdateRequest:
       type: object
@@ -2650,9 +3126,19 @@ components:
           nullable: true
         work_format:
           $ref: '#/components/schemas/WorkFormat'
+        employment_type:
+          $ref: '#/components/schemas/EmploymentType'
+        search_status:
+          $ref: '#/components/schemas/SearchStatus'
+        profile_visibility:
+          $ref: '#/components/schemas/ProfileVisibility'
+        notifications_enabled:
+          type: boolean
         city:
           type: string
           nullable: true
+        social_links:
+          $ref: '#/components/schemas/SocialLinks'
         skills:
           type: array
           description: Список навыков пользователя с уровнями. Полностью заменяет текущий список.
@@ -2749,7 +3235,12 @@ components:
         - description
         - idea
         - benefits
+        - image
+        - city
+        - work_format
         - status
+        - is_favorited
+        - roles_preview
         - created_at
         - updated_at
       properties:
@@ -2771,8 +3262,30 @@ components:
         benefits:
           type: string
           nullable: true
+        image:
+          type: string
+          format: uri
+          nullable: true
+          description: Изображение/обложка проекта для карточек.
+        city:
+          type: string
+          nullable: true
+        work_format:
+          allOf:
+            - $ref: '#/components/schemas/WorkFormat'
+          nullable: true
         status:
           $ref: '#/components/schemas/ProjectStatus'
+        is_favorited:
+          type: boolean
+          readOnly: true
+          description: true только для authenticated participant, добавившего проект в избранное; для anonymous/owner false.
+        roles_preview:
+          type: array
+          readOnly: true
+          description: Краткий список ролей проекта для карточки.
+          items:
+            $ref: '#/components/schemas/ProjectRolePreview'
         created_at:
           type: string
           format: date-time
@@ -2789,13 +3302,35 @@ components:
         description: Платформа для подбора наставников студентам и отслеживания учебных целей.
         idea: Помочь начинающим разработчикам найти наставничество в проектных командах.
         benefits: Участники получают работу для портфолио и обратную связь.
+        image: https://cdn.teamlab.example/project_images/skillbridge.png
+        city: Санкт-Петербург
+        work_format: remote
         status: open
+        is_favorited: false
+        roles_preview:
+          - id: 1
+            specialization_id: 1
+            specialization_name: Backend-разработчик
+            key_skills:
+              - Python
+              - Django
+            is_open: true
         created_at: '2026-03-10T08:00:00Z'
         updated_at: '2026-04-21T12:00:00Z'
 
     ProjectDetail:
       allOf:
         - $ref: '#/components/schemas/ProjectListItem'
+        - type: object
+          required:
+            - roles
+          properties:
+            roles:
+              type: array
+              readOnly: true
+              description: Полный список ролей проекта с UI-состояниями текущего пользователя.
+              items:
+                $ref: '#/components/schemas/ProjectRole'
 
     ProjectCreateRequest:
       type: object
@@ -2818,6 +3353,15 @@ components:
         benefits:
           type: string
           nullable: true
+        image:
+          type: string
+          nullable: true
+          description: URL/string изображения проекта. Загрузка файла требует отдельной backend-реализации.
+        city:
+          type: string
+          nullable: true
+        work_format:
+          $ref: '#/components/schemas/WorkFormat'
 
     ProjectUpdateRequest:
       type: object
@@ -2836,8 +3380,45 @@ components:
         benefits:
           type: string
           nullable: true
+        image:
+          type: string
+          nullable: true
+          description: URL/string изображения проекта. Загрузка файла требует отдельной backend-реализации.
+        city:
+          type: string
+          nullable: true
+        work_format:
+          $ref: '#/components/schemas/WorkFormat'
         status:
           $ref: '#/components/schemas/ProjectStatus'
+
+    ProjectRolePreview:
+      type: object
+      description: Краткое read-only представление роли проекта для карточки проекта.
+      required:
+        - id
+        - specialization_id
+        - specialization_name
+        - key_skills
+        - is_open
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        specialization_id:
+          type: integer
+        specialization_name:
+          type: string
+          readOnly: true
+          nullable: true
+        key_skills:
+          type: array
+          readOnly: true
+          description: Простой список строк для UI-чипов; не связан со Skill.
+          items:
+            type: string
+        is_open:
+          type: boolean
 
     ProjectRole:
       type: object
@@ -2846,8 +3427,14 @@ components:
         - project_id
         - specialization_id
         - description
+        - key_skills
         - capacity
         - is_open
+        - my_interest_id
+        - my_interest_status
+        - my_interest_source
+        - my_membership_id
+        - my_membership_status
         - created_at
         - updated_at
       properties:
@@ -2861,11 +3448,41 @@ components:
           type: integer
         description:
           type: string
+        key_skills:
+          type: array
+          description: Простой список строк для UI-чипов; не связан со Skill и не создаёт ProjectRoleSkill.
+          items:
+            type: string
         capacity:
           type: integer
           minimum: 1
         is_open:
           type: boolean
+        my_interest_id:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: Вычисляется из RoleInterest текущего пользователя для этой ProjectRole; null для anonymous или без заявки.
+        my_interest_status:
+          allOf:
+            - $ref: '#/components/schemas/RoleInterestStatus'
+          nullable: true
+          readOnly: true
+        my_interest_source:
+          allOf:
+            - $ref: '#/components/schemas/RoleInterestSource'
+          nullable: true
+          readOnly: true
+        my_membership_id:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: Вычисляется из ProjectMembership текущего пользователя для этой ProjectRole; null при отсутствии участия.
+        my_membership_status:
+          allOf:
+            - $ref: '#/components/schemas/ProjectMembershipStatus'
+          nullable: true
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -2879,8 +3496,17 @@ components:
         project_id: 1
         specialization_id: 1
         description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
+        key_skills:
+          - Python
+          - Django
+          - PostgreSQL
         capacity: 2
         is_open: true
+        my_interest_id: null
+        my_interest_status: null
+        my_interest_source: null
+        my_membership_id: null
+        my_membership_status: null
         created_at: '2026-03-11T09:00:00Z'
         updated_at: '2026-04-23T10:20:00Z'
 
@@ -2899,6 +3525,11 @@ components:
         description:
           type: string
           minLength: 1
+        key_skills:
+          type: array
+          description: Опциональный простой список строк для UI-чипов; не связан со Skill.
+          items:
+            type: string
         capacity:
           type: integer
           minimum: 1
@@ -2911,11 +3542,116 @@ components:
         description:
           type: string
           minLength: 1
+        key_skills:
+          type: array
+          description: Опциональный простой список строк для UI-чипов; не связан со Skill.
+          items:
+            type: string
         capacity:
           type: integer
           minimum: 1
         is_open:
           type: boolean
+
+    IncomingInterestProject:
+      type: object
+      description: Краткое read-only представление проекта для входящей заявки owner.
+      required:
+        - id
+        - title
+        - image
+        - city
+        - work_format
+        - status
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+        image:
+          type: string
+          format: uri
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        work_format:
+          allOf:
+            - $ref: '#/components/schemas/WorkFormat'
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+
+    IncomingInterestProjectRole:
+      type: object
+      description: Краткое read-only представление роли для входящей заявки owner.
+      required:
+        - id
+        - project_id
+        - specialization_id
+        - description
+        - key_skills
+        - capacity
+        - is_open
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project_id:
+          type: integer
+          readOnly: true
+        specialization_id:
+          type: integer
+        description:
+          type: string
+        key_skills:
+          type: array
+          description: Простой список строк для UI-чипов; не связан со Skill.
+          items:
+            type: string
+        capacity:
+          type: integer
+          minimum: 1
+        is_open:
+          type: boolean
+
+    IncomingInterest:
+      type: object
+      description: |
+        Read-only API-представление входящей owner-заявки поверх RoleInterest.
+        Не является отдельной бизнес-сущностью или моделью.
+      required:
+        - id
+        - source
+        - status
+        - created_at
+        - reviewed_at
+        - user
+        - project
+        - project_role
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        source:
+          $ref: '#/components/schemas/RoleInterestSource'
+        status:
+          $ref: '#/components/schemas/RoleInterestStatus'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        user:
+          $ref: '#/components/schemas/UserListItem'
+        project:
+          $ref: '#/components/schemas/IncomingInterestProject'
+        project_role:
+          $ref: '#/components/schemas/IncomingInterestProjectRole'
 
     ProjectRolesListResponse:
       type: object
@@ -3077,7 +3813,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/UserPublic'
+            $ref: '#/components/schemas/UserListItem'
 
     PaginatedProjects:
       type: object
@@ -3147,3 +3883,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RoleInterest'
+
+    PaginatedIncomingInterests:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncomingInterest'

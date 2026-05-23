@@ -94,7 +94,55 @@ View должны лишь обрабатывать запросы и вызыв
 
 ### Ответ
 
-Контакты пользователя доступны только после подтверждённого участия: должен существовать `ProjectMembership` со `status = active`. До этого контакты скрыты, даже если есть pending RoleInterest или invitation.
+Контакты пользователя доступны только после подтверждённого участия: должен существовать `ProjectMembership` со `status = active`. До этого контакты скрыты, даже если есть pending RoleInterest или invitation. API возвращает вычисляемое поле `contacts_visible`; оно не хранится в БД. Соцсети хранятся в `User.social_links`, но в публичном профиле возвращаются как `null`, если `contacts_visible = false`.
+
+### Вопрос
+
+Что такое social_links?
+
+### Ответ
+
+`social_links` — единое JSONB-поле профиля пользователя для соцсетей. Разрешённые ключи: `instagram`, `telegram`, `github`, `behance`, `vk`. Отдельные поля или отдельная модель соцсетей в MVP не используются.
+
+### Вопрос
+
+Чем отличаются account_type, search_status, work_format и employment_type?
+
+### Ответ
+
+`account_type` задаёт основной сценарий пользователя: `participant` или `owner`. `search_status` показывает текущее состояние поиска: ищет команду, ищет участников или не ищет. `work_format` описывает remote/hybrid, а `employment_type` — full_time/part_time/combined.
+
+### Вопрос
+
+Как owner видит входящие заявки?
+
+### Ответ
+
+Колокольчик owner должен вести на заявки, то есть на `RoleInterest(source = application, status = pending)` в ролях проектов текущего owner. В контракте для этого есть `GET /api/v1/users/me/incoming-interests/`. Ответ возвращает read-only `IncomingInterest`: данные заявки, краткую карточку кандидата, краткую карточку проекта и краткую карточку роли. Отдельные модели `Notification` и `IncomingInterest` не создаются.
+
+### Вопрос
+
+Есть ли Match или Invitation как отдельные сущности?
+
+### Ответ
+
+Нет. Invitation реализуется через `RoleInterest.source = invitation`. “Метч” выводится из `ProjectMembership(status = active)`. Отдельные модели `Invitation` и `Match` не добавляются.
+
+### Вопрос
+
+Как описывать ключевые навыки роли проекта?
+
+### Ответ
+
+В MVP у роли есть `ProjectRole.key_skills` — простой список строк для UI-чипов, например `["Figma", "UX research", "Адаптивы"]`. Это поле не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`. Полноценную нормализацию требований роли и skill-based фильтрацию проектов можно добавить позже.
+
+### Вопрос
+
+Что из макетов остаётся UI-only?
+
+### Ответ
+
+Light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, 404, политика персональных данных, tooltip hints, режимы отображения портфолио и избранного не являются backend-сущностями и не добавляются в API/SQL.
 
 ### Вопрос
 

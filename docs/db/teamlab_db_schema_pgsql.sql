@@ -30,14 +30,15 @@ CREATE TABLE "User"(
     "level" VARCHAR(20) NULL,
     "workload_hours_per_week" SMALLINT NULL,
     "work_format" VARCHAR(20) NULL,
+    "employment_type" VARCHAR(20) NULL,
+    "search_status" VARCHAR(30) NULL,
+    "profile_visibility" VARCHAR(20) NOT NULL DEFAULT 'public',
+    "notifications_enabled" BOOLEAN NOT NULL DEFAULT TRUE,
     "city" VARCHAR(255) NULL,
     "avatar" VARCHAR(255) NULL,
+    "social_links" JSONB NOT NULL DEFAULT '{}',
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "theme" VARCHAR(20) NOT NULL DEFAULT 'light',
-    "telegram" VARCHAR(100) NULL,
-    "instagram" VARCHAR(100) NULL,
-    "behance" VARCHAR(100) NULL,
     "is_superuser" BOOLEAN NOT NULL DEFAULT FALSE
 );
 ALTER TABLE
@@ -53,9 +54,13 @@ ALTER TABLE
 ALTER TABLE
     "User" ADD CONSTRAINT "user_work_format_check" CHECK ("work_format" IS NULL OR "work_format" IN ('remote', 'hybrid'));
 ALTER TABLE
-    "User" ADD CONSTRAINT "user_workload_hours_check" CHECK ("workload_hours_per_week" IS NULL OR "workload_hours_per_week" >= 0);
+    "User" ADD CONSTRAINT "user_employment_type_check" CHECK ("employment_type" IS NULL OR "employment_type" IN ('full_time', 'part_time', 'combined'));
 ALTER TABLE
-    "User" ADD CONSTRAINT "user_theme_check" CHECK ("theme" IN ('light', 'dark'));
+    "User" ADD CONSTRAINT "user_search_status_check" CHECK ("search_status" IS NULL OR "search_status" IN ('looking_for_team', 'looking_for_members', 'not_looking'));
+ALTER TABLE
+    "User" ADD CONSTRAINT "user_profile_visibility_check" CHECK ("profile_visibility" IN ('public', 'matched_only', 'hidden'));
+ALTER TABLE
+    "User" ADD CONSTRAINT "user_workload_hours_check" CHECK ("workload_hours_per_week" IS NULL OR "workload_hours_per_week" >= 0);
 CREATE TABLE "Skill"(
     "id" bigserial NOT NULL,
     "name" VARCHAR(255) NOT NULL,
@@ -88,6 +93,9 @@ CREATE TABLE "Project"(
     "description" TEXT NOT NULL,
     "idea" TEXT NULL,
     "benefits" TEXT NULL,
+    "image" VARCHAR(255) NULL,
+    "city" VARCHAR(255) NULL,
+    "work_format" VARCHAR(20) NULL,
     "status" VARCHAR(20) NOT NULL DEFAULT 'open',
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -96,6 +104,8 @@ ALTER TABLE
     "Project" ADD PRIMARY KEY("id");
 ALTER TABLE
     "Project" ADD CONSTRAINT "project_status_check" CHECK ("status" IN ('open', 'closed'));
+ALTER TABLE
+    "Project" ADD CONSTRAINT "project_work_format_check" CHECK ("work_format" IS NULL OR "work_format" IN ('remote', 'hybrid'));
 CREATE INDEX "project_owner_id_index" ON
     "Project"("owner_id");
 CREATE INDEX "project_field_id_index" ON
@@ -105,6 +115,7 @@ CREATE TABLE "ProjectRole"(
     "project_id" BIGINT NOT NULL,
     "specialization_id" BIGINT NOT NULL,
     "description" TEXT NOT NULL,
+    "key_skills" JSONB NOT NULL DEFAULT '[]',
     "capacity" SMALLINT NOT NULL,
     "is_open" BOOLEAN NOT NULL DEFAULT TRUE,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

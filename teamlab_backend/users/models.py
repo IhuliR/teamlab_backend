@@ -92,6 +92,7 @@ class User(AbstractUser):
         blank=True,
         verbose_name='Город'
     )
+    social_links = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -173,7 +174,7 @@ class PortfolioWork(models.Model):
         blank=True,
         verbose_name='Задача'
     )
-    desigion = models.TextField(
+    solution = models.TextField(
         max_length=MAX_DESIGION_LEN,
         null=True,
         blank=True,
@@ -185,12 +186,10 @@ class PortfolioWork(models.Model):
         blank=True,
         verbose_name='Изображение работы портфолио'
     )
+    technologies = models.JSONField(blank=True, null=True)
+    link = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-
-class Notification(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Favorite_Project(models.Model):
@@ -205,8 +204,4 @@ class Favorite_Project(models.Model):
         related_name='favorited_by',
         verbose_name='Проект'
     )
-    
-
-
-class Favorite_User(models.Model):
-    ...
+    created_at = models.DateTimeField(auto_now_add=True)

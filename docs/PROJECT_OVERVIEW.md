@@ -66,7 +66,7 @@ TeamLab **не является**:
 
 ### Пользователь поддерживает профиль
 
-Профиль — рабочий источник данных для поиска и принятия решений. Пользователь обновляет `bio`, навыки с уровнями, специализацию, портфолио, загрузку, формат работы и уровень.
+Профиль — рабочий источник данных для поиска и принятия решений. Пользователь обновляет `bio`, навыки с уровнями, специализацию, портфолио, загрузку, формат работы, тип занятости, статус поиска, город, соцсети и уровень.
 
 ### Пользователь возвращается к интересным объектам
 
@@ -121,8 +121,13 @@ TeamLab **не является**:
 - level (`junior` / `middle` / `senior`)
 - workload_hours_per_week
 - work_format (`remote` / `hybrid`)
+- employment_type (`full_time` / `part_time` / `combined`)
+- search_status (`looking_for_team` / `looking_for_members` / `not_looking`)
+- profile_visibility (`public` / `matched_only` / `hidden`)
+- notifications_enabled
 - city
 - avatar
+- social_links
 - created_at
 - updated_at
 
@@ -141,6 +146,10 @@ TeamLab **не является**:
 - один аккаунт не поддерживает одновременное выполнение обоих сценариев;
 
 - архитектура допускает совмещение ролей в будущем без изменения сущности `User`;
+- `search_status` не заменяет `account_type`: account_type задаёт основной сценарий, search_status — текущее состояние поиска;
+- `work_format` не равен `employment_type`: work_format = remote/hybrid, employment_type = full_time/part_time/combined;
+- `social_links` хранит соцсети единым полем профиля с ключами `instagram`, `telegram`, `github`, `behance`, `vk`;
+- `contacts_visible` не хранится в БД и вычисляется в API-ответе;
 
 ---
 
@@ -236,6 +245,9 @@ TeamLab **не является**:
 - description
 - idea
 - benefits
+- image
+- city
+- work_format
 - status
 - created_at
 - updated_at
@@ -247,6 +259,8 @@ TeamLab **не является**:
 
 **Ограничения:**
 - у проекта один владелец
+- `image` используется как обложка карточки проекта
+- `city` и `work_format` используются для фильтрации проектов
 
 ---
 
@@ -260,6 +274,7 @@ TeamLab **не является**:
 - project_id
 - specialization_id
 - description
+- key_skills
 - capacity
 
 **Связи:**
@@ -270,6 +285,9 @@ TeamLab **не является**:
 
 **Ограничения:**
 - capacity ≥ 1
+- в MVP роль может иметь `key_skills` как простой список строк для UI-чипов
+- `key_skills` не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`
+- нормализованные skill requirements через `Skill`/`ProjectRoleSkill` отложены
 
 ---
 
@@ -326,6 +344,7 @@ TeamLab **не является**:
 - уникальность (user_id, project_role_id)
 - создаётся только после accepted RoleInterest
 - контакты пользователя доступны только при `ProjectMembership.status = active`
+- “метч” выводится из active ProjectMembership и не хранится как отдельная сущность
 
 ---
 
@@ -348,6 +367,10 @@ TeamLab **не является**:
 
 **Связи:**
 - PortfolioWork → User
+
+**Примечание:**
+- `technologies` — простой массив строк/JSONB-поле MVP
+- `technologies` не связано с `Skill` и не является ManyToMany
 
 ---
 
@@ -393,8 +416,10 @@ TeamLab **не является**:
 
 Поиск НЕ должен опираться на свободный текст без структуры
 Поиск опирается на нормализованные данные (`Field`, `Specialization`, `Skill`).
+Список проектов фильтруется по `status`, `field_id`, `period`, `city`, `work_format`, `role_specialization_id`; полноценная skill-based фильтрация ролей отложена.
+Список пользователей фильтруется по `level`, `account_type`, `specialization_id`, `field_id`, `skills`, `city`, `work_format`, `employment_type`, `search_status`, `period`.
 `FavoriteProject` — быстрый возврат участника к сохранённым проектам.
-Уведомления — UI-представление изменений в основном потоке на основе `RoleInterest` и `ProjectMembership`.
+Уведомления — UI-представление изменений в основном потоке на основе `RoleInterest` и `ProjectMembership`. `IncomingInterest` для owner-заявок является read-only API-представлением `RoleInterest`, а не отдельной сущностью.
 
 ---
 
@@ -442,6 +467,8 @@ TeamLab **не является**:
 * **`RoleInterest` и `ProjectMembership` — разные стадии и не должны сливаться.**
 * **Invitation реализуется через `RoleInterest.source`, без отдельной модели.**
 * **Контакты пользователя открываются только при `ProjectMembership.status = active`.**
+* **`contacts_visible` вычисляется и не хранится в БД.**
+* **FavoriteProject существует только для participant; у owner нет избранного и “сердечек”.**
 * **Изменения статусов должны быть явными, а не побочными эффектами UI.**
 
 ---
@@ -450,8 +477,11 @@ TeamLab **не является**:
 
 * нет email-сервиса;
 * нет восстановления пароля;
+* нет delete account endpoint;
+* нет Notification, Invitation, Match и ProjectRoleSkill как отдельных моделей;
 * часть функций может быть заглушками;
 * уведомления являются UI-представлением данных из `RoleInterest` и `ProjectMembership`;
+* light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, 404, политика персональных данных, tooltip hints, режимы отображения портфолио и избранного являются UI-only;
 * onboarding упрощён;
 * избранное и портфолио могут развиваться постепенно;
 * OpenAPI/API-контракт — источник истины для API-поверхности; DOMAIN_MODEL.md — источник истины для доменной модели.

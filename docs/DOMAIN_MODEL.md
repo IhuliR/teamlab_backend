@@ -46,8 +46,13 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - level (`junior` / `middle` / `senior`)
 - workload_hours_per_week
 - work_format (`remote` / `hybrid`)
+- employment_type (`full_time` / `part_time` / `combined`)
+- search_status (`looking_for_team` / `looking_for_members` / `not_looking`)
+- profile_visibility (`public` / `matched_only` / `hidden`)
+- notifications_enabled
 - city
 - avatar
+- social_links
 - created_at
 - updated_at
 
@@ -66,6 +71,12 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - архитектура допускает расширение в будущем
 - в MVP у пользователя одна специализация  
 - в будущем возможно расширение до нескольких специализаций (через ManyToMany), если появится продуктовая необходимость
+- `account_type` определяет основной сценарий пользователя, а `search_status` отражает текущее состояние поиска и не заменяет `account_type`
+- `work_format` описывает remote/hybrid, а `employment_type` описывает доступность full_time/part_time/combined
+- `social_links` хранит соцсети пользователя единым JSONB-полем с ключами `instagram`, `telegram`, `github`, `behance`, `vk`
+- `contacts_visible` не хранится в БД; это вычисляемое read-only поле API
+- публичный профиль возвращает `social_links = null`, пока контакты не открыты через active ProjectMembership
+- `profile_visibility` и `notifications_enabled` — настройки пользователя; отдельная Notification-модель не появляется
 
 ---
 
@@ -165,6 +176,9 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - description
 - idea
 - benefits
+- image
+- city
+- work_format (`remote` / `hybrid`)
 - status (`open` / `closed`)
 - created_at
 - updated_at
@@ -179,6 +193,8 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - всегда есть owner
 - всегда есть field  
 - при status = `closed` новые отклики и создание ролей запрещены
+- `image` используется как cover/card image проекта
+- `city` и `work_format` используются для фильтрации проектов
 
 ---
 
@@ -192,6 +208,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - project_id
 - specialization_id
 - description
+- key_skills
 - capacity
 - is_open
 - created_at
@@ -208,6 +225,9 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - при is_open = false новые отклики запрещены  
 - роль может быть закрыта независимо от статуса проекта  
 - если проект закрыт (`Project.status = closed`), роль считается закрытой независимо от is_open
+- в MVP `ProjectRole.key_skills` — простое JSONB/array-of-strings поле для UI-чипов
+- `key_skills` не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`
+- нормализованные skill requirements через `Skill`/`ProjectRoleSkill` отложены за пределы MVP
 
 ---
 
@@ -278,6 +298,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - количество активных участников не превышает capacity  
 - проект определяется через project_role (без отдельного FK)
 - контакты пользователя доступны только при `ProjectMembership.status = active`
+- “метч” не является отдельной сущностью; он выводится из active ProjectMembership
 
 ---
 
@@ -302,7 +323,8 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - PortfolioWork → User
 
 **Примечание:**
-- в MVP `technologies` хранится как простое поле (строка/список)
+- в MVP `technologies` хранится как простое JSONB-поле/массив строк
+- `technologies` не связано с `Skill` и не является ManyToMany
 - в будущем может быть нормализовано через связь с Skill
 
 ---
@@ -361,7 +383,7 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 
 ### ProjectRole
 - создание: добавляется в проект
-- изменение: description, capacity, is_open
+- изменение: description, key_skills, capacity, is_open
 - завершение: закрытие роли
 
 ### RoleInterest
@@ -408,14 +430,21 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 - UserSkill уникален
 - FavoriteProject уникален (user_id, project_id)
 - contacts доступны только при active membership
+- contacts_visible вычисляется, но не хранится в БД
+- FavoriteProject существует только для participant; у owner нет избранного и “сердечек” в UI
 
 ---
 
 ## 7. Спорные зоны
 
 - одна или несколько специализаций у пользователя (расширяемо)
-- навыки для ролей отсутствуют
+- нормализованные skill requirements для ролей отсутствуют
+- `ProjectRole.key_skills` существует как простое JSONB/array-of-strings поле для UI-чипов
+- `key_skills` не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`
+- связь ProjectRole ↔ Skill / ProjectRoleSkill отложена за пределы MVP
 - technologies в PortfolioWork не нормализованы
+- фильтрация проектов по нормализованным skill requirements отложена; основной структурный фильтр ролей в MVP — role_specialization_id
+- `profile_visibility` есть как настройка пользователя, но backend-фильтрация профилей по ней может быть реализована позже
 - нет ролей внутри команды
 - повторные RoleInterest для одной пары (user, project_role) могут потребоваться в будущем, но в MVP не поддерживаются
 
@@ -426,12 +455,18 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 - нет email-сервиса
 - нет восстановления пароля
 - уведомления не являются отдельной бизнес-сущностью; UI строит их как представление данных из RoleInterest и ProjectMembership
+- `IncomingInterest` не является доменной моделью; это read-only API response/view поверх `RoleInterest` для owner-заявок (`source = application`, `status = pending`, project owner = request.user)
 - приглашения реализуются через RoleInterest.source, без отдельной Invitation-модели
 - нет сложного matching
-- нет требований навыков
+- нет нормализованных skill requirements через Skill/ProjectRoleSkill
+- нет ProjectRoleSkill
 - нет истории откликов
 - повторные RoleInterest для одной пары (user, project_role) не поддерживаются
 - нет сложной социальной логики
+- нет Notification, Invitation и Match как отдельных моделей
+- нет email-уведомлений и password reset flow
+- light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, 404, политика персональных данных, tooltip hints, режимы отображения портфолио и избранного остаются UI-only
+- удаление аккаунта остаётся out of MVP / placeholder без API endpoint
 
 ---
 

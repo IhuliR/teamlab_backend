@@ -78,6 +78,26 @@
 Правило: Не позволяй owner принимать или отклонять invitation за участника  
 Как проверить: acceptance invitation делает только invited user
 
+**20. Контакты и соцсети**
+Правило: Не храни `contacts_visible` в БД; вычисляй его из request.user и active ProjectMembership. `User.social_links` — единое JSONB-поле с ключами `instagram`, `telegram`, `github`, `behance`, `vk`.
+Как проверить: В diff нет отдельных telegram/instagram/behance/vk/github полей и нет DB-колонки contacts_visible.
+
+**21. UI-only настройки**
+Правило: Не добавляй theme, grid/list view, FAQ accordion, tooltip hints, режимы отображения портфолио/избранного и другие UI-only состояния в API/SQL.
+Как проверить: В diff нет новых backend-полей и endpoint под эти элементы.
+
+**22. ProjectRole skills**
+Правило: Не добавляй ProjectRoleSkill в MVP. `ProjectRole.key_skills` допустим только как простое JSONB/array-of-strings поле для UI-чипов; не превращай его в связь со Skill без отдельного доменного решения.
+Как проверить: В diff нет модели/таблицы/API-схемы ProjectRoleSkill и нет ManyToMany между ProjectRole и Skill.
+
+**23. Match как сущность**
+Правило: Не создавай Match-модель; “метч” выводится из ProjectMembership.status = active.
+Как проверить: В diff нет модели/таблицы/API endpoint Match.
+
+**24. IncomingInterest как модель**
+Правило: Не создавай IncomingInterest-модель. IncomingInterest — только read-only API response/view schema поверх RoleInterest для owner-заявок.
+Как проверить: В diff нет модели/таблицы IncomingInterest; endpoint читает RoleInterest с source=application, status=pending и owner-фильтром.
+
 ---
 
 ## 2. Базовые правила
@@ -95,6 +115,12 @@
 - Не добавляй избранное участников для владельца проекта  
 - Не создавай Invitation-модель  
 - Не создавай Notification-модель  
+- Не создавай Match-модель  
+- Не создавай ProjectRoleSkill в MVP  
+- Не создавай IncomingInterest-модель  
+- Не превращай ProjectRole.key_skills в связь со Skill  
+- Не добавляй theme и UI-only состояния в API/SQL  
+- Не храни contacts_visible в БД  
 - Не открывай contacts без active ProjectMembership  
 - Не создавай invitation не от owner  
 - Не позволяй owner принимать invitation за участника  
@@ -107,6 +133,10 @@
 - Запрещено добавлять новые модели без изменения DOMAIN_MODEL.md  
 - Запрещено реализовывать скрытые состояния вне явных статусов  
 - Запрещено создавать отдельные модели Invitation и Notification  
+- Запрещено создавать отдельную модель Match  
+- Запрещено создавать ProjectRoleSkill в MVP  
+- Запрещено создавать IncomingInterest как модель или таблицу  
+- Запрещено хранить contacts_visible и UI-only состояния в SQL  
 - Запрещено открывать контакты без active membership  
 - Запрещено принимать invitation от имени owner  
 
