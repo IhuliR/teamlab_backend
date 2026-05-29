@@ -93,7 +93,8 @@ Backend:
 - участие (`ProjectMembership`)
 - профиль пользователя
 - базовый поиск и фильтрация
-- `image`, `city`, `work_format` проекта для карточек и фильтров
+- `image` проекта для карточек
+- `ProjectRoleSkill` для требований роли к навыкам и фильтрации проектов по `skills`
 - `roles_preview`, `roles`, `is_favorited` и `my_*` поля ролей как read-only API-представления
 - поиск только по структурированным данным
 - избранное:
@@ -112,7 +113,6 @@ Backend:
 - социальные механики
 - email-функции (включая восстановление пароля)
 - delete account endpoint
-- ProjectRoleSkill и нормализованные skill requirements ролей
 - Notification, Invitation и Match как отдельные модели
 
 ---
@@ -122,9 +122,10 @@ Backend:
 - одна специализация у пользователя
 - `technologies` — простое поле
 - `PortfolioWork.technologies` не связано с `Skill`
-- роль может иметь `ProjectRole.key_skills` как простой список строк для UI-чипов
-- `key_skills` не связано со `Skill`; нормализованные skill requirements через `Skill`/`ProjectRoleSkill` отложены
-- фильтр проектов по навыкам отложен; структурный фильтр ролей — `role_specialization_id`
+- роль хранит `tasks` и `benefits` как массивы строк
+- требования роли к навыкам нормализованы через `ProjectRoleSkill`
+- `city` и `work_format` остаются характеристиками пользователя, а не проекта
+- фильтр проектов по навыкам работает через `ProjectRoleSkill.skill_id`; структурный фильтр ролей — `role_specialization_id`
 - invitation/application различаются через `RoleInterest.source`
 - нет истории изменений
 - нет soft-delete

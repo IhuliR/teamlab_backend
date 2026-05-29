@@ -857,24 +857,19 @@ paths:
           description: 'Фильтрация проектов по created_at: day = последние 24 часа, week = последние 7 дней, month = последние 30 дней, year = последние 365 дней.'
           schema:
             $ref: '#/components/schemas/Period'
-        - name: city
-          in: query
-          required: false
-          description: Фильтрация по Project.city.
-          schema:
-            type: string
-        - name: work_format
-          in: query
-          required: false
-          description: Фильтрация по Project.work_format.
-          schema:
-            $ref: '#/components/schemas/WorkFormat'
         - name: role_specialization_id
           in: query
           required: false
           description: Фильтрация проектов через ProjectRole.specialization_id.
           schema:
             type: integer
+        - name: skills
+          in: query
+          required: false
+          description: 'Фильтрация проектов по требованиям ролей через ProjectRoleSkill.skill_id. Формат: comma-separated skill ids, например `skills=1,2,3`.'
+          schema:
+            type: string
+            example: '1,2,3'
       responses:
         '200':
           description: Список проектов
@@ -892,20 +887,25 @@ paths:
                     field_id: 1
                     title: Платформа наставничества SkillBridge
                     description: Платформа для подбора наставников студентам и отслеживания учебных целей.
-                    idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
-                    benefits: Участники получают работу для портфолио и обратную связь от опытных наставников.
+                    problem: Начинающим разработчикам сложно найти структурированное наставничество в проектных командах.
                     image: https://cdn.teamlab.example/project_images/skillbridge.png
-                    city: Санкт-Петербург
-                    work_format: remote
                     status: open
                     is_favorited: false
                     roles_preview:
                       - id: 1
                         specialization_id: 1
                         specialization_name: Backend-разработчик
-                        key_skills:
-                          - Python
-                          - Django
+                        skills:
+                          - id: 1
+                            skill_id: 1
+                            name: Python
+                            description: Разработка REST API и бизнес-логики.
+                            order: 1
+                          - id: 2
+                            skill_id: 2
+                            name: Django
+                            description: Работа с Django ORM и DRF.
+                            order: 2
                         is_open: true
                     created_at: '2026-03-10T08:00:00Z'
                     updated_at: '2026-04-21T12:00:00Z'
@@ -914,20 +914,25 @@ paths:
                     field_id: 2
                     title: Карта волонтерских маршрутов CareRoute
                     description: Сервис для координации волонтерских визитов в клиники.
-                    idea: Сократить ручное планирование для координаторов медицинских НКО.
-                    benefits: Волонтеры получают опыт работы над полезным продуктом.
+                    problem: Координаторы медицинских НКО тратят много времени на ручное планирование маршрутов.
                     image: null
-                    city: Москва
-                    work_format: hybrid
                     status: open
                     is_favorited: false
                     roles_preview:
                       - id: 3
                         specialization_id: 3
                         specialization_name: Мобильный разработчик
-                        key_skills:
-                          - Flutter
-                          - REST API
+                        skills:
+                          - id: 7
+                            skill_id: 7
+                            name: Flutter
+                            description: Реализация мобильных экранов.
+                            order: 1
+                          - id: 8
+                            skill_id: 8
+                            name: REST API
+                            description: Интеграция приложения с backend.
+                            order: 2
                         is_open: true
                     created_at: '2026-03-16T09:30:00Z'
                     updated_at: '2026-04-19T15:45:00Z'
@@ -950,11 +955,8 @@ paths:
               field_id: 1
               title: Планировщик учебных встреч
               description: Веб-платформа для планирования учебных групп и воркшопов.
-              idea: Дать студенческим сообществам простой способ публиковать события и искать участников.
-              benefits: Участники тренируются работать в команде и выпускают публичный проект для портфолио.
+              problem: Студенческим сообществам сложно публиковать события и быстро находить участников.
               image: null
-              city: Казань
-              work_format: hybrid
       responses:
         '201':
           description: Проект успешно создан
@@ -968,11 +970,8 @@ paths:
                 field_id: 1
                 title: Планировщик учебных встреч
                 description: Веб-платформа для планирования учебных групп и воркшопов.
-                idea: Дать студенческим сообществам простой способ публиковать события и искать участников.
-                benefits: Участники тренируются работать в команде и выпускают публичный проект для портфолио.
+                problem: Студенческим сообществам сложно публиковать события и быстро находить участников.
                 image: null
-                city: Казань
-                work_format: hybrid
                 status: open
                 is_favorited: false
                 roles_preview: []
@@ -1005,31 +1004,52 @@ paths:
                 field_id: 1
                 title: Платформа наставничества SkillBridge
                 description: Платформа для подбора наставников студентам и отслеживания учебных целей.
-                idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
-                benefits: Участники получают работу для портфолио и обратную связь от опытных наставников.
+                problem: Начинающим разработчикам сложно найти структурированное наставничество в проектных командах.
                 image: https://cdn.teamlab.example/project_images/skillbridge.png
-                city: Санкт-Петербург
-                work_format: remote
                 status: open
                 is_favorited: true
                 roles_preview:
                   - id: 1
                     specialization_id: 1
                     specialization_name: Backend-разработчик
-                    key_skills:
-                      - Python
-                      - Django
+                    skills:
+                      - id: 1
+                        skill_id: 1
+                        name: Python
+                        description: Разработка REST API и бизнес-логики.
+                        order: 1
+                      - id: 2
+                        skill_id: 2
+                        name: Django
+                        description: Работа с Django ORM и DRF.
+                        order: 2
                     is_open: true
                 roles:
                   - id: 1
                     project_id: 1
                     specialization_id: 1
-                    description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
-                    key_skills:
-                      - Python
-                      - Django
-                      - PostgreSQL
-                    capacity: 2
+                    tasks:
+                      - Разработать REST API проекта.
+                      - Настроить модели PostgreSQL и сценарии откликов.
+                    benefits:
+                      - Опыт проектирования backend для командного продукта.
+                      - Работа для портфолио.
+                    skills:
+                      - id: 1
+                        skill_id: 1
+                        name: Python
+                        description: Разработка REST API и бизнес-логики.
+                        order: 1
+                      - id: 2
+                        skill_id: 2
+                        name: Django
+                        description: Работа с Django ORM и DRF.
+                        order: 2
+                      - id: 3
+                        skill_id: 3
+                        name: PostgreSQL
+                        description: Проектирование схемы и запросов.
+                        order: 3
                     is_open: true
                     my_interest_id: 4
                     my_interest_status: pending
@@ -1060,11 +1080,8 @@ paths:
             example:
               title: Платформа наставничества SkillBridge
               description: Платформа для подбора наставников студентам и отслеживания учебных целей.
-              idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
-              benefits: Участники получают работу для портфолио, обратную связь наставников и опыт релиза.
+              problem: Начинающим разработчикам сложно найти структурированное наставничество в проектных командах.
               image: https://cdn.teamlab.example/project_images/skillbridge.png
-              city: Санкт-Петербург
-              work_format: remote
               status: open
       responses:
         '200':
@@ -1079,31 +1096,52 @@ paths:
                 field_id: 1
                 title: Платформа наставничества SkillBridge
                 description: Платформа для подбора наставников студентам и отслеживания учебных целей.
-                idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
-                benefits: Участники получают работу для портфолио, обратную связь наставников и опыт релиза.
+                problem: Начинающим разработчикам сложно найти структурированное наставничество в проектных командах.
                 image: https://cdn.teamlab.example/project_images/skillbridge.png
-                city: Санкт-Петербург
-                work_format: remote
                 status: open
                 is_favorited: false
                 roles_preview:
                   - id: 1
                     specialization_id: 1
                     specialization_name: Backend-разработчик
-                    key_skills:
-                      - Python
-                      - Django
+                    skills:
+                      - id: 1
+                        skill_id: 1
+                        name: Python
+                        description: Разработка REST API и бизнес-логики.
+                        order: 1
+                      - id: 2
+                        skill_id: 2
+                        name: Django
+                        description: Работа с Django ORM и DRF.
+                        order: 2
                     is_open: true
                 roles:
                   - id: 1
                     project_id: 1
                     specialization_id: 1
-                    description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
-                    key_skills:
-                      - Python
-                      - Django
-                      - PostgreSQL
-                    capacity: 2
+                    tasks:
+                      - Разработать REST API проекта.
+                      - Настроить модели PostgreSQL и сценарии откликов.
+                    benefits:
+                      - Опыт проектирования backend для командного продукта.
+                      - Работа для портфолио.
+                    skills:
+                      - id: 1
+                        skill_id: 1
+                        name: Python
+                        description: Разработка REST API и бизнес-логики.
+                        order: 1
+                      - id: 2
+                        skill_id: 2
+                        name: Django
+                        description: Работа с Django ORM и DRF.
+                        order: 2
+                      - id: 3
+                        skill_id: 3
+                        name: PostgreSQL
+                        description: Проектирование схемы и запросов.
+                        order: 3
                     is_open: true
                     my_interest_id: null
                     my_interest_status: null
@@ -1160,12 +1198,28 @@ paths:
                   - id: 1
                     project_id: 1
                     specialization_id: 1
-                    description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
-                    key_skills:
-                      - Python
-                      - Django
-                      - PostgreSQL
-                    capacity: 2
+                    tasks:
+                      - Разработать REST API проекта.
+                      - Настроить модели PostgreSQL и сценарии откликов.
+                    benefits:
+                      - Опыт проектирования backend для командного продукта.
+                      - Работа для портфолио.
+                    skills:
+                      - id: 1
+                        skill_id: 1
+                        name: Python
+                        description: Разработка REST API и бизнес-логики.
+                        order: 1
+                      - id: 2
+                        skill_id: 2
+                        name: Django
+                        description: Работа с Django ORM и DRF.
+                        order: 2
+                      - id: 3
+                        skill_id: 3
+                        name: PostgreSQL
+                        description: Проектирование схемы и запросов.
+                        order: 3
                     is_open: true
                     my_interest_id: null
                     my_interest_status: null
@@ -1177,12 +1231,27 @@ paths:
                   - id: 2
                     project_id: 1
                     specialization_id: 2
-                    description: UX-дизайнер для исследования онбординга и подготовки кликабельных прототипов в Figma.
-                    key_skills:
-                      - Figma
-                      - UX research
-                      - Адаптивы
-                    capacity: 1
+                    tasks:
+                      - Провести исследование онбординга.
+                      - Подготовить кликабельные прототипы в Figma.
+                    benefits:
+                      - Кейсы для UX-портфолио.
+                    skills:
+                      - id: 4
+                        skill_id: 4
+                        name: Figma
+                        description: Проектирование экранов и прототипов.
+                        order: 1
+                      - id: 5
+                        skill_id: 5
+                        name: UX research
+                        description: Интервью и анализ сценариев пользователей.
+                        order: 2
+                      - id: 6
+                        skill_id: 6
+                        name: Адаптивы
+                        description: Подготовка макетов под мобильные и desktop-экраны.
+                        order: 3
                     is_open: false
                     my_interest_id: null
                     my_interest_status: null
@@ -1211,11 +1280,18 @@ paths:
             example:
               project_id: 2
               specialization_id: 3
-              description: Мобильный разработчик для экранов расписания волонтеров.
-              key_skills:
-                - Flutter
-                - REST API
-              capacity: 2
+              tasks:
+                - Реализовать экраны расписания волонтеров.
+                - Интегрировать мобильное приложение с backend API.
+              benefits:
+                - Опыт разработки социально значимого мобильного продукта.
+              skills:
+                - skill_id: 7
+                  description: Реализация мобильных экранов.
+                  order: 1
+                - skill_id: 8
+                  description: Интеграция приложения с backend.
+                  order: 2
       responses:
         '201':
           description: Роль успешно создана
@@ -1227,11 +1303,22 @@ paths:
                 id: 3
                 project_id: 2
                 specialization_id: 3
-                description: Мобильный разработчик для экранов расписания волонтеров.
-                key_skills:
-                  - Flutter
-                  - REST API
-                capacity: 2
+                tasks:
+                  - Реализовать экраны расписания волонтеров.
+                  - Интегрировать мобильное приложение с backend API.
+                benefits:
+                  - Опыт разработки социально значимого мобильного продукта.
+                skills:
+                  - id: 7
+                    skill_id: 7
+                    name: Flutter
+                    description: Реализация мобильных экранов.
+                    order: 1
+                  - id: 8
+                    skill_id: 8
+                    name: REST API
+                    description: Интеграция приложения с backend.
+                    order: 2
                 is_open: true
                 my_interest_id: null
                 my_interest_status: null
@@ -1268,12 +1355,28 @@ paths:
                 id: 1
                 project_id: 1
                 specialization_id: 1
-                description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
-                key_skills:
-                  - Python
-                  - Django
-                  - PostgreSQL
-                capacity: 2
+                tasks:
+                  - Разработать REST API проекта.
+                  - Настроить модели PostgreSQL и сценарии откликов.
+                benefits:
+                  - Опыт проектирования backend для командного продукта.
+                  - Работа для портфолио.
+                skills:
+                  - id: 1
+                    skill_id: 1
+                    name: Python
+                    description: Разработка REST API и бизнес-логики.
+                    order: 1
+                  - id: 2
+                    skill_id: 2
+                    name: Django
+                    description: Работа с Django ORM и DRF.
+                    order: 2
+                  - id: 3
+                    skill_id: 3
+                    name: PostgreSQL
+                    description: Проектирование схемы и запросов.
+                    order: 3
                 is_open: true
                 my_interest_id: null
                 my_interest_status: null
@@ -1300,12 +1403,21 @@ paths:
             schema:
               $ref: '#/components/schemas/ProjectRoleUpdateRequest'
             example:
-              description: Backend-разработчик для поддержки API, фоновых задач и аналитики проекта.
-              key_skills:
-                - Python
-                - Django
-                - Celery
-              capacity: 2
+              tasks:
+                - Поддерживать API проекта.
+                - Настроить фоновые задачи и аналитику.
+              benefits:
+                - Практика поддержки production-like backend.
+              skills:
+                - skill_id: 1
+                  description: Поддержка API и бизнес-логики.
+                  order: 1
+                - skill_id: 2
+                  description: Работа с Django ORM и DRF.
+                  order: 2
+                - skill_id: 9
+                  description: Настройка фоновых задач.
+                  order: 3
               is_open: false
       responses:
         '200':
@@ -1318,12 +1430,27 @@ paths:
                 id: 1
                 project_id: 1
                 specialization_id: 1
-                description: Backend-разработчик для поддержки API, фоновых задач и аналитики проекта.
-                key_skills:
-                  - Python
-                  - Django
-                  - Celery
-                capacity: 2
+                tasks:
+                  - Поддерживать API проекта.
+                  - Настроить фоновые задачи и аналитику.
+                benefits:
+                  - Практика поддержки production-like backend.
+                skills:
+                  - id: 1
+                    skill_id: 1
+                    name: Python
+                    description: Поддержка API и бизнес-логики.
+                    order: 1
+                  - id: 2
+                    skill_id: 2
+                    name: Django
+                    description: Работа с Django ORM и DRF.
+                    order: 2
+                  - id: 9
+                    skill_id: 9
+                    name: Celery
+                    description: Настройка фоновых задач.
+                    order: 3
                 is_open: false
                 my_interest_id: null
                 my_interest_status: null
@@ -1515,7 +1642,7 @@ paths:
                 id: 2
                 user_id: 3
                 project_role_id: 2
-                accepted_interest_id: 2
+                role_interest_id: 2
                 status: active
                 joined_at: '2026-04-23T11:00:00Z'
                 ended_at: null
@@ -1618,7 +1745,7 @@ paths:
                 - id: 1
                   user_id: 2
                   project_role_id: 1
-                  accepted_interest_id: 1
+                  role_interest_id: 1
                   status: active
                   joined_at: '2026-04-20T14:00:00Z'
                   ended_at: null
@@ -1627,7 +1754,7 @@ paths:
                 - id: 2
                   user_id: 3
                   project_role_id: 2
-                  accepted_interest_id: 2
+                  role_interest_id: 2
                   status: active
                   joined_at: '2026-04-21T09:30:00Z'
                   ended_at: null
@@ -1667,7 +1794,7 @@ paths:
                 id: 2
                 user_id: 3
                 project_role_id: 2
-                accepted_interest_id: 2
+                role_interest_id: 2
                 status: left
                 joined_at: '2026-04-23T11:00:00Z'
                 ended_at: '2026-04-25T09:00:00Z'
@@ -1724,20 +1851,25 @@ paths:
                     field_id: 1
                     title: Платформа наставничества SkillBridge
                     description: Платформа для подбора наставников студентам и отслеживания учебных целей.
-                    idea: Помочь начинающим разработчикам найти структурированное наставничество в небольших проектных командах.
-                    benefits: Участники получают работу для портфолио и обратную связь от опытных наставников.
+                    problem: Начинающим разработчикам сложно найти структурированное наставничество в проектных командах.
                     image: https://cdn.teamlab.example/project_images/skillbridge.png
-                    city: Санкт-Петербург
-                    work_format: remote
                     status: open
                     is_favorited: false
                     roles_preview:
                       - id: 1
                         specialization_id: 1
                         specialization_name: Backend-разработчик
-                        key_skills:
-                          - Python
-                          - Django
+                        skills:
+                          - id: 1
+                            skill_id: 1
+                            name: Python
+                            description: Разработка REST API и бизнес-логики.
+                            order: 1
+                          - id: 2
+                            skill_id: 2
+                            name: Django
+                            description: Работа с Django ORM и DRF.
+                            order: 2
                         is_open: true
                     created_at: '2026-03-10T08:00:00Z'
                     updated_at: '2026-04-21T12:00:00Z'
@@ -1747,20 +1879,25 @@ paths:
                     field_id: 2
                     title: Карта волонтерских маршрутов CareRoute
                     description: Сервис для координации волонтерских визитов в клиники.
-                    idea: Сократить ручное планирование для координаторов медицинских НКО.
-                    benefits: Волонтеры получают опыт работы над полезным продуктом.
+                    problem: Координаторы медицинских НКО тратят много времени на ручное планирование маршрутов.
                     image: null
-                    city: Москва
-                    work_format: hybrid
                     status: open
                     is_favorited: false
                     roles_preview:
                       - id: 3
                         specialization_id: 3
                         specialization_name: Мобильный разработчик
-                        key_skills:
-                          - Flutter
-                          - REST API
+                        skills:
+                          - id: 7
+                            skill_id: 7
+                            name: Flutter
+                            description: Реализация мобильных экранов.
+                            order: 1
+                          - id: 8
+                            skill_id: 8
+                            name: REST API
+                            description: Интеграция приложения с backend.
+                            order: 2
                         is_open: true
                     created_at: '2026-03-22T13:00:00Z'
                     updated_at: '2026-04-20T17:30:00Z'
@@ -1870,18 +2007,27 @@ paths:
                       id: 2
                       title: Карта волонтерских маршрутов CareRoute
                       image: null
-                      city: Москва
-                      work_format: hybrid
                       status: open
                     project_role:
                       id: 3
                       project_id: 2
                       specialization_id: 3
-                      description: Мобильный разработчик для экранов расписания волонтеров.
-                      key_skills:
-                        - Flutter
-                        - REST API
-                      capacity: 2
+                      tasks:
+                        - Реализовать экраны расписания волонтеров.
+                        - Интегрировать мобильное приложение с backend API.
+                      benefits:
+                        - Опыт разработки социально значимого мобильного продукта.
+                      skills:
+                        - id: 7
+                          skill_id: 7
+                          name: Flutter
+                          description: Реализация мобильных экранов.
+                          order: 1
+                        - id: 8
+                          skill_id: 8
+                          name: REST API
+                          description: Интеграция приложения с backend.
+                          order: 2
                       is_open: true
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
@@ -3233,11 +3379,8 @@ components:
         - field_id
         - title
         - description
-        - idea
-        - benefits
+        - problem
         - image
-        - city
-        - work_format
         - status
         - is_favorited
         - roles_preview
@@ -3256,24 +3399,16 @@ components:
           type: string
         description:
           type: string
-        idea:
+          description: Суть проекта.
+        problem:
           type: string
           nullable: true
-        benefits:
-          type: string
-          nullable: true
+          description: Проблема, которую решает проект.
         image:
           type: string
           format: uri
           nullable: true
           description: Изображение/обложка проекта для карточек.
-        city:
-          type: string
-          nullable: true
-        work_format:
-          allOf:
-            - $ref: '#/components/schemas/WorkFormat'
-          nullable: true
         status:
           $ref: '#/components/schemas/ProjectStatus'
         is_favorited:
@@ -3300,20 +3435,25 @@ components:
         field_id: 1
         title: Платформа наставничества SkillBridge
         description: Платформа для подбора наставников студентам и отслеживания учебных целей.
-        idea: Помочь начинающим разработчикам найти наставничество в проектных командах.
-        benefits: Участники получают работу для портфолио и обратную связь.
+        problem: Начинающим разработчикам сложно найти структурированное наставничество в проектных командах.
         image: https://cdn.teamlab.example/project_images/skillbridge.png
-        city: Санкт-Петербург
-        work_format: remote
         status: open
         is_favorited: false
         roles_preview:
           - id: 1
             specialization_id: 1
             specialization_name: Backend-разработчик
-            key_skills:
-              - Python
-              - Django
+            skills:
+              - id: 1
+                skill_id: 1
+                name: Python
+                description: Разработка REST API и бизнес-логики.
+                order: 1
+              - id: 2
+                skill_id: 2
+                name: Django
+                description: Работа с Django ORM и DRF.
+                order: 2
             is_open: true
         created_at: '2026-03-10T08:00:00Z'
         updated_at: '2026-04-21T12:00:00Z'
@@ -3347,21 +3487,13 @@ components:
         description:
           type: string
           minLength: 1
-        idea:
-          type: string
-          nullable: true
-        benefits:
+        problem:
           type: string
           nullable: true
         image:
           type: string
           nullable: true
           description: URL/string изображения проекта. Загрузка файла требует отдельной backend-реализации.
-        city:
-          type: string
-          nullable: true
-        work_format:
-          $ref: '#/components/schemas/WorkFormat'
 
     ProjectUpdateRequest:
       type: object
@@ -3374,21 +3506,13 @@ components:
         description:
           type: string
           minLength: 1
-        idea:
-          type: string
-          nullable: true
-        benefits:
+        problem:
           type: string
           nullable: true
         image:
           type: string
           nullable: true
           description: URL/string изображения проекта. Загрузка файла требует отдельной backend-реализации.
-        city:
-          type: string
-          nullable: true
-        work_format:
-          $ref: '#/components/schemas/WorkFormat'
         status:
           $ref: '#/components/schemas/ProjectStatus'
 
@@ -3399,7 +3523,7 @@ components:
         - id
         - specialization_id
         - specialization_name
-        - key_skills
+        - skills
         - is_open
       properties:
         id:
@@ -3411,14 +3535,61 @@ components:
           type: string
           readOnly: true
           nullable: true
-        key_skills:
+        skills:
           type: array
           readOnly: true
-          description: Простой список строк для UI-чипов; не связан со Skill.
+          description: Нормализованные требования роли к навыкам через ProjectRoleSkill.
           items:
-            type: string
+            $ref: '#/components/schemas/ProjectRoleSkill'
         is_open:
           type: boolean
+
+    ProjectRoleSkill:
+      type: object
+      description: Требование конкретной роли к конкретному навыку.
+      required:
+        - id
+        - skill_id
+        - name
+        - description
+        - order
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project_role_id:
+          type: integer
+          readOnly: true
+        skill_id:
+          type: integer
+        name:
+          type: string
+          readOnly: true
+          description: Название Skill.
+        description:
+          type: string
+          description: Пояснение требования роли к этому навыку.
+        order:
+          type: integer
+          minimum: 1
+          description: Порядок отображения навыка внутри роли.
+
+    ProjectRoleSkillInput:
+      type: object
+      description: Вложенное требование роли к навыку для create/update ProjectRole.
+      required:
+        - skill_id
+        - description
+        - order
+      properties:
+        skill_id:
+          type: integer
+        description:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          minimum: 1
 
     ProjectRole:
       type: object
@@ -3426,9 +3597,9 @@ components:
         - id
         - project_id
         - specialization_id
-        - description
-        - key_skills
-        - capacity
+        - tasks
+        - benefits
+        - skills
         - is_open
         - my_interest_id
         - my_interest_status
@@ -3446,16 +3617,21 @@ components:
           readOnly: true
         specialization_id:
           type: integer
-        description:
-          type: string
-        key_skills:
+        tasks:
           type: array
-          description: Простой список строк для UI-чипов; не связан со Skill и не создаёт ProjectRoleSkill.
+          description: Список задач роли.
           items:
             type: string
-        capacity:
-          type: integer
-          minimum: 1
+        benefits:
+          type: array
+          description: Что получит участник в конкретной роли.
+          items:
+            type: string
+        skills:
+          type: array
+          description: Нормализованные требования роли к навыкам через ProjectRoleSkill.
+          items:
+            $ref: '#/components/schemas/ProjectRoleSkill'
         is_open:
           type: boolean
         my_interest_id:
@@ -3495,12 +3671,28 @@ components:
         id: 1
         project_id: 1
         specialization_id: 1
-        description: Backend-разработчик для API проекта, моделей PostgreSQL и сценариев откликов.
-        key_skills:
-          - Python
-          - Django
-          - PostgreSQL
-        capacity: 2
+        tasks:
+          - Разработать REST API проекта.
+          - Настроить модели PostgreSQL и сценарии откликов.
+        benefits:
+          - Опыт проектирования backend для командного продукта.
+          - Работа для портфолио.
+        skills:
+          - id: 1
+            skill_id: 1
+            name: Python
+            description: Разработка REST API и бизнес-логики.
+            order: 1
+          - id: 2
+            skill_id: 2
+            name: Django
+            description: Работа с Django ORM и DRF.
+            order: 2
+          - id: 3
+            skill_id: 3
+            name: PostgreSQL
+            description: Проектирование схемы и запросов.
+            order: 3
         is_open: true
         my_interest_id: null
         my_interest_status: null
@@ -3515,41 +3707,48 @@ components:
       required:
         - project_id
         - specialization_id
-        - description
-        - capacity
+        - tasks
       properties:
         project_id:
           type: integer
         specialization_id:
           type: integer
-        description:
-          type: string
-          minLength: 1
-        key_skills:
+        tasks:
           type: array
-          description: Опциональный простой список строк для UI-чипов; не связан со Skill.
+          description: Список задач роли.
           items:
             type: string
-        capacity:
-          type: integer
-          minimum: 1
+        benefits:
+          type: array
+          description: Что получит участник в конкретной роли.
+          items:
+            type: string
+        skills:
+          type: array
+          description: Требования к навыкам роли через ProjectRoleSkill.
+          items:
+            $ref: '#/components/schemas/ProjectRoleSkillInput'
 
     ProjectRoleUpdateRequest:
       type: object
       properties:
         specialization_id:
           type: integer
-        description:
-          type: string
-          minLength: 1
-        key_skills:
+        tasks:
           type: array
-          description: Опциональный простой список строк для UI-чипов; не связан со Skill.
+          description: Список задач роли.
           items:
             type: string
-        capacity:
-          type: integer
-          minimum: 1
+        benefits:
+          type: array
+          description: Что получит участник в конкретной роли.
+          items:
+            type: string
+        skills:
+          type: array
+          description: Полный список требований к навыкам роли через ProjectRoleSkill.
+          items:
+            $ref: '#/components/schemas/ProjectRoleSkillInput'
         is_open:
           type: boolean
 
@@ -3560,8 +3759,6 @@ components:
         - id
         - title
         - image
-        - city
-        - work_format
         - status
       properties:
         id:
@@ -3573,13 +3770,6 @@ components:
           type: string
           format: uri
           nullable: true
-        city:
-          type: string
-          nullable: true
-        work_format:
-          allOf:
-            - $ref: '#/components/schemas/WorkFormat'
-          nullable: true
         status:
           $ref: '#/components/schemas/ProjectStatus'
 
@@ -3590,9 +3780,9 @@ components:
         - id
         - project_id
         - specialization_id
-        - description
-        - key_skills
-        - capacity
+        - tasks
+        - benefits
+        - skills
         - is_open
       properties:
         id:
@@ -3603,16 +3793,18 @@ components:
           readOnly: true
         specialization_id:
           type: integer
-        description:
-          type: string
-        key_skills:
+        tasks:
           type: array
-          description: Простой список строк для UI-чипов; не связан со Skill.
           items:
             type: string
-        capacity:
-          type: integer
-          minimum: 1
+        benefits:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectRoleSkill'
         is_open:
           type: boolean
 
@@ -3727,7 +3919,7 @@ components:
         - id
         - user_id
         - project_role_id
-        - accepted_interest_id
+        - role_interest_id
         - status
         - joined_at
         - ended_at
@@ -3743,9 +3935,10 @@ components:
         project_role_id:
           type: integer
           readOnly: true
-        accepted_interest_id:
+        role_interest_id:
           type: integer
           readOnly: true
+          description: ID RoleInterest, на основании которого создано участие. RoleInterest должен иметь status=accepted.
         status:
           $ref: '#/components/schemas/ProjectMembershipStatus'
         joined_at:
@@ -3767,7 +3960,7 @@ components:
         id: 2
         user_id: 3
         project_role_id: 2
-        accepted_interest_id: 2
+        role_interest_id: 2
         status: active
         joined_at: '2026-04-23T11:00:00Z'
         ended_at: null

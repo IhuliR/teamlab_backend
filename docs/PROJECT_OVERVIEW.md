@@ -108,7 +108,7 @@ TeamLab **не является**:
 
 ### User
 
-**Назначение:**  
+**Назначение:**
 Единая сущность аккаунта и профиля. Хранит идентичность пользователя и публичные/рабочие данные: bio, уровень, загрузку, формат работы, контакты, аватар и account_type.
 
 **Ключевые поля:**
@@ -155,7 +155,7 @@ TeamLab **не является**:
 
 ### Field
 
-**Назначение:**  
+**Назначение:**
 Верхнеуровневая область проекта и специализаций. Используется для каталогизации и фильтрации.
 
 **Ключевые поля:**
@@ -243,11 +243,8 @@ TeamLab **не является**:
 - field_id
 - title
 - description
-- idea
-- benefits
+- problem
 - image
-- city
-- work_format
 - status
 - created_at
 - updated_at
@@ -260,34 +257,66 @@ TeamLab **не является**:
 **Ограничения:**
 - у проекта один владелец
 - `image` используется как обложка карточки проекта
-- `city` и `work_format` используются для фильтрации проектов
+- `description` описывает суть проекта
+- `problem` описывает проблему проекта
+- `city` и `work_format` относятся к пользователю, а не к проекту
 
 ---
 
 ### ProjectRole
 
 **Назначение:**  
-Конкретная роль внутри проекта. Определяет специализацию, задачи, требования и лимит участников.
+Конкретная роль внутри проекта. Определяет специализацию, задачи, выгоды и требования к навыкам.
 
 **Ключевые поля:**
 - id
 - project_id
 - specialization_id
-- description
-- key_skills
-- capacity
+- tasks
+- benefits
+- is_open
+- created_at
+- updated_at
 
 **Связи:**
 - ProjectRole → Project
 - ProjectRole → Specialization
+- ProjectRole → ProjectRoleSkill
 - ProjectRole → RoleInterest
 - ProjectRole → ProjectMembership
 
 **Ограничения:**
-- capacity ≥ 1
-- в MVP роль может иметь `key_skills` как простой список строк для UI-чипов
-- `key_skills` не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`
-- нормализованные skill requirements через `Skill`/`ProjectRoleSkill` отложены
+- одна ProjectRole = одно место / один участник
+- если нужно несколько одинаковых специалистов, owner создаёт несколько ProjectRole
+- `tasks` — список задач роли
+- `benefits` — список выгод конкретной роли, а не проекта
+- требования к навыкам хранятся в `ProjectRoleSkill`
+
+---
+
+### ProjectRoleSkill
+
+**Назначение:**
+Требование конкретной роли к конкретному навыку. Входит в MVP, потому что нужно для фильтрации проектов по навыкам и для описания требований роли.
+
+**Ключевые поля:**
+- id
+- project_role_id
+- skill_id
+- description
+- order
+
+**Связи:**
+- ProjectRoleSkill → ProjectRole
+- ProjectRoleSkill → Skill
+
+**Ограничения:**
+- уникальность (project_role_id, skill_id)
+- уникальность (project_role_id, order)
+- ordering по project_role_id, order
+- `ProjectRoleSkill` не является `UserSkill`
+- `Skill` остаётся общим справочником навыков
+- цвет чипов навыков остаётся frontend/UI-only
 
 ---
 
@@ -328,7 +357,7 @@ TeamLab **не является**:
 - id
 - user_id
 - project_role_id
-- accepted_interest_id
+- role_interest_id
 - status (`active` / `left` / `removed`)
 - joined_at
 - ended_at
@@ -338,11 +367,12 @@ TeamLab **не является**:
 **Связи:**
 - ProjectMembership → User
 - ProjectMembership → ProjectRole
-- ProjectMembership → RoleInterest (через accepted_interest_id)
+- ProjectMembership → RoleInterest (через role_interest_id)
 
 **Ограничения:**
-- уникальность (user_id, project_role_id)
+- один `RoleInterest` может породить максимум один `ProjectMembership`
 - создаётся только после accepted RoleInterest
+- `role_interest_id` указывает на RoleInterest со `status = accepted`
 - контакты пользователя доступны только при `ProjectMembership.status = active`
 - “метч” выводится из active ProjectMembership и не хранится как отдельная сущность
 
@@ -416,7 +446,7 @@ TeamLab **не является**:
 
 Поиск НЕ должен опираться на свободный текст без структуры
 Поиск опирается на нормализованные данные (`Field`, `Specialization`, `Skill`).
-Список проектов фильтруется по `status`, `field_id`, `period`, `city`, `work_format`, `role_specialization_id`; полноценная skill-based фильтрация ролей отложена.
+Список проектов фильтруется по `status`, `field_id`, `period`, `role_specialization_id`, `skills`. Фильтр `skills=1,2,3` опирается на `ProjectRoleSkill.skill_id`, а не на `UserSkill` и не на JSON-поле роли.
 Список пользователей фильтруется по `level`, `account_type`, `specialization_id`, `field_id`, `skills`, `city`, `work_format`, `employment_type`, `search_status`, `period`.
 `FavoriteProject` — быстрый возврат участника к сохранённым проектам.
 Уведомления — UI-представление изменений в основном потоке на основе `RoleInterest` и `ProjectMembership`. `IncomingInterest` для owner-заявок является read-only API-представлением `RoleInterest`, а не отдельной сущностью.
@@ -463,7 +493,7 @@ TeamLab **не является**:
 
 * **`ProjectMembership` создаётся только после принятия `RoleInterest`.**
 * **Для пары (user, project_role) может существовать только один `RoleInterest`.**
-* **Количество активных `ProjectMembership` не превышает `ProjectRole.capacity`.**
+* **Одна `ProjectRole` допускает максимум один active `ProjectMembership`.**
 * **`RoleInterest` и `ProjectMembership` — разные стадии и не должны сливаться.**
 * **Invitation реализуется через `RoleInterest.source`, без отдельной модели.**
 * **Контакты пользователя открываются только при `ProjectMembership.status = active`.**
@@ -478,7 +508,7 @@ TeamLab **не является**:
 * нет email-сервиса;
 * нет восстановления пароля;
 * нет delete account endpoint;
-* нет Notification, Invitation, Match и ProjectRoleSkill как отдельных моделей;
+* нет Notification, Invitation и Match как отдельных моделей;
 * часть функций может быть заглушками;
 * уведомления являются UI-представлением данных из `RoleInterest` и `ProjectMembership`;
 * light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, 404, политика персональных данных, tooltip hints, режимы отображения портфолио и избранного являются UI-only;

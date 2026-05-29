@@ -24,11 +24,11 @@ Authorization: Bearer <access>
 
 ### Создание проекта
 
-Владелец (`account_type = owner`) создаёт новый проект через `POST /api/v1/projects/`, передавая `field_id`, `title`, `description` и опциональные `idea`, `benefits`, `image`, `city`, `work_format`. В ответе `201` API возвращает `ProjectDetail`. Получение проекта: `GET /api/v1/projects/{project_id}/`. Список проектов текущего пользователя: `GET /api/v1/users/me/projects/`. Проект создаётся со статусом `open`.
+Владелец (`account_type = owner`) создаёт новый проект через `POST /api/v1/projects/`, передавая `field_id`, `title`, `description` и опциональные `problem`, `image`. В ответе `201` API возвращает `ProjectDetail`. Получение проекта: `GET /api/v1/projects/{project_id}/`. Список проектов текущего пользователя: `GET /api/v1/users/me/projects/`. Проект создаётся со статусом `open`.
 
 ### Создание роли в проекте
 
-Владелец проекта добавляет роль вызовом `POST /api/v1/project-roles/`. В теле запроса указываются `project_id`, `specialization_id`, `description`, `capacity` и опциональный `key_skills` как простой список строк для UI-чипов. Новая роль создаётся с `is_open = true`. Роли можно получить через `GET /api/v1/project-roles/?project_id={project_id}` или `GET /api/v1/project-roles/{role_id}/`.
+Владелец проекта добавляет роль вызовом `POST /api/v1/project-roles/`. В теле запроса указываются `project_id`, `specialization_id`, `tasks` и опциональные `benefits`, `skills`. `skills` — список требований роли к справочному `Skill` через `ProjectRoleSkill` (`skill_id`, `description`, `order`). Новая роль создаётся с `is_open = true`. Роли можно получить через `GET /api/v1/project-roles/?project_id={project_id}` или `GET /api/v1/project-roles/{role_id}/`.
 
 ### Отклик на роль (RoleInterest)
 
@@ -59,7 +59,7 @@ PATCH status flow для RoleInterest в актуальном API-контрак
 
 После принятия interest появляется запись **ProjectMembership** со `status = active`. Фронтенд получает участия через `GET /api/v1/project-memberships/` с фильтрами `project_id`, `project_role_id`, `user_id`, `status`. Создание ProjectMembership напрямую через API отсутствует.
 
-Завершение участия выполняется через `PATCH /api/v1/project-memberships/{membership_id}/` с `status = left` или `status = removed`. Этот endpoint не создаёт membership и не меняет `accepted_interest_id`.
+Завершение участия выполняется через `PATCH /api/v1/project-memberships/{membership_id}/` с `status = left` или `status = removed`. Этот endpoint не создаёт membership и не меняет `role_interest_id`.
 
 Контакты пользователя доступны только если существует `ProjectMembership.status = active`. До активного участия контакты скрыты. Соцсети хранятся единым полем профиля `social_links` с ключами `instagram`, `telegram`, `github`, `behance`, `vk`. `contacts_visible` — вычисляемое read-only поле API-ответа и не хранится в БД. Если контакты скрыты, `UserPublic.social_links = null`; текущий пользователь всегда видит свои `social_links` через `GET /api/v1/users/me/`.
 
@@ -78,10 +78,11 @@ PATCH status flow для RoleInterest в актуальном API-контрак
 - **User:** единственная сущность пользователя и его профиля. API-visible поля публичного профиля: `id`, `username`, `bio`, `account_type`, `specialization_id`, `level`, `workload_hours_per_week`, `work_format`, `employment_type`, `search_status`, `city`, `avatar`, `contacts_visible`, `social_links`, `created_at`, `updated_at`, `skills`, `portfolio_works`. Для текущего пользователя дополнительно возвращаются `email`, `profile_visibility`, `notifications_enabled`.
 - **UserSkill:** `id`, `user_id`, `skill_id`, `level`, `created_at`, `updated_at`.
 - **PortfolioWork:** `id`, `user_id`, `title`, `task`, `solution`, `image`, `technologies`, `link`, `created_at`, `updated_at`. `technologies` — простой массив строк, не связан с `Skill`.
-- **Project:** `id`, `owner_id`, `field_id`, `title`, `description`, `idea`, `benefits`, `image`, `city`, `work_format`, `status`, `is_favorited`, `roles_preview`, `created_at`, `updated_at`; в `ProjectDetail` дополнительно `roles`.
-- **ProjectRole:** `id`, `project_id`, `specialization_id`, `description`, `key_skills`, `capacity`, `is_open`, `my_interest_id`, `my_interest_status`, `my_interest_source`, `my_membership_id`, `my_membership_status`, `created_at`, `updated_at`. `key_skills` — простой список строк для UI-чипов, не связанный со `Skill`; `my_*` поля вычисляются из `RoleInterest` и `ProjectMembership`.
+- **Project:** `id`, `owner_id`, `field_id`, `title`, `description`, `problem`, `image`, `status`, `is_favorited`, `roles_preview`, `created_at`, `updated_at`; в `ProjectDetail` дополнительно `roles`. `city` и `work_format` относятся к `User`, а не к `Project`.
+- **ProjectRole:** `id`, `project_id`, `specialization_id`, `tasks`, `benefits`, `skills`, `is_open`, `my_interest_id`, `my_interest_status`, `my_interest_source`, `my_membership_id`, `my_membership_status`, `created_at`, `updated_at`. `tasks` и `benefits` — массивы строк; `skills` — нормализованные требования через `ProjectRoleSkill`.
+- **ProjectRoleSkill:** `id`, `project_role_id`, `skill_id`, `description`, `order`. В API роли возвращается как `skills` с `name` справочного навыка.
 - **RoleInterest:** `id`, `user_id`, `project_role_id`, `source`, `status`, `reviewed_at`, `created_at`, `updated_at`.
-- **ProjectMembership:** `id`, `user_id`, `project_role_id`, `accepted_interest_id`, `status`, `joined_at`, `ended_at`, `created_at`, `updated_at`.
+- **ProjectMembership:** `id`, `user_id`, `project_role_id`, `role_interest_id`, `status`, `joined_at`, `ended_at`, `created_at`, `updated_at`.
 - **FavoriteProject:** `id`, `user_id`, `project_id`, `created_at`.
 
 ## 4. Endpoint reference
@@ -118,14 +119,14 @@ PATCH status flow для RoleInterest в актуальном API-контрак
 
 | Endpoint | Method | Request | Response | Codes |
 |---|---:|---|---|---|
-| `/api/v1/projects/` | GET | query: `page`, `limit`, `status`, `field_id`, `period`, `city`, `work_format`, `role_specialization_id` | `PaginatedProjects` | 200, 400 |
-| `/api/v1/projects/` | POST | required `field_id`, `title`, `description`; optional `idea`, `benefits`, `image`, `city`, `work_format` | `ProjectDetail` | 201, 400, 401 |
+| `/api/v1/projects/` | GET | query: `page`, `limit`, `status`, `field_id`, `period`, `role_specialization_id`, `skills` (`skills=1,2,3`) | `PaginatedProjects` | 200, 400 |
+| `/api/v1/projects/` | POST | required `field_id`, `title`, `description`; optional `problem`, `image` | `ProjectDetail` | 201, 400, 401 |
 | `/api/v1/projects/{project_id}/` | GET | path `project_id` | `ProjectDetail` | 200, 404 |
-| `/api/v1/projects/{project_id}/` | PATCH | optional `field_id`, `title`, `description`, `idea`, `benefits`, `image`, `city`, `work_format`, `status` | `ProjectDetail` | 200, 400, 401, 403, 404 |
+| `/api/v1/projects/{project_id}/` | PATCH | optional `field_id`, `title`, `description`, `problem`, `image`, `status` | `ProjectDetail` | 200, 400, 401, 403, 404 |
 | `/api/v1/project-roles/` | GET | query: `project_id`, `specialization_id`, `is_open` | `ProjectRolesListResponse` with `results` | 200, 404 |
-| `/api/v1/project-roles/` | POST | required `project_id`, `specialization_id`, `description`, `capacity`; optional `key_skills` | `ProjectRole` | 201, 400, 401, 403, 404 |
+| `/api/v1/project-roles/` | POST | required `project_id`, `specialization_id`, `tasks`; optional `benefits`, `skills` | `ProjectRole` | 201, 400, 401, 403, 404 |
 | `/api/v1/project-roles/{role_id}/` | GET | path `role_id` | `ProjectRole` | 200, 404 |
-| `/api/v1/project-roles/{role_id}/` | PATCH | optional `specialization_id`, `description`, `key_skills`, `capacity`, `is_open` | `ProjectRole` | 200, 400, 401, 403, 404 |
+| `/api/v1/project-roles/{role_id}/` | PATCH | optional `specialization_id`, `tasks`, `benefits`, `skills`, `is_open` | `ProjectRole` | 200, 400, 401, 403, 404 |
 
 ### Role interests and memberships
 
@@ -167,7 +168,8 @@ PATCH status flow для RoleInterest в актуальном API-контрак
 - **Одна специализация у пользователя.** Каждый пользователь связан с одной специализацией (`specialization_id`), если она заполнена.
 - **Избранное есть только у участника.** `FavoriteProject` используется только когда `account_type = participant`.
 - **Уведомления — UI-представление.** Отдельная бизнес-сущность Notification и отдельный notification API в MVP не используются.
-- **ProjectRole skills не нормализованы.** В MVP `ProjectRole.key_skills` — простой список строк для UI-чипов. Он не связан со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`. Полноценные skill requirements остаются future enhancement; основной структурный фильтр проектов по ролям — `role_specialization_id`.
+- **ProjectRoleSkill входит в MVP.** Это нормализованная связь роли с `Skill`, нужная для фильтрации проектов по навыкам и для описания требований роли. Цвет чипов навыков остаётся frontend/UI-only и не хранится в БД.
+- **Одна ProjectRole = одно место.** Если нужно несколько одинаковых специалистов, owner создаёт несколько `ProjectRole`.
 - **UI-состояния:** “Заявка отправлена” = `RoleInterest(source=application,status=pending)`, “Приглашение отправлено” = `RoleInterest(source=invitation,status=pending)`, “Вы в команде” = `ProjectMembership(status=active)`, “Прекратить участие” = `PATCH /api/v1/project-memberships/{membership_id}/` со `status=left`, “Исключить” = тот же endpoint со `status=removed`.
 
 ## 6. Авторизация
@@ -224,8 +226,8 @@ API возвращает JSON-ответы. В случае ошибки при�
 - **Content-Type и JSON:** всегда передавайте заголовок `Content-Type: application/json` и формируйте JSON по OpenAPI-контракту.
 - **JWT-токен в заголовке:** используйте `Authorization: Bearer <access>` для защищённых вызовов.
 - **Статусы проекта/роли:** перед отправкой отклика убедитесь, что проект (`status = open`) и роль (`is_open = true`) открыты.
-- **Проверка capacity:** после принятия заявки роль может закрыться, если достигнут лимит `capacity`.
+- **Проверка занятости роли:** после принятия заявки роль может закрыться, потому что одна `ProjectRole` представляет одно место.
 - **Тип аккаунта:** проверяйте `account_type` пользователя перед вызовом endpoint, доступных только owner или participant.
 - **Обработка ошибок:** анализируйте `detail` или объект ошибок валидации.
 - **Уведомления:** показывайте новые события как агрегат данных из `RoleInterest` и `ProjectMembership`, без вызова отдельного notification API.
-- **Соответствие сценариям:** не пытайтесь обходить логику: нельзя создавать ProjectMembership напрямую или менять `accepted_interest_id` вручную.
+- **Соответствие сценариям:** не пытайтесь обходить логику: нельзя создавать ProjectMembership напрямую или менять `role_interest_id` вручную.

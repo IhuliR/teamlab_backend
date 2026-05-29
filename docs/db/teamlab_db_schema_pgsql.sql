@@ -91,11 +91,8 @@ CREATE TABLE "Project"(
     "field_id" BIGINT NOT NULL,
     "title" VARCHAR(255) NOT NULL,
     "description" TEXT NOT NULL,
-    "idea" TEXT NULL,
-    "benefits" TEXT NULL,
+    "problem" TEXT NULL,
     "image" VARCHAR(255) NULL,
-    "city" VARCHAR(255) NULL,
-    "work_format" VARCHAR(20) NULL,
     "status" VARCHAR(20) NOT NULL DEFAULT 'open',
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -104,8 +101,6 @@ ALTER TABLE
     "Project" ADD PRIMARY KEY("id");
 ALTER TABLE
     "Project" ADD CONSTRAINT "project_status_check" CHECK ("status" IN ('open', 'closed'));
-ALTER TABLE
-    "Project" ADD CONSTRAINT "project_work_format_check" CHECK ("work_format" IS NULL OR "work_format" IN ('remote', 'hybrid'));
 CREATE INDEX "project_owner_id_index" ON
     "Project"("owner_id");
 CREATE INDEX "project_field_id_index" ON
@@ -114,19 +109,33 @@ CREATE TABLE "ProjectRole"(
     "id" bigserial NOT NULL,
     "project_id" BIGINT NOT NULL,
     "specialization_id" BIGINT NOT NULL,
-    "description" TEXT NOT NULL,
-    "key_skills" JSONB NOT NULL DEFAULT '[]',
-    "capacity" SMALLINT NOT NULL,
+    "tasks" JSONB NOT NULL DEFAULT '[]',
+    "benefits" JSONB NOT NULL DEFAULT '[]',
     "is_open" BOOLEAN NOT NULL DEFAULT TRUE,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ALTER TABLE
     "ProjectRole" ADD PRIMARY KEY("id");
-ALTER TABLE
-    "ProjectRole" ADD CONSTRAINT "projectrole_capacity_check" CHECK ("capacity" >= 1);
 CREATE INDEX "projectrole_project_id_index" ON
     "ProjectRole"("project_id");
+CREATE TABLE "ProjectRoleSkill"(
+    "id" bigserial NOT NULL,
+    "project_role_id" BIGINT NOT NULL,
+    "skill_id" BIGINT NOT NULL,
+    "description" TEXT NOT NULL,
+    "order" SMALLINT NOT NULL DEFAULT 1
+);
+ALTER TABLE
+    "ProjectRoleSkill" ADD PRIMARY KEY("id");
+ALTER TABLE
+    "ProjectRoleSkill" ADD CONSTRAINT "projectroleskill_project_role_id_skill_id_unique" UNIQUE("project_role_id", "skill_id");
+ALTER TABLE
+    "ProjectRoleSkill" ADD CONSTRAINT "projectroleskill_project_role_id_order_unique" UNIQUE("project_role_id", "order");
+CREATE INDEX "projectroleskill_project_role_id_order_index" ON
+    "ProjectRoleSkill"("project_role_id", "order");
+CREATE INDEX "projectroleskill_skill_id_index" ON
+    "ProjectRoleSkill"("skill_id");
 CREATE TABLE "RoleInterest"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
@@ -151,7 +160,7 @@ CREATE TABLE "ProjectMembership"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
     "project_role_id" BIGINT NOT NULL,
-    "accepted_interest_id" BIGINT NOT NULL,
+    "role_interest_id" BIGINT NOT NULL,
     "status" VARCHAR(20) NOT NULL DEFAULT 'active',
     "joined_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ended_at" TIMESTAMP(0) WITHOUT TIME ZONE NULL,
@@ -159,15 +168,15 @@ CREATE TABLE "ProjectMembership"(
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ALTER TABLE
-    "ProjectMembership" ADD CONSTRAINT "projectmembership_user_id_project_role_id_unique" UNIQUE("user_id", "project_role_id");
-ALTER TABLE
     "ProjectMembership" ADD PRIMARY KEY("id");
 ALTER TABLE
     "ProjectMembership" ADD CONSTRAINT "projectmembership_status_check" CHECK ("status" IN ('active', 'left', 'removed'));
 CREATE INDEX "projectmembership_project_role_id_index" ON
     "ProjectMembership"("project_role_id");
 ALTER TABLE
-    "ProjectMembership" ADD CONSTRAINT "projectmembership_accepted_interest_id_unique" UNIQUE("accepted_interest_id");
+    "ProjectMembership" ADD CONSTRAINT "projectmembership_role_interest_id_unique" UNIQUE("role_interest_id");
+CREATE UNIQUE INDEX "projectmembership_active_project_role_unique" ON
+    "ProjectMembership"("project_role_id") WHERE "status" = 'active';
 CREATE TABLE "PortfolioWork"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
@@ -221,6 +230,10 @@ ALTER TABLE
 ALTER TABLE
     "UserSkill" ADD CONSTRAINT "userskill_skill_id_foreign" FOREIGN KEY("skill_id") REFERENCES "Skill"("id");
 ALTER TABLE
+    "ProjectRoleSkill" ADD CONSTRAINT "projectroleskill_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id") ON DELETE CASCADE;
+ALTER TABLE
+    "ProjectRoleSkill" ADD CONSTRAINT "projectroleskill_skill_id_foreign" FOREIGN KEY("skill_id") REFERENCES "Skill"("id") ON DELETE RESTRICT;
+ALTER TABLE
     "PortfolioWork" ADD CONSTRAINT "portfoliowork_user_id_foreign" FOREIGN KEY("user_id") REFERENCES "User"("id");
 ALTER TABLE
-    "ProjectMembership" ADD CONSTRAINT "projectmembership_accepted_interest_id_foreign" FOREIGN KEY("accepted_interest_id") REFERENCES "RoleInterest"("id");
+    "ProjectMembership" ADD CONSTRAINT "projectmembership_role_interest_id_foreign" FOREIGN KEY("role_interest_id") REFERENCES "RoleInterest"("id");

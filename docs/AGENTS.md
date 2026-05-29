@@ -4,7 +4,7 @@
 
 **1. Нарушение канонического потока**
 Правило: Не создавай ProjectMembership вне цепочки Project → ProjectRole → RoleInterest → accepted  
-Как проверить: В diff нет создания membership без ссылки на accepted_interest_id
+Как проверить: В diff нет создания membership без ссылки на role_interest_id
 
 **2. Слияние стадий RoleInterest и ProjectMembership**
 Правило: Не объединяй RoleInterest и ProjectMembership в одну сущность или логику  
@@ -22,9 +22,9 @@
 Правило: Не создавай RoleInterest если Project.status != open или ProjectRole.is_open = false  
 Как проверить: В логике создания отклика есть проверки статусов
 
-**6. Переполнение capacity**
-Правило: Не создавай ProjectMembership если достигнут лимит ProjectRole.capacity  
-Как проверить: Перед созданием membership есть проверка количества active
+**6. Занятая роль**
+Правило: Не создавай active ProjectMembership, если у ProjectRole уже есть active membership
+Как проверить: Перед созданием membership есть проверка active membership по project_role
 
 **7. Нарушение логики account_type**
 Правило: Не добавляй смену или множественные значения account_type в модели User  
@@ -87,8 +87,8 @@
 Как проверить: В diff нет новых backend-полей и endpoint под эти элементы.
 
 **22. ProjectRole skills**
-Правило: Не добавляй ProjectRoleSkill в MVP. `ProjectRole.key_skills` допустим только как простое JSONB/array-of-strings поле для UI-чипов; не превращай его в связь со Skill без отдельного доменного решения.
-Как проверить: В diff нет модели/таблицы/API-схемы ProjectRoleSkill и нет ManyToMany между ProjectRole и Skill.
+Правило: ProjectRoleSkill входит в MVP. Требования роли к навыкам хранятся через ProjectRoleSkill, а не через legacy JSON-поле роли.
+Как проверить: API/SQL/docs используют ProjectRoleSkill; фильтр проектов по skills опирается на ProjectRoleSkill.skill_id.
 
 **23. Match как сущность**
 Правило: Не создавай Match-модель; “метч” выводится из ProjectMembership.status = active.
@@ -105,7 +105,7 @@
 - Не создавай ProjectMembership без accepted RoleInterest  
 - Не создавай RoleInterest при закрытом Project или ProjectRole  
 - Не допускай повторный RoleInterest для одной пары user и project_role  
-- Не превышай ProjectRole.capacity при создании ProjectMembership  
+- Не создавай второй active ProjectMembership для одной ProjectRole
 - Не объединяй RoleInterest и ProjectMembership  
 - Не добавляй новые сущности вне DOMAIN_MODEL.md  
 - Не добавляй endpoints, которые обходят цепочку Project → ProjectRole → RoleInterest → ProjectMembership  
@@ -116,9 +116,8 @@
 - Не создавай Invitation-модель  
 - Не создавай Notification-модель  
 - Не создавай Match-модель  
-- Не создавай ProjectRoleSkill в MVP  
 - Не создавай IncomingInterest-модель  
-- Не превращай ProjectRole.key_skills в связь со Skill  
+- Не возвращай legacy JSON-поле навыков роли; используй ProjectRoleSkill
 - Не добавляй theme и UI-only состояния в API/SQL  
 - Не храни contacts_visible в БД  
 - Не открывай contacts без active ProjectMembership  
@@ -134,8 +133,8 @@
 - Запрещено реализовывать скрытые состояния вне явных статусов  
 - Запрещено создавать отдельные модели Invitation и Notification  
 - Запрещено создавать отдельную модель Match  
-- Запрещено создавать ProjectRoleSkill в MVP  
 - Запрещено создавать IncomingInterest как модель или таблицу  
+- Запрещено возвращать legacy JSON-поле навыков роли в MVP
 - Запрещено хранить contacts_visible и UI-only состояния в SQL  
 - Запрещено открывать контакты без active membership  
 - Запрещено принимать invitation от имени owner  

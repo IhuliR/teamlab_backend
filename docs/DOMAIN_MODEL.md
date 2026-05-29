@@ -33,7 +33,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 
 ### User
 
-**Назначение:**  
+**Назначение:**
 Единая сущность пользователя и профиля.
 
 **Ключевые поля:**
@@ -82,7 +82,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 
 ### Field
 
-**Назначение:**  
+**Назначение:**
 Верхнеуровневая категория.
 
 **Ключевые поля:**
@@ -174,11 +174,8 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - field_id
 - title
 - description
-- idea
-- benefits
+- problem
 - image
-- city
-- work_format (`remote` / `hybrid`)
 - status (`open` / `closed`)
 - created_at
 - updated_at
@@ -194,7 +191,9 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - всегда есть field  
 - при status = `closed` новые отклики и создание ролей запрещены
 - `image` используется как cover/card image проекта
-- `city` и `work_format` используются для фильтрации проектов
+- `description` = суть проекта
+- `problem` = проблема, которую решает проект
+- `city` и `work_format` относятся к пользователю, а не к проекту
 
 ---
 
@@ -207,9 +206,8 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - id
 - project_id
 - specialization_id
-- description
-- key_skills
-- capacity
+- tasks
+- benefits
 - is_open
 - created_at
 - updated_at
@@ -217,17 +215,47 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 **Связи:**
 - ProjectRole → Project
 - ProjectRole → Specialization
+- ProjectRole → ProjectRoleSkill
 - ProjectRole → RoleInterest
 - ProjectRole → ProjectMembership
 
 **Ограничения:**
-- capacity >= 1
+- одна ProjectRole = одно место / один участник
+- если нужно несколько одинаковых специалистов, owner создаёт несколько ProjectRole
 - при is_open = false новые отклики запрещены  
 - роль может быть закрыта независимо от статуса проекта  
 - если проект закрыт (`Project.status = closed`), роль считается закрытой независимо от is_open
-- в MVP `ProjectRole.key_skills` — простое JSONB/array-of-strings поле для UI-чипов
-- `key_skills` не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`
-- нормализованные skill requirements через `Skill`/`ProjectRoleSkill` отложены за пределы MVP
+- `tasks` хранит список задач роли
+- `benefits` хранит список выгод конкретной роли, а не проекта
+
+---
+
+### ProjectRoleSkill
+
+**Назначение:**
+Нормализованное требование конкретной роли к конкретному навыку.
+
+**Ключевые поля:**
+- id
+- project_role_id
+- skill_id
+- description
+- order
+
+**Связи:**
+- ProjectRoleSkill → ProjectRole
+- ProjectRoleSkill → Skill
+
+**Ограничения:**
+- уникальность (project_role_id, skill_id)
+- уникальность (project_role_id, order)
+- ordering: project_role_id, order
+- `ProjectRoleSkill` не то же самое, что `UserSkill`
+- `Skill` остаётся общим справочником навыков
+- `UserSkill` описывает навык пользователя
+- `ProjectRoleSkill` описывает требование роли к навыку
+- `description` поясняет требование роли к конкретному навыку
+- цвет чипов навыков остаётся frontend/UI-only и не хранится в БД
 
 ---
 
@@ -251,7 +279,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - RoleInterest → ProjectRole
 
 **Логическая связь:**
-- используется для создания ProjectMembership (через accepted_interest_id)
+- используется для создания ProjectMembership (через role_interest_id)
 
 **Source:**
 - `application` — пользователь сам откликнулся на роль
@@ -280,7 +308,7 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - id
 - user_id
 - project_role_id
-- accepted_interest_id
+- role_interest_id
 - status (`active` / `left` / `removed`)
 - joined_at
 - ended_at
@@ -290,12 +318,13 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 **Связи:**
 - ProjectMembership → User
 - ProjectMembership → ProjectRole
-- ProjectMembership → RoleInterest (через accepted_interest_id)
+- ProjectMembership → RoleInterest (через role_interest_id)
 
 **Ограничения:**
 - создаётся только после accepted RoleInterest  
-- accepted_interest_id уникален  
-- количество активных участников не превышает capacity  
+- role_interest_id уникален
+- RoleInterest должен иметь `status = accepted`
+- одна активная ProjectMembership допускается на одну ProjectRole
 - проект определяется через project_role (без отдельного FK)
 - контакты пользователя доступны только при `ProjectMembership.status = active`
 - “метч” не является отдельной сущностью; он выводится из active ProjectMembership
@@ -365,12 +394,13 @@ Project → ProjectRole → RoleInterest → ProjectMembership
 - Project → ProjectRole — OneToMany
 - Project → FavoriteProject — OneToMany
 
+- Skill → ProjectRoleSkill — OneToMany
 - ProjectRole → RoleInterest — OneToMany
 - ProjectRole → ProjectMembership — OneToMany
+- ProjectRole → ProjectRoleSkill — OneToMany
 
 **Важно:**  
-Связь RoleInterest → ProjectMembership не является жёсткой OneToOne.  
-ProjectMembership ссылается на RoleInterest через accepted_interest_id, но это логическая связь, а не обязательная ORM-конструкция OneToOne.
+Связь RoleInterest → ProjectMembership имеет OneToOne/unique semantics: один accepted RoleInterest может породить максимум один ProjectMembership.
 
 ---
 
@@ -383,7 +413,7 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 
 ### ProjectRole
 - создание: добавляется в проект
-- изменение: description, key_skills, capacity, is_open
+- изменение: tasks, benefits, skills, is_open
 - завершение: закрытие роли
 
 ### RoleInterest
@@ -423,7 +453,7 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 
 - membership только после accepted interest
 - для пары (user, project_role) может существовать только один RoleInterest
-- capacity не превышается
+- одна роль имеет максимум одного активного участника
 - закрытые роли не принимают отклики
 - закрытый проект не принимает отклики
 - участие нельзя создать напрямую
@@ -438,12 +468,9 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 ## 7. Спорные зоны
 
 - одна или несколько специализаций у пользователя (расширяемо)
-- нормализованные skill requirements для ролей отсутствуют
-- `ProjectRole.key_skills` существует как простое JSONB/array-of-strings поле для UI-чипов
-- `key_skills` не связано со `Skill`, не является ManyToMany и не создаёт `ProjectRoleSkill`
-- связь ProjectRole ↔ Skill / ProjectRoleSkill отложена за пределы MVP
+- `ProjectRoleSkill` входит в MVP, потому что нужен для фильтрации проектов по навыкам и для описания требований роли
 - technologies в PortfolioWork не нормализованы
-- фильтрация проектов по нормализованным skill requirements отложена; основной структурный фильтр ролей в MVP — role_specialization_id
+- фильтрация проектов по skills опирается на `ProjectRoleSkill.skill_id`, а не на `UserSkill` и не на JSON-поле роли
 - `profile_visibility` есть как настройка пользователя, но backend-фильтрация профилей по ней может быть реализована позже
 - нет ролей внутри команды
 - повторные RoleInterest для одной пары (user, project_role) могут потребоваться в будущем, но в MVP не поддерживаются
@@ -458,8 +485,6 @@ ProjectMembership ссылается на RoleInterest через accepted_inter
 - `IncomingInterest` не является доменной моделью; это read-only API response/view поверх `RoleInterest` для owner-заявок (`source = application`, `status = pending`, project owner = request.user)
 - приглашения реализуются через RoleInterest.source, без отдельной Invitation-модели
 - нет сложного matching
-- нет нормализованных skill requirements через Skill/ProjectRoleSkill
-- нет ProjectRoleSkill
 - нет истории откликов
 - повторные RoleInterest для одной пары (user, project_role) не поддерживаются
 - нет сложной социальной логики
