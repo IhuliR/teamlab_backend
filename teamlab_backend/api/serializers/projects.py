@@ -1,8 +1,6 @@
-import base64
-
 from django.contrib.auth import get_user_model
-from django.core.files.base import ContentFile
 from django.db import transaction
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
 from projects.models import (
@@ -16,6 +14,7 @@ from projects.models import (
 )
 from projects.services import(
     create_project_role_skills,
+    create_project_with_roles,
     replace_project_role_skills
 )
 from users.models import(
@@ -318,18 +317,6 @@ class ProjectDetailSerializer(ProjectBaseReadSerializer):
         read_only_fields = fields
 
 
-class Base64ImageField(serializers.ImageField):
-
-    def to_internal_value(self, data):
-
-        if isinstance(data, str) and data.startswith('data:image'):
-            format, imgstr = data.split(';base64,')
-            ext = format.split('/')[-1]
-            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
-
-        return super().to_internal_value(data)
-
-
 class ProjectCreateSerializer(serializers.Serializer):
     field_id = serializers.PrimaryKeyRelatedField(
         source='field',
@@ -341,4 +328,30 @@ class ProjectCreateSerializer(serializers.Serializer):
     image = Base64ImageField()
 
     def create(self, validated_data):
-        return super().create(validated_data)
+        roles_data = validated_data.pop('roles')
+        request = self.context['request']
+
+        return create_project_with_roles(
+            owner=request.user,
+            project_data=validated_data,
+            roles_data=roles_data,
+        )
+
+
+class ProjectUpdateSerializer(serializers.ModelSerializer):
+    field_id = serializers.PrimaryKeyRelatedField(
+        source='field',
+        queryset=Field.objects.all(),
+    )
+    image = Base64ImageField()
+
+    class Meta:
+        model = Project
+        fields = (
+            'field_id',
+            'title',
+            'description',
+            'problem',
+            'image',
+            'status',
+        )
