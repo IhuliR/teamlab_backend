@@ -44,8 +44,6 @@ tags:
     description: Отклики на роли
   - name: Memberships
     description: Участия в проектах
-  - name: Favorites
-    description: Избранные проекты участника
   - name: Me
     description: Ресурсы текущего пользователя
 

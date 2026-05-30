@@ -52,6 +52,8 @@ class User(AbstractUser):
         LOOKING_FOR_TEAM = 'looking_for_team', 'Ищу команду'
         LOOKING_FOR_MEMBERS = 'looking_for_members', 'Ищу участников'
         NOT_LOOKING = 'not_looking', 'Не ищу'
+    
+    REQUIRED_FIELDS = ['email']
 
     username = models.CharField(
         max_length=MAX_USERNAME_LEN,
