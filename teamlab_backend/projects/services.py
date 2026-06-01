@@ -1,9 +1,15 @@
 from typing import Any
 
 from django.db import transaction
+from rest_framework.exceptions import ValidationError
 
-from projects.models import Project, ProjectRole, ProjectRoleSkill
-from users.models import User
+from projects.models import (
+    Project,
+    ProjectMembership,
+    ProjectRole,
+    ProjectRoleSkill,
+    RoleInterest
+)
 
 ProjectRoleSkillData = dict[str, Any]
 ProjectRoleData = dict[str, Any]
@@ -70,7 +76,7 @@ def replace_project_role_skills(
 
 
 def create_project_with_roles(
-        owner: User,
+        owner,
         project_data: ProjectData,
         roles_data: list[ProjectRoleData],
 ) -> Project:
@@ -135,3 +141,74 @@ def create_project_with_roles(
             create_project_role_skills(role, skills_data)
         
         return project
+
+
+def find_matching_project_role(user, project: Project) -> ProjectRole | None:
+    """
+    Найти открытую роль проекта, подходящую пользователю по специализации.
+
+    Args:
+        user: Пользователь, для которого ищется роль.
+        project: Проект, в котором нужно найти подходящую роль.
+
+    Returns:
+        ProjectRole, если в проекте есть открытая роль с той же
+        специализацией, что у пользователя. Иначе None.
+
+    Note:
+        Функция не создаёт заявки и не проверяет права доступа.
+        Она только находит подходящую ProjectRole.
+    """
+    if not user.specialization_id:
+        return None
+
+    return ProjectRole.objects.filter(
+        project=project,
+        specialization_id=user.specialization_id,
+    ).order_by('id').first()
+
+
+def apply_to_project(user, project):
+    role = find_matching_project_role(user=user, project=project)
+
+    if role is None:
+        raise ValidationError(
+            'В проекте нет открытой роли для вашей специализации.'
+        )
+
+    interest = RoleInterest.objects.filter(
+        user=user,
+        project_role=role,
+    ).first()
+
+    if interest and interest.status == RoleInterest.Status.PENDING:
+        if interest.source == RoleInterest.Source.INVITATION:
+            raise ValidationError(
+                'У вас уже есть приглашение в этот проект. '
+                'Примите или отклоните его.'
+            )
+
+        raise ValidationError(
+            'Заявка уже отправлена.'
+        )
+    
+
+def validate_project_role_can_be_deleted(project_role) -> None:
+    """Проверить, что роль проекта можно удалить."""
+
+    if ProjectMembership.objects.filter(
+        project_role=project_role,
+        status=ProjectMembership.Status.ACTIVE,
+    ).exists():
+        raise ValidationError(
+            'Нельзя удалить роль, пока по ней есть активные участники.'
+        )
+
+    if RoleInterest.objects.filter(
+        project_role=project_role,
+        status=RoleInterest.Status.PENDING,
+    ).exists():
+        raise ValidationError(
+            'Нельзя удалить роль, пока по ней есть необработанные '
+            'заявки или приглашения.'
+        )

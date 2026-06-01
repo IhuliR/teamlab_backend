@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.db import transaction
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
@@ -12,25 +11,19 @@ from projects.models import (
     Field,
     Specialization,
 )
-from projects.services import(
+from projects.services import (
     create_project_role_skills,
     create_project_with_roles,
     replace_project_role_skills
 )
-from users.models import(
+from users.models import (
     FavoriteProject,
     Skill
 )
 
 
-User = get_user_model()
-
-
 class ProjectRoleSkillReadSerializer(serializers.ModelSerializer):
-    skill_id = serializers.IntegerField(
-        source='skill.id',
-        read_only=True
-    )
+    skill_id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(
         source='skill.name',
         read_only=True,
@@ -59,11 +52,6 @@ class ProjectRoleReadSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    my_interest_id = serializers.SerializerMethodField()
-    my_interest_status = serializers.SerializerMethodField()
-    my_interest_source = serializers.SerializerMethodField()
-    my_membership_id = serializers.SerializerMethodField()
-    my_membership_status = serializers.SerializerMethodField()
     specialization_name = serializers.CharField(
         source='specialization.name',
         read_only=True,
@@ -79,76 +67,10 @@ class ProjectRoleReadSerializer(serializers.ModelSerializer):
             'tasks',
             'benefits',
             'skills',
-            'is_open',
-            'my_interest_id',
-            'my_interest_status',
-            'my_interest_source',
-            'my_membership_id',
-            'my_membership_status',
             'created_at',
             'updated_at',
         )
         read_only_fields = fields
-
-    def _get_request_user(self):
-        request = self.context.get('request')
-
-        if request is None or not request.user.is_authenticated:
-            return None
-        
-        return request.user
-    
-    def _get_my_interest(self, obj):
-        user = self._get_request_user()
-
-        if user is None:
-            return None
-        
-        cache = self.context.setdefault('my_interests_cache', {})
-
-        if obj.pk not in cache:
-            cache[obj.pk] = RoleInterest.objects.filter(
-                user=user,
-                project_role=obj,
-            ).first()
-        
-        return cache[obj.pk]
-    
-    def _get_my_membership(self, obj):
-        user = self._get_request_user()
-
-        if user is None:
-            return None
-        
-        cache = self.context.get('my_membership_cache', {})
-
-        if obj.pk not in cache:
-            cache[obj.pk] = ProjectMembership.objects.filter(
-                user=user,
-                project_role=obj,
-            ).order_by('-created_at').first()
-
-        return cache[obj.pk]
-
-    def get_my_interest_id(self, obj):
-        interest = self._get_my_interest(obj)
-        return interest.id if interest else None
-    
-    def get_my_interest_status(self, obj):
-        interest = self._get_my_interest(obj)
-        return interest.status if interest else None
-    
-    def get_my_interest_source(self, obj):
-        interest = self._get_my_interest(obj)
-        return interest.source if interest else None
-    
-    def get_my_membership_id(self, obj):
-        membership = self._get_my_membership(obj)
-        return membership.id if membership else None
-    
-    def get_my_membership_status(self, obj):
-        membership = self._get_my_membership(obj)
-        return membership.status if membership else None
 
 
 class ProjectRolePreviewSerializer(serializers.ModelSerializer):
@@ -170,7 +92,6 @@ class ProjectRolePreviewSerializer(serializers.ModelSerializer):
             'specialization_id',
             'specialization_name',
             'skills',
-            'is_open'
         )
         read_only_fields = fields
 
@@ -195,7 +116,7 @@ class ProjectRoleBaseInputSerializer(serializers.Serializer):
 
 
 class ProjectRoleNestedInputSerializer(ProjectRoleBaseInputSerializer):
-    ...
+    pass
 
 
 class ProjectRoleCreateSerializer(ProjectRoleBaseInputSerializer):
@@ -215,7 +136,6 @@ class ProjectRoleCreateSerializer(ProjectRoleBaseInputSerializer):
 
 
 class ProjectRoleUpdateSerializer(ProjectRoleBaseInputSerializer):
-    is_open = serializers.BooleanField()
 
     def update(self, instance, validated_data):
         skills_data = validated_data.pop('skills', None)
@@ -297,6 +217,13 @@ class ProjectDetailSerializer(ProjectBaseReadSerializer):
         many=True,
         read_only=True
     )
+    matching_role_id = serializers.SerializerMethodField()
+    matching_role_name = serializers.SerializerMethodField()
+    my_interest_id = serializers.SerializerMethodField()
+    my_interest_status = serializers.SerializerMethodField()
+    my_interest_source = serializers.SerializerMethodField()
+    my_membership_id = serializers.SerializerMethodField()
+    my_membership_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -311,10 +238,125 @@ class ProjectDetailSerializer(ProjectBaseReadSerializer):
             'status',
             'is_favorited',
             'roles',
+            'matching_role_id',
+            'matching_role_name',
+            'my_interest_id',
+            'my_interest_status',
+            'my_interest_source',
+            'my_membership_id',
+            'my_membership_status',
             'created_at',
             'updated_at',
         )
         read_only_fields = fields
+    
+    def _get_request_user(self):
+        request = self.context.get('request')
+
+        if request is None or not request.user.is_authenticated:
+            return None
+
+        return request.user
+
+    def _get_my_interest(self, obj):
+        user = self._get_request_user()
+
+        if user is None:
+            return None
+
+        cache = self.context.setdefault('project_interests_cache', {})
+
+        if obj.pk not in cache:
+            cache[obj.pk] = RoleInterest.objects.filter(
+                user=user,
+                project_role__project=obj,
+            ).select_related(
+                'project_role',
+                'project_role__specialization',
+            ).order_by('-created_at').first()
+
+        return cache[obj.pk]
+
+    def _get_my_membership(self, obj):
+        user = self._get_request_user()
+
+        if user is None:
+            return None
+
+        cache = self.context.setdefault('project_memberships_cache', {})
+
+        if obj.pk not in cache:
+            cache[obj.pk] = ProjectMembership.objects.filter(
+                user=user,
+                project_role__project=obj,
+            ).select_related(
+                'project_role',
+                'project_role__specialization',
+            ).order_by('-created_at').first()
+
+        return cache[obj.pk]
+
+    def _get_matching_role(self, obj):
+        user = self._get_request_user()
+
+        if user is None:
+            return None
+
+        cache = self.context.setdefault('matching_roles_cache', {})
+
+        if obj.pk not in cache:
+            membership = self._get_my_membership(obj)
+
+            if membership is not None:
+                cache[obj.pk] = membership.project_role
+                return cache[obj.pk]
+
+            interest = self._get_my_interest(obj)
+
+            if interest is not None:
+                cache[obj.pk] = interest.project_role
+                return cache[obj.pk]
+
+            if not user.specialization_id:
+                cache[obj.pk] = None
+                return None
+
+            cache[obj.pk] = ProjectRole.objects.filter(
+                project=obj,
+                specialization_id=user.specialization_id,
+            ).select_related(
+                'specialization',
+            ).order_by('id').first()
+
+        return cache[obj.pk]
+
+    def get_matching_role_id(self, obj):
+        role = self._get_matching_role(obj)
+        return role.id if role else None
+
+    def get_matching_role_name(self, obj):
+        role = self._get_matching_role(obj)
+        return role.specialization.name if role else None
+
+    def get_my_interest_id(self, obj):
+        interest = self._get_my_interest(obj)
+        return interest.id if interest else None
+
+    def get_my_interest_status(self, obj):
+        interest = self._get_my_interest(obj)
+        return interest.status if interest else None
+
+    def get_my_interest_source(self, obj):
+        interest = self._get_my_interest(obj)
+        return interest.source if interest else None
+
+    def get_my_membership_id(self, obj):
+        membership = self._get_my_membership(obj)
+        return membership.id if membership else None
+
+    def get_my_membership_status(self, obj):
+        membership = self._get_my_membership(obj)
+        return membership.status if membership else None
 
 
 class ProjectCreateSerializer(serializers.Serializer):
@@ -326,6 +368,10 @@ class ProjectCreateSerializer(serializers.Serializer):
     description = serializers.CharField()
     problem = serializers.CharField()
     image = Base64ImageField()
+    roles = ProjectRoleNestedInputSerializer(
+        many=True,
+        allow_empty=False,
+    )
 
     def create(self, validated_data):
         roles_data = validated_data.pop('roles')
@@ -355,3 +401,20 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
             'image',
             'status',
         )
+
+
+class FavoriteProjectRolePreviewSerializer(serializers.ModelSerializer):
+    specialization_id = serializers.IntegerField(read_only=True)
+    specialization_name = serializers.CharField(
+        source='specialization.name',
+        read_only=True
+    )
+
+    class Meta:
+        model = ProjectRole
+        fields = (
+            'id',
+            'specialization_id',
+            'specialization_name',
+        )
+        read_only_fields = fields

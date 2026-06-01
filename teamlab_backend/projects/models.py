@@ -66,7 +66,7 @@ class Project(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='projects',
+        related_name='owned_projects',
         verbose_name='Владелец'
     )
     field = models.ForeignKey(
@@ -133,10 +133,6 @@ class ProjectRole(models.Model):
         default=list,
         blank=True,
         verbose_name='Что получите'
-    )
-    is_open = models.BooleanField(
-        default=True,
-        verbose_name='Роль открыта'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
