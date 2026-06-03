@@ -2,183 +2,59 @@
 
 ## 1. Purpose
 
-Backend TeamLab реализует один основной процесс: переводит интерес пользователя к роли в подтверждённое участие в проекте.
-
-Центр системы — управляемая цепочка:
-Project → ProjectRole → RoleInterest → ProjectMembership
-
-Backend:
-- хранит состояние этого потока
-- валидирует переходы
-- обеспечивает инварианты
-- предоставляет API для профиля, проектов, ролей, откликов и участия
-- реализует базовый поиск по структурированным данным
-
----
+Backend TeamLab обслуживает MVP workflow командообразования: проекты, роли проекта, заявки/приглашения и участия. OpenAPI schema является главным API-контрактом, Domain Model — главным источником доменной логики.
 
 ## 2. Core Architectural Decisions
 
-- В системе существует одна сущность `User`.  
-  `account_type` влияет на поведение, но не делит модель.
-
-- Каноническое ядро неизменно:  
-  `Project → ProjectRole → RoleInterest → ProjectMembership`
-
-- Любая бизнес-логика обязана проходить через это ядро.
-
-- `RoleInterest` и `ProjectMembership` — разные стадии.  
-  Membership создаётся только после `accepted`.
-
-- Прямое создание `ProjectMembership` запрещено.
-
-- Повторные RoleInterest для пары (user, project_role) запрещены.
-
-- Уведомления не являются отдельной бизнес-сущностью.  
-  UI строит их как представление данных из `RoleInterest` и `ProjectMembership`.
-
-- `IncomingInterest` не является моделью.  
-  Это read-only API response/view schema поверх `RoleInterest` для pending applications в проекты текущего owner.
-
-- Email-функционал отсутствует (включая восстановление пароля).
-
-- Сложный matching отсутствует.  
-  Только фильтрация по структурированным данным.
-
-- Состояния являются частью модели.  
-  Закрытые проекты и роли не принимают отклики.
-
-- Нет скрытых состояний — любое состояние должно быть явно выражено в модели.
-
-- В MVP пользователь имеет один `account_type` (`participant` или `owner`),  
-  который определяет его основной сценарий использования.
-
-- `account_type` не изменяется через пользовательский интерфейс.
-
-- Один пользователь не может одновременно выполнять оба сценария в рамках одного аккаунта.
-
-- Возможность совмещения ролей отложена и может быть реализована в будущих версиях без изменения структуры сущности `User`.
-
-- В MVP у пользователя одна `Specialization`, но много `Skill`.
-
-- `social_links` хранится единым JSONB-полем профиля. `contacts_visible` вычисляется в API-ответе и не хранится в БД.
-
-- `search_status` описывает текущее состояние поиска пользователя и не заменяет `account_type`.
-
-- `work_format` описывает remote/hybrid, `employment_type` описывает full_time/part_time/combined.
-
-- Отклик реализуется как `RoleInterest` — интерес пользователя к конкретной `ProjectRole`.
-
-- Приглашение также реализуется через `RoleInterest`, с `source = invitation`.
-
-- Участие реализуется как `ProjectMembership` — подтверждённое вхождение пользователя в проект через конкретную роль.
-
-- В MVP избранное поддерживается только для участника:
-  - `participant` сохраняет проекты
-  Логика избранного остаётся простой: только добавление, удаление и список карточек.
-
-- Восстановление пароля в MVP не реализуется. Вместо этого используется статичная заглушка с информацией о том, что функция находится в разработке, и с контактом администратора.
-
-- Light/dark theme является UI-only настройкой и не входит в API/SQL-контракт MVP.
----
+- `ProjectRole` — направление проекта, а не слот на одного человека.
+- На одну роль может быть несколько active participants.
+- `is_open` отсутствует: существование роли определяет возможность applications/invitations.
+- Context fields не хранятся на ProjectRole. Они возвращаются на project detail и user detail.
+- `RoleInterest` остаётся внутренней моделью для applications и invitations.
+- `ProjectMembership` создаётся только через accept RoleInterest.
+- `leave` и `remove` реализуются action endpoints, а не PATCH status.
+- Notifications — read-only представление pending RoleInterest без отдельной модели.
+- Удаление ProjectRole блокируется active memberships и pending interests; historical RoleInterest/ProjectMembership удаляются каскадно, история по удалённой роли в MVP не сохраняется.
 
 ## 3. MVP Scope
 
-### 3.1 Входит в MVP
+### Входит в MVP
 
-- создание проекта
-- создание ролей
-- отклики (`RoleInterest`)
-- приглашения через `RoleInterest.source`
-- принятие / отклонение
-- участие (`ProjectMembership`)
-- профиль пользователя
-- базовый поиск и фильтрация
-- `image` проекта для карточек
-- `ProjectRoleSkill` для требований роли к навыкам и фильтрации проектов по `skills`
-- `roles_preview`, `roles`, `is_favorited` и `my_*` поля ролей как read-only API-представления
-- поиск только по структурированным данным
-- избранное:
-  - проекты для участников
-- уведомления как UI-представление данных из `RoleInterest` и `ProjectMembership`
-- статичная заглушка на странице восстановления пароля
+- Users, auth, profile, portfolio works, favorite projects.
+- Dictionaries: Field, Specialization, Skill.
+- Projects with nested roles creation.
+- Project applications and invitations.
+- RoleInterest accept/reject actions.
+- ProjectMembership leave/remove actions.
+- Current user projects, applications and notifications.
 
----
+### Не входит в MVP
 
-### 3.2 Не входит в MVP
-
-- повторные отклики на одну роль
-- сложный matching / рекомендации
-- чат
-- роли внутри команды
-- социальные механики
-- email-функции (включая восстановление пароля)
-- delete account endpoint
-- Notification, Invitation и Match как отдельные модели
-
----
-
-### 3.3 Упрощения MVP
-
-- одна специализация у пользователя
-- `technologies` — простое поле
-- `PortfolioWork.technologies` не связано с `Skill`
-- роль хранит `tasks` и `benefits` как массивы строк
-- требования роли к навыкам нормализованы через `ProjectRoleSkill`
-- `city` и `work_format` остаются характеристиками пользователя, а не проекта
-- фильтр проектов по навыкам работает через `ProjectRoleSkill.skill_id`; структурный фильтр ролей — `role_specialization_id`
-- invitation/application различаются через `RoleInterest.source`
-- нет истории изменений
-- нет soft-delete
-- избранное без сложной логики, заметок, папок и рекомендаций
-- восстановление пароля не реализовано, вместо него используется заглушка
-
----
+- Notification model/table.
+- Invitation model/table.
+- IncomingInterest model/table or endpoint as public MVP API.
+- Match model/table.
+- Public `GET /role-interests/`.
+- Public `GET /project-memberships/`.
+- `PATCH /project-memberships/{membership_id}/`.
+- Cancel action and `cancelled` status.
+- Direct public creation of ProjectMembership.
 
 ## 4. Backend Responsibility Boundaries
 
-Backend отвечает за:
+Serializers define API-visible fields and shape validation. Business transitions belong to service/view logic:
 
-- доменную логику
-- статусы и переходы
-- инварианты
-- ограничения на создание и изменение данных
-- фильтрацию по структурированным полям
-- правила доступа (на основе User, account_type и связей)
-- доступ определяется через связи между сущностями (user → project → role)
-
-Backend НЕ отвечает за:
-
-- управление задачами внутри проекта
-- поведение UI
-- UI-only настройки и режимы: light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, tooltip hints, режимы отображения портфолио и избранного
-- социальную сеть
-- чат
-- сложную аналитику
-- интеллектуальный matching
-
-Задача backend — надёжно поддерживать доменную модель и основной поток формирования команды.
-
----
+- choose matching ProjectRole for application/invitation;
+- enforce RoleInterest uniqueness for `(user_id, project_role_id)`;
+- accept/reject permissions by RoleInterest source;
+- create ProjectMembership during accept;
+- prevent ProjectRole deletion when active memberships or pending interests exist;
+- cascade-delete historical RoleInterest/ProjectMembership after ProjectRole deletion passes blocking checks;
+- compute contacts visibility and context fields.
 
 ## 5. Technical Principles
 
-- Простота важнее гибкости (на этапе MVP)
-
-- Явные состояния вместо неявной логики
-
-- Минимальное количество сущностей  
-  (используем существующие, не добавляем новые без необходимости)
-
-- Безопасные изменения модели  
-  (расширяем, а не ломаем ядро)
-
-- Расширяемость без переписывания  
-  (новые фичи наслаиваются)
-
-- API синхронизирован с доменной моделью  
-  (отражает реальные сущности и переходы)
-
-- Отсутствие преждевременной оптимизации  
-  (если не нужно для основного потока — не делаем)
-
----
+- Use explicit action endpoints for domain transitions.
+- Do not expose technical model lists when product flows require applications/invitations/notifications.
+- Keep DB schema aligned with API invariants but do not add UI-only tables.
+- Keep `contacts_visible` computed, not persisted.

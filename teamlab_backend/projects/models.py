@@ -20,6 +20,14 @@ class Field(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_featured = models.BooleanField(
+        default=False,
+        verbose_name='Показывать на главной',
+    )
+    featured_order = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='Порядок на главной',
+    )
 
     class Meta:
         verbose_name = 'Область'
@@ -99,6 +107,14 @@ class Project(models.Model):
         default=Status.OPEN,
         verbose_name='Статус'
     )
+    is_featured = models.BooleanField(
+        default=False,
+        verbose_name='Показывать в подборке',
+    )
+    featured_order = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='Порядок на главной',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -141,6 +157,12 @@ class ProjectRole(models.Model):
         verbose_name = 'Роль в проекте'
         verbose_name_plural = 'Роли в проекте'
         ordering = ('project', 'specialization')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('project', 'specialization'),
+                name='unique_project_role_specialization',
+            ),
+        ]
     
     def __str__(self):
         return f'{self.project} - {self.specialization}'

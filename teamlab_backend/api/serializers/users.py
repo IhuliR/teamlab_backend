@@ -6,10 +6,14 @@ from projects.models import (
     Project,
     ProjectMembership,
     ProjectRole,
-    RoleInterest
+    RoleInterest,
+    Specialization
 )
 from users.models import UserSkill, Skill, PortfolioWork, FavoriteProject
-from users.services import replace_user_skills
+from users.services import (
+    replace_user_skills,
+    user_has_active_participation_or_pending_interests
+)
 from .projects import FavoriteProjectRolePreviewSerializer
 
 User = get_user_model()
@@ -400,10 +404,16 @@ class CurrentUserDetailSerializer(serializers.ModelSerializer):
 
 
 class CurrentUserUpdateSerializer(serializers.ModelSerializer):
-    specialization_id = serializers.IntegerField(read_only=True)
-    skills = UserSkillReadSerializer(
+    specialization_id = serializers.PrimaryKeyRelatedField(
+        source='specialization',
+        queryset=Specialization.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    skills = UserSkillInputSerializer(
         many=True,
-        read_only=True
+        required=False,
+        allow_empty=False,
     )
     avatar = Base64ImageField(required=False, allow_null=True)
 
@@ -426,19 +436,49 @@ class CurrentUserUpdateSerializer(serializers.ModelSerializer):
             'skills',
         )
 
+    def validate(self, attrs):
+        new_specialization = attrs.get(
+            'specialization',
+            self.instance.specialization,
+        )
+
+        if (
+            self.instance.account_type == User.AccountType.PARTICIPANT
+            and new_specialization is None
+        ):
+            raise serializers.ValidationError({
+                'specialization_id': (
+                    'Для участника специализация обязательна.'
+                )
+            })
+        if (
+            'specialization' in attrs
+            and attrs['specialization'] != self.instance.specialization
+            and user_has_active_participation_or_pending_interests(
+                self.instance
+            )
+        ):
+            raise serializers.ValidationError({
+                'specialization_id': (
+                    'Нельзя изменить специализацию при активном участии, '
+                    'заявках или приглашениях.'
+                )
+            })
+
+        return attrs
+
     def update(self, instance, validated_data):
         skills_data = validated_data.pop('skills', None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
+
         instance.save()
 
         if skills_data is not None:
             replace_user_skills(instance, skills_data)
-        
-        return instance
 
+        return instance
 
 class FavoriteProjectCardSerializer(serializers.ModelSerializer):
     roles_preview = FavoriteProjectRolePreviewSerializer(

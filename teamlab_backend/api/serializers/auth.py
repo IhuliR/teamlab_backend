@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.password_validation import (
+    validate_password as django_validate_password,
+)
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
@@ -34,7 +36,7 @@ class SetPasswordSerializer(serializers.Serializer):
         user = self.context['request'].user
 
         try:
-            validate_password(value, user)
+            django_validate_password(value, user)
         except DjangoValidationError as error:
             raise serializers.ValidationError(error.messages)
         
@@ -74,14 +76,34 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     def validate_password(self, value):
         try:
-            validate_password(value)
+            django_validate_password(value)
         except DjangoValidationError as error:
             raise serializers.ValidationError(error.messages)
         
         return value
 
+    def validate(self, attrs):
+        account_type = attrs.get('account_type')
+        specialization = attrs.get('specialization')
+
+        if (
+            account_type == User.AccountType.PARTICIPANT
+            and specialization is None
+        ):
+            raise serializers.ValidationError({
+                'specialization_id': (
+                    'Для участника специализация обязательна.'
+                )
+            })
+
+        return attrs
+
     def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
 
 class AuthUserSerializer(serializers.ModelSerializer):

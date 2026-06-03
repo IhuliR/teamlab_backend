@@ -2,505 +2,142 @@
 
 ## 1. Обзор доменной модели
 
-В системе выделены следующие ключевые сущности:
+Каноническая цепочка TeamLab MVP:
 
-- User
-- Field
-- Specialization
-- Skill
-- UserSkill
-- Project
-- ProjectRole
-- RoleInterest
-- ProjectMembership
-- PortfolioWork
-- FavoriteProject
+`Project -> ProjectRole -> RoleInterest -> ProjectMembership`
 
-Центр системы — процесс формирования команды, а не просто проекты.
+`ProjectRole` описывает роль, специализацию или направление в проекте. Это не слот и не одно место для одного участника. На одну роль может быть несколько участников.
 
-Основной поток:
+Заявки и приглашения не являются отдельными доменными моделями. Они представлены `RoleInterest`:
 
-Project → ProjectRole → RoleInterest → ProjectMembership
+- `source = application` — participant откликнулся на проект;
+- `source = invitation` — owner пригласил пользователя;
+- `status = pending|accepted|rejected`.
 
-Этот поток определяет:
-- как пользователи находят проекты
-- как происходит отклик
-- как формируется команда
-
----
+`ProjectMembership` появляется только после accepted RoleInterest.
 
 ## 2. Сущности
 
 ### User
 
-**Назначение:**
-Единая сущность пользователя и профиля.
+Пользователь платформы. `account_type` определяет основной сценарий: `participant` или `owner`. У пользователя может быть `specialization`, набор `UserSkill`, portfolio works, favorite projects и настройка уведомлений `notification_enabled`.
 
-**Ключевые поля:**
-- id
-- username
-- email
-- bio
-- account_type (`participant` / `owner`)
-- specialization_id
-- level (`junior` / `middle` / `senior`)
-- workload_hours_per_week
-- work_format (`remote` / `hybrid`)
-- employment_type (`full_time` / `part_time` / `combined`)
-- search_status (`looking_for_team` / `looking_for_members` / `not_looking`)
-- profile_visibility (`public` / `matched_only` / `hidden`)
-- notifications_enabled
-- city
-- avatar
-- social_links
-- created_at
-- updated_at
+`contacts_visible` не хранится в БД. Это вычисляемое API-поле публичного профиля, доступное в `GET /users/{user_id}/`. В `GET /users/me/` оно не возвращается.
 
-**Связи:**
-- User → Project (owner)
-- User → UserSkill
-- User → RoleInterest
-- User → ProjectMembership
-- User → PortfolioWork
-- User → FavoriteProject
-- User → Specialization
+### Field, Specialization, Skill
 
-**Ограничения:**
-- в MVP у пользователя один account_type
-- один аккаунт не поддерживает оба сценария одновременно 
-- архитектура допускает расширение в будущем
-- в MVP у пользователя одна специализация  
-- в будущем возможно расширение до нескольких специализаций (через ManyToMany), если появится продуктовая необходимость
-- `account_type` определяет основной сценарий пользователя, а `search_status` отражает текущее состояние поиска и не заменяет `account_type`
-- `work_format` описывает remote/hybrid, а `employment_type` описывает доступность full_time/part_time/combined
-- `social_links` хранит соцсети пользователя единым JSONB-полем с ключами `instagram`, `telegram`, `github`, `behance`, `vk`
-- `contacts_visible` не хранится в БД; это вычисляемое read-only поле API
-- публичный профиль возвращает `social_links = null`, пока контакты не открыты через active ProjectMembership
-- `profile_visibility` и `notifications_enabled` — настройки пользователя; отдельная Notification-модель не появляется
-
----
-
-### Field
-
-**Назначение:**
-Верхнеуровневая категория.
-
-**Ключевые поля:**
-- id
-- name
-- created_at
-- updated_at
-
-**Связи:**
-- Field → Specialization
-- Field → Project
-
-**Ограничения:**
-- name уникален
-
----
-
-### Specialization
-
-**Назначение:**  
-Специализация внутри Field.
-
-**Ключевые поля:**
-- id
-- field_id
-- name
-- created_at
-- updated_at
-
-**Связи:**
-- Specialization → Field
-- Specialization → User
-- Specialization → ProjectRole
-
-**Ограничения:**
-- уникальность (field_id, name)
-
----
-
-### Skill
-
-**Назначение:**  
-Справочник навыков.
-
-**Ключевые поля:**
-- id
-- name
-- created_at
-- updated_at
-
-**Связи:**
-- Skill → UserSkill
-
-**Ограничения:**
-- name уникален
-
----
+Справочники. `Specialization` принадлежит `Field`. `Skill` используется в `UserSkill` и `ProjectRoleSkill`.
 
 ### UserSkill
 
-**Назначение:**  
-Связь пользователя и навыка.
-
-**Ключевые поля:**
-- id
-- user_id
-- skill_id
-- level (`basic` / `middle` / `advanced`)
-- created_at
-- updated_at
-
-**Связи:**
-- UserSkill → User
-- UserSkill → Skill
-
-**Ограничения:**
-- уникальность (user_id, skill_id)
-
----
+Связь пользователя с навыком и уровнем владения. В API skill item содержит `name` справочного навыка.
 
 ### Project
 
-**Назначение:**  
-Карточка проекта.
-
-**Ключевые поля:**
-- id
-- owner_id
-- field_id
-- title
-- description
-- problem
-- image
-- status (`open` / `closed`)
-- created_at
-- updated_at
-
-**Связи:**
-- Project → User
-- Project → Field
-- Project → ProjectRole
-- Project → FavoriteProject
-
-**Ограничения:**
-- всегда есть owner
-- всегда есть field  
-- при status = `closed` новые отклики и создание ролей запрещены
-- `image` используется как cover/card image проекта
-- `description` = суть проекта
-- `problem` = проблема, которую решает проект
-- `city` и `work_format` относятся к пользователю, а не к проекту
-
----
+Проект owner. В list/card представлении может возвращать `roles_preview`; в detail возвращает `roles` и context fields текущего пользователя: `matching_role_id`, `matching_role_name`, `my_interest_id`, `my_interest_status`, `my_interest_source`, `my_membership_id`, `my_membership_status`.
 
 ### ProjectRole
 
-**Назначение:**  
-Роль в проекте.
+Роль, специализация или направление внутри проекта.
 
-**Ключевые поля:**
-- id
-- project_id
-- specialization_id
-- tasks
-- benefits
-- is_open
-- created_at
-- updated_at
+Актуальные поля: `project_id`, `specialization_id`, `tasks`, `benefits`, `skills`, timestamps. API также отдаёт `specialization_name`.
 
-**Связи:**
-- ProjectRole → Project
-- ProjectRole → Specialization
-- ProjectRole → ProjectRoleSkill
-- ProjectRole → RoleInterest
-- ProjectRole → ProjectMembership
+Удалённое поле `is_open` отсутствует. Роль существует — по ней можно откликаться и приглашать. Роль удалена — по ней нельзя откликаться и приглашать.
 
-**Ограничения:**
-- одна ProjectRole = одно место / один участник
-- если нужно несколько одинаковых специалистов, owner создаёт несколько ProjectRole
-- при is_open = false новые отклики запрещены  
-- роль может быть закрыта независимо от статуса проекта  
-- если проект закрыт (`Project.status = closed`), роль считается закрытой независимо от is_open
-- `tasks` хранит список задач роли
-- `benefits` хранит список выгод конкретной роли, а не проекта
+Удаление ProjectRole запрещено, если есть:
 
----
+- active `ProjectMembership`;
+- pending `RoleInterest(source = application)`;
+- pending `RoleInterest(source = invitation)`.
+
+Роль можно удалить только если нет active ProjectMembership и pending RoleInterest. Historical rejected/accepted RoleInterest и left/removed ProjectMembership по удаляемой роли в MVP удаляются каскадно. История по удалённой роли в MVP не сохраняется.
 
 ### ProjectRoleSkill
 
-**Назначение:**
-Нормализованное требование конкретной роли к конкретному навыку.
-
-**Ключевые поля:**
-- id
-- project_role_id
-- skill_id
-- description
-- order
-
-**Связи:**
-- ProjectRoleSkill → ProjectRole
-- ProjectRoleSkill → Skill
-
-**Ограничения:**
-- уникальность (project_role_id, skill_id)
-- уникальность (project_role_id, order)
-- ordering: project_role_id, order
-- `ProjectRoleSkill` не то же самое, что `UserSkill`
-- `Skill` остаётся общим справочником навыков
-- `UserSkill` описывает навык пользователя
-- `ProjectRoleSkill` описывает требование роли к навыку
-- `description` поясняет требование роли к конкретному навыку
-- цвет чипов навыков остаётся frontend/UI-only и не хранится в БД
-
----
+Нормализованное требование роли к справочному навыку: `skill_id`, `description`, `order`. В API отдаётся `name` навыка.
 
 ### RoleInterest
 
-**Назначение:**  
-Интерес пользователя к роли.
+Внутренняя модель для заявок и приглашений. Публичные списочные endpoints используют продуктовые названия `applications`, `invitations`, `notifications`.
 
-**Ключевые поля:**
-- id
-- user_id
-- project_role_id
-- source (`application` / `invitation`)
-- status (`pending` / `accepted` / `rejected`)
-- reviewed_at
-- created_at
-- updated_at
+Статусы:
 
-**Связи:**
-- RoleInterest → User
-- RoleInterest → ProjectRole
+- `pending` — ждёт решения;
+- `accepted` — принято;
+- `rejected` — отклонено.
 
-**Логическая связь:**
-- используется для создания ProjectMembership (через role_interest_id)
+Статус `cancelled` и cancel flow в MVP отсутствуют.
 
-**Source:**
-- `application` — пользователь сам откликнулся на роль
-- `invitation` — владелец проекта пригласил пользователя на роль
+Инварианты:
 
-**Решение:**
-- `application` принимает или отклоняет владелец проекта
-- `invitation` принимает или отклоняет приглашённый пользователь
-
-**Ограничения:**
-- уникальность (user_id, project_role_id)  
-- для пары (user, project_role) может существовать только один RoleInterest
-- `invitation` может создавать только владелец проекта
-- interest возможен только если:
-  - проект открыт
-  - роль открыта
-
----
+- уникальность `(user_id, project_role_id)`;
+- action `accept` может создать ProjectMembership;
+- action `reject` не создаёт ProjectMembership.
+- если ProjectRole удаляется после прохождения blocking-проверок, исторические RoleInterest этой роли удаляются каскадно.
 
 ### ProjectMembership
 
-**Назначение:**  
-Участие в проекте.
+Факт участия пользователя в проекте по роли. Создаётся backend-логикой только при `POST /role-interests/{interest_id}/accept/`.
 
-**Ключевые поля:**
-- id
-- user_id
-- project_role_id
-- role_interest_id
-- status (`active` / `left` / `removed`)
-- joined_at
-- ended_at
-- created_at
-- updated_at
+Статусы:
 
-**Связи:**
-- ProjectMembership → User
-- ProjectMembership → ProjectRole
-- ProjectMembership → RoleInterest (через role_interest_id)
+- `active` — пользователь участвует;
+- `left` — пользователь сам покинул проект;
+- `removed` — owner удалил пользователя.
 
-**Ограничения:**
-- создаётся только после accepted RoleInterest  
-- role_interest_id уникален
-- RoleInterest должен иметь `status = accepted`
-- одна активная ProjectMembership допускается на одну ProjectRole
-- проект определяется через project_role (без отдельного FK)
-- контакты пользователя доступны только при `ProjectMembership.status = active`
-- “метч” не является отдельной сущностью; он выводится из active ProjectMembership
+Завершение участия выполняется через `leave` и `remove` action endpoints, а не через PATCH status.
 
----
+Если ProjectRole удаляется после прохождения blocking-проверок, historical ProjectMembership со статусами `left`/`removed` удаляются каскадно вместе с ролью.
 
 ### PortfolioWork
 
-**Назначение:**  
-Работа пользователя.
-
-**Ключевые поля:**
-- id
-- user_id
-- title
-- task
-- solution
-- image
-- technologies
-- link
-- created_at
-- updated_at
-
-**Связи:**
-- PortfolioWork → User
-
-**Примечание:**
-- в MVP `technologies` хранится как простое JSONB-поле/массив строк
-- `technologies` не связано с `Skill` и не является ManyToMany
-- в будущем может быть нормализовано через связь с Skill
-
----
+Работа портфолио пользователя. Во всех API-представлениях portfolio work содержит `image`.
 
 ### FavoriteProject
 
-Избранные проекты участника.
+Избранный проект participant. `GET /users/me/favorite-projects/` возвращает FavoriteProject и вложенную компактную карточку проекта: `id`, `title`, `image`, `roles_preview`.
 
-**Ключевые поля:**
-- id
-- user_id
-- project_id
-- created_at
+## 3. Связи
 
-**Ограничения:**
-- используется только для пользователей с `account_type = participant`
-- уникальность (user_id, project_id)
+- `User 1 -> N Project` как owner.
+- `Project 1 -> N ProjectRole`.
+- `ProjectRole 1 -> N ProjectRoleSkill`.
+- `User 1 -> N RoleInterest`.
+- `ProjectRole 1 -> N RoleInterest`.
+- `RoleInterest 0..1 -> 1 ProjectMembership`.
+- `ProjectRole 1 -> N ProjectMembership`.
+- `User 1 -> N ProjectMembership`.
 
----
-
-## 3. Связи (relations)
-
-- User → Project — OneToMany
-- User → UserSkill — OneToMany
-- User → RoleInterest — OneToMany
-- User → ProjectMembership — OneToMany
-- User → PortfolioWork — OneToMany
-- User → FavoriteProject — OneToMany
-
-- Field → Specialization — OneToMany
-- Field → Project — OneToMany
-
-- Specialization → User — OneToMany
-- Specialization → ProjectRole — OneToMany
-
-- User ↔ Skill — ManyToMany через UserSkill
-
-- Project → ProjectRole — OneToMany
-- Project → FavoriteProject — OneToMany
-
-- Skill → ProjectRoleSkill — OneToMany
-- ProjectRole → RoleInterest — OneToMany
-- ProjectRole → ProjectMembership — OneToMany
-- ProjectRole → ProjectRoleSkill — OneToMany
-
-**Важно:**  
-Связь RoleInterest → ProjectMembership имеет OneToOne/unique semantics: один accepted RoleInterest может породить максимум один ProjectMembership.
-
----
+Нет инварианта “одна роль имеет максимум одного active ProjectMembership”.
 
 ## 4. Жизненный цикл
 
-### Project
-- создание: owner создаёт проект
-- изменение: редактирует данные
-- завершение: статус → closed
-
 ### ProjectRole
-- создание: добавляется в проект
-- изменение: tasks, benefits, skills, is_open
-- завершение: закрытие роли
+
+Создана -> обновляется -> удаляется, если нет blocking-связей. Отдельного состояния открытости роли нет.
 
 ### RoleInterest
-- создание: пользователь откликается (`source = application`) или владелец приглашает (`source = invitation`)
-- изменение: смена статуса
-- завершение:
-  - accepted → membership
-  - rejected → завершён
+
+`pending -> accepted` или `pending -> rejected`. Принятие создаёт membership; отклонение membership не создаёт.
 
 ### ProjectMembership
-- создание: после accepted
-- изменение: статус
-- завершение:
-  - left / removed
 
----
+`active -> left` через leave или `active -> removed` через remove.
 
-## 5. Статусы
+## 5. Инварианты
 
-### RoleInterest.status
-- pending
-- accepted
-- rejected
+- ProjectRole — не одно место, а направление проекта.
+- На одну ProjectRole может быть несколько участников.
+- `is_open` отсутствует.
+- Удаление ProjectRole запрещено при active memberships или pending interests.
+- RoleInterest и ProjectMembership — разные стадии workflow.
+- ProjectMembership создаётся только через accept RoleInterest.
+- Invitation/Application реализуются через RoleInterest.source.
+- История по удалённой ProjectRole в MVP не сохраняется; historical RoleInterest/ProjectMembership удаляются каскадно.
+- Notification, Invitation, IncomingInterest и Match не являются моделями MVP.
+- Общие публичные списки `GET /role-interests/` и `GET /project-memberships/` отсутствуют.
+- Leave/remove реализованы action endpoints.
 
-### ProjectMembership.status
-- active
-- left
-- removed
+## 6. Спорные зоны
 
-### Project.status
-- open
-- closed
-
----
-
-## 6. Инварианты
-
-- membership только после accepted interest
-- для пары (user, project_role) может существовать только один RoleInterest
-- одна роль имеет максимум одного активного участника
-- закрытые роли не принимают отклики
-- закрытый проект не принимает отклики
-- участие нельзя создать напрямую
-- UserSkill уникален
-- FavoriteProject уникален (user_id, project_id)
-- contacts доступны только при active membership
-- contacts_visible вычисляется, но не хранится в БД
-- FavoriteProject существует только для participant; у owner нет избранного и “сердечек” в UI
-
----
-
-## 7. Спорные зоны
-
-- одна или несколько специализаций у пользователя (расширяемо)
-- `ProjectRoleSkill` входит в MVP, потому что нужен для фильтрации проектов по навыкам и для описания требований роли
-- technologies в PortfolioWork не нормализованы
-- фильтрация проектов по skills опирается на `ProjectRoleSkill.skill_id`, а не на `UserSkill` и не на JSON-поле роли
-- `profile_visibility` есть как настройка пользователя, но backend-фильтрация профилей по ней может быть реализована позже
-- нет ролей внутри команды
-- повторные RoleInterest для одной пары (user, project_role) могут потребоваться в будущем, но в MVP не поддерживаются
-
----
-
-## 8. Упрощения MVP
-
-- нет email-сервиса
-- нет восстановления пароля
-- уведомления не являются отдельной бизнес-сущностью; UI строит их как представление данных из RoleInterest и ProjectMembership
-- `IncomingInterest` не является доменной моделью; это read-only API response/view поверх `RoleInterest` для owner-заявок (`source = application`, `status = pending`, project owner = request.user)
-- приглашения реализуются через RoleInterest.source, без отдельной Invitation-модели
-- нет сложного matching
-- нет истории откликов
-- повторные RoleInterest для одной пары (user, project_role) не поддерживаются
-- нет сложной социальной логики
-- нет Notification, Invitation и Match как отдельных моделей
-- нет email-уведомлений и password reset flow
-- light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, 404, политика персональных данных, tooltip hints, режимы отображения портфолио и избранного остаются UI-only
-- удаление аккаунта остаётся out of MVP / placeholder без API endpoint
-
----
-
-## 9. Принципы модели
-
-- минимализм
-- явные состояния
-- разделение стадий
-- нормализация по необходимости
-- без дублирования
-- безопасные изменения
-- совместимость с Django ORM
+Нужно отдельно согласовать, как backend выбирает роль, если в проекте несколько ProjectRole с той же специализацией пользователя. До уточнения API фиксирует только факт backend-выбора подходящей роли.

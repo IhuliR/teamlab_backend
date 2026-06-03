@@ -2,536 +2,102 @@
 
 ## TL;DR
 
-TeamLab — платформа для подбора команды под проекты.
-Основной поток: пользователь создаёт проект → добавляет роли → участники откликаются или получают приглашения → interest принимается или отклоняется → формируется участие.
-Ключевая задача — связать роли и людей через управляемый процесс откликов и принятия решений.
+TeamLab помогает owner собрать проектную команду, а participant — найти проект и присоединиться к нему. MVP строится вокруг цепочки `Project -> ProjectRole -> RoleInterest -> ProjectMembership`.
 
----
-
-Этот документ фиксирует каноническое описание продукта и домена TeamLab. Он нужен как быстрый вход в систему для разработчика и как рабочий контекст для AI-инструментов.
-
-TeamLab — это веб-платформа для поиска и формирования команд под некоммерческие, учебные и pet-проекты. Платформа соединяет две стороны: пользователей, которые создают проекты и набирают команду, и пользователей, которые ищут проект и хотят присоединиться к роли.
-
-Каноническое ядро системы:
-
-```text
-Field -> Specialization
-User -> UserSkill -> Skill
-Project -> ProjectRole -> RoleInterest -> ProjectMembership
-```
-
-Важно: DOMAIN_MODEL.md является источником истины для доменной логики, lifecycle и инвариантов. OpenAPI/API-контракт является источником истины для endpoints, request/response schemas, HTTP-кодов и API-visible полей. UI-сценарии должны согласовываться с этими источниками.
-
----
-
-## Краткое описание проекта
-
-TeamLab решает одну конкретную задачу: помогает собрать команду вокруг проекта и помогает участнику найти подходящий проект и роль. В центре системы находится не просто карточка проекта, а процесс подбора и принятия в команду.
-
-Платформа покрывает путь от публикации проекта до подтверждённого участия в роли. Основная цепочка состояния выглядит так: владелец создаёт `Project`, добавляет в него `ProjectRole`, участник создаёт `RoleInterest`, а после одобрения появляется `ProjectMembership`.
-
----
-
-## Вне области ответственности
-
-TeamLab **не является**:
-
-* таск-трекером (не управляет задачами внутри проекта)
-* HR-системой (не ведёт найм, зарплаты, процессы рекрутинга)
-* социальной сетью (нет фокуса на ленте, подписках и коммуникации ради коммуникации)
-
-Фокус системы — discovery, фильтрация по структурированным данным и формирование команды.
-
----
-
-## Цели и ценность
-
-Для владельца проекта TeamLab должен упрощать набор команды: дать понятный способ описать проект, сформулировать роли, посмотреть отклики и принять участников без ручного хаоса в чатах и таблицах.
-
-Для участника TeamLab должен упрощать поиск интересного проекта: показать, что это за проект, какие роли открыты, что ожидается от кандидата, и в каком статусе находится его отклик.
-
-Для системы в целом ценность в том, что ключевой процесс задаётся явными сущностями и явными переходами состояний. Это важно не только для UX, но и для архитектуры: поиск, фильтрация, UI-уведомления, избранное и аналитика строятся вокруг одной и той же доменной модели.
-
----
+`ProjectRole` — направление/роль в проекте, а не одно место. По одной роли может быть несколько участников.
 
 ## Основные сценарии использования
 
 ### Владелец собирает команду
 
-Пользователь с режимом `owner` создаёт проект, заполняет карточку проекта и добавляет в него роли. Для каждой роли он указывает направление, описание задач и ограничение по количеству участников. После этого владелец просматривает отклики, может приглашать участников и принимает или отклоняет applications.
+Owner создаёт проект с nested roles через `POST /api/v1/projects/`, просматривает заявки через `GET /api/v1/projects/{project_id}/applications/`, приглашает пользователя через `POST /api/v1/projects/{project_id}/invitations/`, принимает или отклоняет RoleInterest action endpoints.
 
 ### Участник ищет проект и откликается
 
-Пользователь с режимом `participant` заполняет профиль: навыки, уровень, специализацию, портфолио и другую публичную информацию. Затем он использует поиск проектов, фильтры и autocomplete, открывает карточку проекта, выбирает роль и отправляет отклик (`RoleInterest`).
+Participant смотрит список проектов, открывает detail, где видит `roles` и свои context fields, затем отправляет `POST /api/v1/projects/{project_id}/applications/`. Backend выбирает подходящую роль по специализации.
+
+### Участник работает с приглашениями
+
+Participant видит pending invitations в `GET /api/v1/users/me/projects/` и `GET /api/v1/users/me/notifications/`. Принять/отклонить приглашение можно через `POST /api/v1/role-interests/{interest_id}/accept/` или `/reject/`.
 
 ### Пользователь поддерживает профиль
 
-Профиль — рабочий источник данных для поиска и принятия решений. Пользователь обновляет `bio`, навыки с уровнями, специализацию, портфолио, загрузку, формат работы, тип занятости, статус поиска, город, соцсети и уровень.
-
-### Пользователь возвращается к интересным объектам
-
-Избранное (`FavoriteProject`) позволяет участнику сохранять интересные проекты и возвращаться к ним позже.
-
-Уведомления не являются отдельной бизнес-сущностью. UI показывает изменения в ключевых сценариях как представление данных из `RoleInterest` и `ProjectMembership`: владелец видит отклики, участник видит приглашения и участия.
-
----
+Профиль содержит специализацию, навыки, portfolio works с `image`, настройки видимости, `notification_enabled` и социальные ссылки. `contacts_visible` вычисляется для публичного профиля и не хранится в БД.
 
 ## Типы пользователей
 
-В системе есть два типа аккаунтов:
-
-* `participant`
-* `owner`
-
-При этом в домене существует только одна сущность — `User`. Тип аккаунта задаётся полем `account_type` и определяет основной режим работы пользователя в продукте.
-
-Важно:
-
-* `owner` и `participant` — это продуктовые режимы одного и того же пользователя;
-* `Project.owner` — это связь проекта с `User`, а не отдельная сущность;
-
-* в MVP пользователь имеет один `account_type` (`participant` или `owner`),  
-  который определяет его основной сценарий использования;
-
-* один аккаунт не поддерживает одновременное выполнение обоих сценариев;
-
-* архитектура допускает совмещение ролей в будущем без изменения сущности `User`;
-
-Нужно различать:
-
-* `account_type` — роль пользователя в продукте в целом, account_type влияет на доступные действия и UI;
-* участие в проекте — роль пользователя внутри конкретного `Project`.
-
----
+- **owner** создаёт проекты, роли, приглашения, принимает/отклоняет applications, удаляет участников через `remove`.
+- **participant** откликается на проекты, принимает/отклоняет invitations, покидает проект через `leave`, ведёт портфолио и избранное.
 
 ## Основные сущности
 
-### User
-
-**Назначение:**
-Единая сущность аккаунта и профиля. Хранит идентичность пользователя и публичные/рабочие данные: bio, уровень, загрузку, формат работы, контакты, аватар и account_type.
-
-**Ключевые поля:**
-- id
-- username
-- email
-- bio
-- account_type (`participant` / `owner`)
-- specialization_id
-- level (`junior` / `middle` / `senior`)
-- workload_hours_per_week
-- work_format (`remote` / `hybrid`)
-- employment_type (`full_time` / `part_time` / `combined`)
-- search_status (`looking_for_team` / `looking_for_members` / `not_looking`)
-- profile_visibility (`public` / `matched_only` / `hidden`)
-- notifications_enabled
-- city
-- avatar
-- social_links
-- created_at
-- updated_at
-
-**Связи:**
-- User → Project (owner)
-- User → UserSkill
-- User → RoleInterest
-- User → ProjectMembership
-- User → PortfolioWork
-- User → FavoriteProject
-
-**Ограничения:**
-- в MVP пользователь имеет один `account_type` (`participant` или `owner`),  
-  который определяет его основной сценарий использования;
-
-- один аккаунт не поддерживает одновременное выполнение обоих сценариев;
-
-- архитектура допускает совмещение ролей в будущем без изменения сущности `User`;
-- `search_status` не заменяет `account_type`: account_type задаёт основной сценарий, search_status — текущее состояние поиска;
-- `work_format` не равен `employment_type`: work_format = remote/hybrid, employment_type = full_time/part_time/combined;
-- `social_links` хранит соцсети единым полем профиля с ключами `instagram`, `telegram`, `github`, `behance`, `vk`;
-- `contacts_visible` не хранится в БД и вычисляется в API-ответе;
-
----
-
-### Field
-
-**Назначение:**
-Верхнеуровневая область проекта и специализаций. Используется для каталогизации и фильтрации.
-
-**Ключевые поля:**
-- id
-- name
-- created_at
-- updated_at
-
-**Связи:**
-- Field → Specialization
-- Field → Project
-
-**Ограничения:**
-- name уникален
-
----
-
-### Specialization
-
-**Назначение:**  
-Более узкое направление внутри Field. Используется в профиле пользователя и в ролях проекта.
-
-**Ключевые поля:**
-- id
-- field_id
-- name
-- created_at
-- updated_at
-
-**Связи:**
-- Specialization → Field
-- Specialization → User
-- Specialization → ProjectRole
-
-**Ограничения:**
-- уникальность (field_id, name)
-
----
-
-### Skill
-
-**Назначение:**  
-Нормализованный справочник навыков.
-
-**Ключевые поля:**
-- id
-- name
-
-**Связи:**
-- Skill → UserSkill
-
-**Ограничения:**
-- name уникален
-
----
-
-### UserSkill
-
-**Назначение:**  
-Связь пользователя с навыком и уровнем владения.
-
-**Ключевые поля:**
-- id
-- user_id
-- skill_id
-- level
-
-**Связи:**
-- UserSkill → User
-- UserSkill → Skill
-
-**Ограничения:**
-- уникальность (user_id, skill_id)
-
----
-
 ### Project
 
-**Назначение:**  
-Карточка проекта, которую создаёт владелец. Содержит описание, статус и набор ролей.
-
-**Ключевые поля:**
-- id
-- owner_id
-- field_id
-- title
-- description
-- problem
-- image
-- status
-- created_at
-- updated_at
-
-**Связи:**
-- Project → User (owner)
-- Project → Field
-- Project → ProjectRole
-
-**Ограничения:**
-- у проекта один владелец
-- `image` используется как обложка карточки проекта
-- `description` описывает суть проекта
-- `problem` описывает проблему проекта
-- `city` и `work_format` относятся к пользователю, а не к проекту
-
----
+Проект owner. В списке отдаёт `roles_preview`; в detail отдаёт полный `roles` и context fields текущего пользователя: matching role, interest и membership.
 
 ### ProjectRole
 
-**Назначение:**  
-Конкретная роль внутри проекта. Определяет специализацию, задачи, выгоды и требования к навыкам.
+Роль/направление внутри проекта. Поле `is_open` удалено из MVP. Роль существует — с ней можно работать; роль удалена — новые applications/invitations невозможны.
 
-**Ключевые поля:**
-- id
-- project_id
-- specialization_id
-- tasks
-- benefits
-- is_open
-- created_at
-- updated_at
-
-**Связи:**
-- ProjectRole → Project
-- ProjectRole → Specialization
-- ProjectRole → ProjectRoleSkill
-- ProjectRole → RoleInterest
-- ProjectRole → ProjectMembership
-
-**Ограничения:**
-- одна ProjectRole = одно место / один участник
-- если нужно несколько одинаковых специалистов, owner создаёт несколько ProjectRole
-- `tasks` — список задач роли
-- `benefits` — список выгод конкретной роли, а не проекта
-- требования к навыкам хранятся в `ProjectRoleSkill`
-
----
-
-### ProjectRoleSkill
-
-**Назначение:**
-Требование конкретной роли к конкретному навыку. Входит в MVP, потому что нужно для фильтрации проектов по навыкам и для описания требований роли.
-
-**Ключевые поля:**
-- id
-- project_role_id
-- skill_id
-- description
-- order
-
-**Связи:**
-- ProjectRoleSkill → ProjectRole
-- ProjectRoleSkill → Skill
-
-**Ограничения:**
-- уникальность (project_role_id, skill_id)
-- уникальность (project_role_id, order)
-- ordering по project_role_id, order
-- `ProjectRoleSkill` не является `UserSkill`
-- `Skill` остаётся общим справочником навыков
-- цвет чипов навыков остаётся frontend/UI-only
-
----
+ProjectRole можно удалить только при отсутствии active memberships и pending interests. Historical rejected/accepted interests и left/removed memberships по удаляемой роли в MVP удаляются каскадно. История по удалённой роли не сохраняется.
 
 ### RoleInterest
 
-**Назначение:**  
-Интерес пользователя к роли до момента участия. Стадия рассмотрения кандидата.
+Единая внутренняя модель для applications и invitations. Публичные endpoints используют продуктовые названия:
 
-**Ключевые поля:**
-- id
-- user_id
-- project_role_id
-- source (`application` / `invitation`)
-- status (`pending` / `accepted` / `rejected`)
-- reviewed_at
-- created_at
-- updated_at
-
-**Связи:**
-- RoleInterest → User
-- RoleInterest → ProjectRole
-
-**Ограничения:**
-- для пары (user, project_role) может существовать только один RoleInterest
-- `source = application` означает отклик участника
-- `source = invitation` означает приглашение от владельца проекта
-- invitation может создавать только владелец проекта
-- invitation может принять или отклонить только приглашённый пользователь
-
----
+- `/projects/{project_id}/applications/`;
+- `/projects/{project_id}/invitations/`;
+- `/users/me/applications/`;
+- `/users/me/notifications/`.
 
 ### ProjectMembership
 
-**Назначение:**  
-Подтверждённое участие пользователя в проекте по конкретной роли.
-
-**Ключевые поля:**
-- id
-- user_id
-- project_role_id
-- role_interest_id
-- status (`active` / `left` / `removed`)
-- joined_at
-- ended_at
-- created_at
-- updated_at
-
-**Связи:**
-- ProjectMembership → User
-- ProjectMembership → ProjectRole
-- ProjectMembership → RoleInterest (через role_interest_id)
-
-**Ограничения:**
-- один `RoleInterest` может породить максимум один `ProjectMembership`
-- создаётся только после accepted RoleInterest
-- `role_interest_id` указывает на RoleInterest со `status = accepted`
-- контакты пользователя доступны только при `ProjectMembership.status = active`
-- “метч” выводится из active ProjectMembership и не хранится как отдельная сущность
-
----
-
-### PortfolioWork
-
-**Назначение:**  
-Элемент портфолио пользователя. Используется для оценки кандидата.
-
-**Ключевые поля:**
-- id
-- user_id
-- title
-- task
-- solution
-- image
-- technologies
-- link
-- created_at
-- updated_at
-
-**Связи:**
-- PortfolioWork → User
-
-**Примечание:**
-- `technologies` — простой массив строк/JSONB-поле MVP
-- `technologies` не связано с `Skill` и не является ManyToMany
-
----
+Факт участия. Создаётся только через accept RoleInterest. Завершение участия выполняется через `leave`/`remove` action endpoints.
 
 ### FavoriteProject
 
-Избранные проекты участника.
-
-**Ключевые поля:**
-- id
-- user_id
-- project_id
-- created_at
-
-**Ограничения:**
-- используется только для пользователей с `account_type = participant`
-- уникальность (user_id, project_id)
-
----
+Избранный проект participant. List response содержит FavoriteProject и вложенную компактную карточку проекта с `roles_preview`.
 
 ## Основные потоки
 
-### Онбординг и профиль
-
-Пользователь регистрируется, выбирает `account_type` и заполняет профиль. Это критично для поиска и качества откликов.
-
 ### Создание проекта и ролей
 
-Владелец создаёт `Project`, затем добавляет `ProjectRole`. Подбор и фильтрация происходят на уровне ролей и структурированных данных.
+Owner передаёт nested `roles` в `POST /projects/`. Роли можно добавлять и обновлять отдельно через `/project-roles/`.
 
-### Отклик и решение
+### Отклик и приглашение
 
-Участник создаёт `RoleInterest` с `source = application`, владелец принимает или отклоняет application. Владелец может создать `RoleInterest` с `source = invitation`, приглашённый участник принимает или отклоняет invitation. Оба сценария идут через одну модель.
+Applications и invitations создаются на уровне проекта. Backend выбирает подходящую ProjectRole по специализации пользователя.
+
+### Решение по RoleInterest
+
+Accept/reject работают для обоих источников. При application решение принимает owner; при invitation решение принимает приглашённый participant.
 
 ### Формирование участия
 
-После одобрения создаётся `ProjectMembership`. Пользователь становится участником конкретной роли.
+Accepted RoleInterest создаёт ProjectMembership. Rejected RoleInterest membership не создаёт.
 
-### Жизненный цикл участия
+### Мои проекты
 
-Участие имеет явные статусы и временные метки. Удаление заменяется изменением состояния.
+`GET /users/me/projects/` возвращает объект:
 
-### Поиск, избранное и уведомления
-
-Поиск НЕ должен опираться на свободный текст без структуры
-Поиск опирается на нормализованные данные (`Field`, `Specialization`, `Skill`).
-Список проектов фильтруется по `status`, `field_id`, `period`, `role_specialization_id`, `skills`. Фильтр `skills=1,2,3` опирается на `ProjectRoleSkill.skill_id`, а не на `UserSkill` и не на JSON-поле роли.
-Список пользователей фильтруется по `level`, `account_type`, `specialization_id`, `field_id`, `skills`, `city`, `work_format`, `employment_type`, `search_status`, `period`.
-`FavoriteProject` — быстрый возврат участника к сохранённым проектам.
-Уведомления — UI-представление изменений в основном потоке на основе `RoleInterest` и `ProjectMembership`. `IncomingInterest` для owner-заявок является read-only API-представлением `RoleInterest`, а не отдельной сущностью.
-
----
-
-## Статусы (базовые)
-
-Минимально фиксируются следующие статусы:
-
-* `RoleInterest.status`:
-
-  * `pending`
-  * `accepted`
-  * `rejected`
-
-* `ProjectMembership.status`:
-
-  * `active`
-  * `left`
-  * `removed`
-
-* `Project.status`:
-
-  * `open`
-  * `closed`
-
-Статусы являются частью доменной модели и должны храниться явно.
-
----
+- `memberships` — текущие и завершённые участия;
+- `invitations` — pending invitations на базе RoleInterest.
 
 ## Уведомления
 
-Уведомления не хранятся как отдельная бизнес-сущность. UI собирает их из ключевых событий:
+В MVP нет отдельной Notification-модели. `GET /users/me/notifications/` возвращает производное read-only представление pending RoleInterest:
 
-* новый отклик (`RoleInterest` создан)
-* новое приглашение (`RoleInterest.source = invitation`)
-* изменение статуса отклика
-* изменение участия (`ProjectMembership`)
+- для participant — pending invitations;
+- для owner — pending applications на его проекты.
 
----
+## Ключевые инварианты домена
 
-## **Ключевые инварианты домена**
-
-* **`ProjectMembership` создаётся только после принятия `RoleInterest`.**
-* **Для пары (user, project_role) может существовать только один `RoleInterest`.**
-* **Одна `ProjectRole` допускает максимум один active `ProjectMembership`.**
-* **`RoleInterest` и `ProjectMembership` — разные стадии и не должны сливаться.**
-* **Invitation реализуется через `RoleInterest.source`, без отдельной модели.**
-* **Контакты пользователя открываются только при `ProjectMembership.status = active`.**
-* **`contacts_visible` вычисляется и не хранится в БД.**
-* **FavoriteProject существует только для participant; у owner нет избранного и “сердечек”.**
-* **Изменения статусов должны быть явными, а не побочными эффектами UI.**
-
----
-
-## Ограничения MVP
-
-* нет email-сервиса;
-* нет восстановления пароля;
-* нет delete account endpoint;
-* нет Notification, Invitation и Match как отдельных моделей;
-* часть функций может быть заглушками;
-* уведомления являются UI-представлением данных из `RoleInterest` и `ProjectMembership`;
-* light/dark theme, grid/list view, FAQ accordion, “показать полностью”, меню личного кабинета, 404, политика персональных данных, tooltip hints, режимы отображения портфолио и избранного являются UI-only;
-* onboarding упрощён;
-* избранное и портфолио могут развиваться постепенно;
-* OpenAPI/API-контракт — источник истины для API-поверхности; DOMAIN_MODEL.md — источник истины для доменной модели.
-* восстановление пароля не реализовано и заменено статичной страницей-заглушкой;
-* избранное реализовано в упрощённом виде:
-  - без папок, тегов и дополнительной логики;
-  - используется только участниками для быстрого возврата к проектам;
-
-Главное требование к MVP — целостность основного потока: профиль → проект → роль → отклик → принятие → участие.
-
----
-
-## Принципы системы
-
-* **Единый `User`.** Нет разделения на разные сущности пользователя.
-* **Ядро важнее периферии.** Все изменения должны сохранять цепочку `Project → ProjectRole → RoleInterest → ProjectMembership`.
-* **Явные состояния.** Все статусы — часть доменной модели.
-* **Минимум сущностей.** Новые сущности добавляются только при необходимости.
-* **Осмысленная нормализация.** Только там, где это влияет на поиск и логику.
-* **Безопасные изменения.** Предпочтение изменению статуса, а не удалению.
-* **UI задаёт сценарий, но согласуется с доменом.**
-* **Терминологическая консистентность обязательна.**
-* **MVP без переусложнения.**
+- ProjectRole не является одним местом.
+- На одну ProjectRole может быть несколько участников.
+- `is_open` отсутствует.
+- RoleInterest уникален для пары `(user_id, project_role_id)`.
+- Один accepted RoleInterest может породить максимум один ProjectMembership.
+- ProjectMembership не создаётся напрямую публичным API.
+- Historical rejected/accepted interests и left/removed memberships по удаляемой ProjectRole в MVP удаляются каскадно.
+- Cancel flow и статус `cancelled` не входят в MVP.
+- Notification, Invitation, IncomingInterest и Match не являются моделями MVP.

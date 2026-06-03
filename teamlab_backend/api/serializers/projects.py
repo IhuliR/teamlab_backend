@@ -125,6 +125,24 @@ class ProjectRoleCreateSerializer(ProjectRoleBaseInputSerializer):
         queryset=Project.objects.all(),
     )
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        project = attrs.get('project')
+        specialization = attrs.get('specialization')
+
+        if ProjectRole.objects.filter(
+            project=project,
+            specialization=specialization,
+        ).exists():
+            raise serializers.ValidationError({
+                'specialization_id': (
+                    'В проекте уже есть роль с этой специализацией.'
+                )
+            })
+
+        return attrs
+
     def create(self, validated_data):
         skills_data = validated_data.pop('skills')
 
@@ -136,6 +154,27 @@ class ProjectRoleCreateSerializer(ProjectRoleBaseInputSerializer):
 
 
 class ProjectRoleUpdateSerializer(ProjectRoleBaseInputSerializer):
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        project = self.instance.project
+        specialization = attrs.get(
+            'specialization',
+            self.instance.specialization,
+        )
+
+        if ProjectRole.objects.filter(
+            project=project,
+            specialization=specialization,
+        ).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError({
+                'specialization_id': (
+                    'В проекте уже есть роль с этой специализацией.'
+                )
+            })
+
+        return attrs
 
     def update(self, instance, validated_data):
         skills_data = validated_data.pop('skills', None)
@@ -372,6 +411,20 @@ class ProjectCreateSerializer(serializers.Serializer):
         many=True,
         allow_empty=False,
     )
+
+    def validate_roles(self, roles):
+        specialization_ids = [
+            role['specialization'].id
+            for role in roles
+        ]
+
+        if len(specialization_ids) != len(set(specialization_ids)):
+            raise serializers.ValidationError(
+                'В проекте не может быть несколько ролей '
+                'с одной специализацией.'
+            )
+
+        return roles
 
     def create(self, validated_data):
         roles_data = validated_data.pop('roles')

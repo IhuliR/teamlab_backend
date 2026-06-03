@@ -1,6 +1,7 @@
 from typing import Any
 
 from users.models import UserSkill
+from projects.models import ProjectMembership, RoleInterest
 
 
 UserSkillData = dict[str, Any]
@@ -36,7 +37,7 @@ def create_user_skills(user, skills_data: list[UserSkillData]) -> None:
 
 
 def replace_user_skills(user, skills_data:list[UserSkillData]) -> None:
-  """
+    """
     Полностью заменить навыки пользователя.
 
     Args:
@@ -54,5 +55,25 @@ def replace_user_skills(user, skills_data:list[UserSkillData]) -> None:
         обеспечить вызывающий код.
 
     """
-  user.skills.all().delete()
-  create_user_skills(user, skills_data)
+    user.skills.all().delete()
+    create_user_skills(user, skills_data)
+
+
+def user_has_active_participation_or_pending_interests(user):
+    """Проверить, есть ли у пользователя активные связи с проектами.
+
+    Блокирует смену специализации, если пользователь:
+    - уже участвует в проекте;
+    - ждёт ответа по заявке;
+    - должен ответить на приглашение.
+    """
+    return (
+        ProjectMembership.objects.filter(
+            user=user,
+            status=ProjectMembership.Status.ACTIVE,
+        ).exists()
+        or RoleInterest.objects.filter(
+            user=user,
+            status=RoleInterest.Status.PENDING,
+        ).exists()
+    )

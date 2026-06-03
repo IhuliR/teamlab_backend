@@ -33,7 +33,7 @@ CREATE TABLE "User"(
     "employment_type" VARCHAR(20) NULL,
     "search_status" VARCHAR(30) NULL,
     "profile_visibility" VARCHAR(20) NOT NULL DEFAULT 'public',
-    "notifications_enabled" BOOLEAN NOT NULL DEFAULT TRUE,
+    "notification_enabled" BOOLEAN NOT NULL DEFAULT TRUE,
     "city" VARCHAR(255) NULL,
     "avatar" VARCHAR(255) NULL,
     "social_links" JSONB NOT NULL DEFAULT '{}',
@@ -111,7 +111,6 @@ CREATE TABLE "ProjectRole"(
     "specialization_id" BIGINT NOT NULL,
     "tasks" JSONB NOT NULL DEFAULT '[]',
     "benefits" JSONB NOT NULL DEFAULT '[]',
-    "is_open" BOOLEAN NOT NULL DEFAULT TRUE,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -175,8 +174,6 @@ CREATE INDEX "projectmembership_project_role_id_index" ON
     "ProjectMembership"("project_role_id");
 ALTER TABLE
     "ProjectMembership" ADD CONSTRAINT "projectmembership_role_interest_id_unique" UNIQUE("role_interest_id");
-CREATE UNIQUE INDEX "projectmembership_active_project_role_unique" ON
-    "ProjectMembership"("project_role_id") WHERE "status" = 'active';
 CREATE TABLE "PortfolioWork"(
     "id" bigserial NOT NULL,
     "user_id" BIGINT NOT NULL,
@@ -204,11 +201,11 @@ ALTER TABLE
 ALTER TABLE
     "Specialization" ADD CONSTRAINT "specialization_field_id_foreign" FOREIGN KEY("field_id") REFERENCES "Field"("id");
 ALTER TABLE
-    "RoleInterest" ADD CONSTRAINT "roleinterest_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id");
+    "RoleInterest" ADD CONSTRAINT "roleinterest_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id") ON DELETE CASCADE;
 ALTER TABLE
     "Project" ADD CONSTRAINT "project_owner_id_foreign" FOREIGN KEY("owner_id") REFERENCES "User"("id");
 ALTER TABLE
-    "ProjectMembership" ADD CONSTRAINT "projectmembership_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id");
+    "ProjectMembership" ADD CONSTRAINT "projectmembership_project_role_id_foreign" FOREIGN KEY("project_role_id") REFERENCES "ProjectRole"("id") ON DELETE CASCADE;
 ALTER TABLE
     "UserSkill" ADD CONSTRAINT "userskill_user_id_foreign" FOREIGN KEY("user_id") REFERENCES "User"("id");
 ALTER TABLE
@@ -236,4 +233,4 @@ ALTER TABLE
 ALTER TABLE
     "PortfolioWork" ADD CONSTRAINT "portfoliowork_user_id_foreign" FOREIGN KEY("user_id") REFERENCES "User"("id");
 ALTER TABLE
-    "ProjectMembership" ADD CONSTRAINT "projectmembership_role_interest_id_foreign" FOREIGN KEY("role_interest_id") REFERENCES "RoleInterest"("id");
+    "ProjectMembership" ADD CONSTRAINT "projectmembership_role_interest_id_foreign" FOREIGN KEY("role_interest_id") REFERENCES "RoleInterest"("id") ON DELETE CASCADE;
