@@ -22,6 +22,8 @@ Applications and invitations are `RoleInterest` rows. Notifications are read-onl
 
 `ProjectRole` means role/specialization/direction inside a project. It is not a single seat. Multiple participants may belong to one role.
 
+Inside one project, one specialization maps to one ProjectRole. Keep unique `(project_id, specialization_id)` in DB/API contracts so matching role selection is deterministic. Do not convert this into a one-participant-per-role rule.
+
 Do not add or validate `ProjectRole.is_open`. The current MVP rule is:
 
 - role exists — applications/invitations may target it;
@@ -46,6 +48,15 @@ Do not reintroduce old public endpoints:
 - `PATCH /project-memberships/{membership_id}/`;
 - `GET /users/me/incoming-interests/`;
 - `GET /users/me/interests/`.
+- `POST /fields/`;
+- `POST /specializations/`;
+- `DELETE /users/me/`.
+
+Public catalogs and authenticated actions:
+
+- public GET: `/projects/`, `/projects/featured/`, `/projects/{project_id}/`, `/users/`, `/users/{user_id}/`, `/fields/`, `/fields/featured/`, `/specializations/`, `/skills/`;
+- authenticated write/actions: project create/update, project applications/invitations, `/users/me/`, current-user resources, role-interest accept/reject, membership leave/remove;
+- no global `/search/` endpoint in MVP.
 
 ## 5. Business actions
 
@@ -60,6 +71,10 @@ POST /api/v1/project-memberships/{membership_id}/remove/
 
 Do not implement leave/remove as PATCH status. Do not add cancel in MVP.
 
+Do not create repeated applications/invitations for the same user + project_role in MVP. The unique RoleInterest row covers pending and historical states.
+
+Participant specialization updates must be blocked while active ProjectMembership or pending application/invitation exists. Historical accepted/rejected/left/removed records alone do not block the update.
+
 ## 6. Serializer guidance
 
 Good serializer responsibilities:
@@ -68,6 +83,7 @@ Good serializer responsibilities:
 - expose portfolio work `image` wherever portfolio works are returned;
 - expose project/user context fields as read-only values computed by view/service layer;
 - hide `account_type` from public user detail and keep it in current-user detail.
+- keep `is_featured`/`featured_order` out of public create/update serializers; these fields are admin-managed.
 
 Bad serializer responsibilities:
 

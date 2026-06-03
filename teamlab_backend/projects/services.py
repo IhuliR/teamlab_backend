@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -197,16 +198,23 @@ def apply_to_project(user, project):
         )
     
 
-def validate_project_role_can_be_deleted(project_role) -> None:
+def validate_project_role_can_be_deleted(project_role, actor) -> None:
     """Проверить, что роль проекта можно удалить."""
 
+    if project_role.project.owner_id != actor.id:
+        raise PermissionDenied(
+            'Удалить роль может только владелец.'
+        )
+
     if ProjectMembership.objects.filter(
-        project_role=project_role,
+        project_role_id=project_role.id,
         status=ProjectMembership.Status.ACTIVE,
     ).exists():
-        raise ValidationError(
-            'Нельзя удалить роль, пока по ней есть активные участники.'
-        )
+        raise ValidationError({
+            'project_role_id': (
+                'Нельзя удалить роль, пока по ней есть активные участники.'
+            )
+        })
 
     if RoleInterest.objects.filter(
         project_role=project_role,
@@ -285,7 +293,8 @@ def create_project_application(project, user):
     ).exists():
         raise ValidationError({
             'project_role_id': (
-                'По этой роли уже есть история взаимодействия с пользователем. '
+                'По этой роли уже есть '
+                'история взаимодействия с пользователем.'
                 'Повторные заявки и приглашения в MVP не поддерживаются.'
             )
         })
@@ -376,3 +385,133 @@ def create_project_invitation(project, actor, invited_user):
                 'Приглашение или заявка на эту роль уже существует.'
             )
         })
+
+
+def validate_role_interest_can_be_processed(interest, actor) -> None:
+    """Проверить, что пользователь может обработать заявку/приглашение."""
+
+    if interest.status != RoleInterest.Status.PENDING:
+        raise ValidationError(
+            'Можно обработать только необработанную заявку или приглашение.'
+        )
+
+    if interest.source == RoleInterest.Source.APPLICATION:
+        if interest.project_role.project.owner_id != actor.id:
+            raise PermissionDenied(
+                'Принять или отклонить заявку может только владелец проекта.'
+            )
+        return
+
+    if interest.source == RoleInterest.Source.INVITATION:
+        if interest.user_id != actor.id:
+            raise PermissionDenied(
+                'Принять или отклонить приглашение может '
+                'только приглашённый пользователь.'
+            )
+        return
+
+    raise ValidationError(
+        'Некорректный источник заявки или приглашения.'
+    )
+
+
+def accept_role_interest(interest, actor):
+    """Принять заявку или приглашение и создать участие в проекте."""
+
+    validate_role_interest_can_be_processed(
+        interest=interest,
+        actor=actor,
+    )
+
+    try:
+        with transaction.atomic():
+            if ProjectMembership.objects.filter(
+                user=interest.user,
+                project_role__project=interest.project_role.project,
+                status=ProjectMembership.Status.ACTIVE,
+            ).exists():
+                raise ValidationError(
+                    'Пользователь уже участвует в этом проекте.'
+                )
+
+            now = timezone.now()
+
+            interest.status = RoleInterest.Status.ACCEPTED
+            interest.reviewed_at = now
+            interest.save(update_fields=(
+                'status',
+                'reviewed_at',
+                'updated_at',
+            ))
+
+            ProjectMembership.objects.create(
+                user=interest.user,
+                project_role=interest.project_role,
+                role_interest=interest,
+                status=ProjectMembership.Status.ACTIVE,
+                joined_at=now,
+            )
+
+    except IntegrityError:
+        raise ValidationError(
+            'Участие по этой заявке или приглашению уже существует.'
+        )
+
+    return interest
+
+
+def reject_role_interest(interest, actor):
+    """Отклонить заявку или приглашение."""
+
+    validate_role_interest_can_be_processed(
+        interest=interest,
+        actor=actor,
+    )
+
+    interest.status = RoleInterest.Status.REJECTED
+    interest.reviewed_at = timezone.now()
+    interest.save(update_fields=(
+        'status',
+        'reviewed_at',
+        'updated_at',
+    ))
+
+    return interest
+
+
+def remove_project_membership(membership, actor):
+    """Исключить участника из проекта."""
+    if membership.project_role.project.owner_id != actor.id:
+        raise PermissionDenied(
+            'Исключить участника может только владелец проекта.'
+        )
+
+    if membership.status != ProjectMembership.Status.ACTIVE:
+        raise ValidationError(
+            'Можно исключить только активного участника.'
+        )
+
+    membership.status = ProjectMembership.Status.REMOVED
+    membership.ended_at = timezone.now()
+    membership.save(update_fields=('status', 'ended_at', 'updated_at'))
+
+    return membership
+
+
+def leave_project_membership(membership, actor):
+    """Покинуть проект."""
+    if membership.user_id != actor.id:
+        raise PermissionDenied(
+            'Покинуть проект может только сам участник.'
+        )
+
+    if membership.status != ProjectMembership.Status.ACTIVE:
+        raise ValidationError(
+            'Можно покинуть только активное участие.'
+        )
+
+    membership.status = ProjectMembership.Status.LEFT
+    membership.ended_at = timezone.now()
+    membership.save(update_fields=('status', 'ended_at', 'updated_at'))
+
+    return membership

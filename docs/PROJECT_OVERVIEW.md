@@ -16,6 +16,8 @@ Owner создаёт проект с nested roles через `POST /api/v1/proje
 
 Participant смотрит список проектов, открывает detail, где видит `roles` и свои context fields, затем отправляет `POST /api/v1/projects/{project_id}/applications/`. Backend выбирает подходящую роль по специализации.
 
+Для anonymous пользователя project detail возвращает `matching_role_id`, `matching_role_name`, `my_interest_id`, `my_interest_status`, `my_interest_source`, `my_membership_id`, `my_membership_status` как `null`. Кнопка "Хочу работать" ведёт anonymous пользователя в auth-flow, а не вызывает application endpoint напрямую.
+
 ### Участник работает с приглашениями
 
 Participant видит pending invitations в `GET /api/v1/users/me/projects/` и `GET /api/v1/users/me/notifications/`. Принять/отклонить приглашение можно через `POST /api/v1/role-interests/{interest_id}/accept/` или `/reject/`.
@@ -23,6 +25,10 @@ Participant видит pending invitations в `GET /api/v1/users/me/projects/` �
 ### Пользователь поддерживает профиль
 
 Профиль содержит специализацию, навыки, portfolio works с `image`, настройки видимости, `notification_enabled` и социальные ссылки. `contacts_visible` вычисляется для публичного профиля и не хранится в БД.
+
+Регистрация использует `username`, `email`, `password`, `account_type`; вход выполняется по `username + password`. `specialization_id` обязателен для participant и optional для owner. Participant не может убрать или изменить specialization при active ProjectMembership или pending application/invitation.
+
+Удаление аккаунта не входит в MVP и не представлено endpoint `DELETE /api/v1/users/me/`.
 
 ## Типы пользователей
 
@@ -35,9 +41,13 @@ Participant видит pending invitations в `GET /api/v1/users/me/projects/` �
 
 Проект owner. В списке отдаёт `roles_preview`; в detail отдаёт полный `roles` и context fields текущего пользователя: matching role, interest и membership.
 
+Для главной есть публичный `GET /api/v1/projects/featured/`: проекты с `is_featured = true`, сортировка `featured_order`, затем `-created_at`. `is_featured` и `featured_order` управляются администратором и не редактируются owner через публичный API.
+
 ### ProjectRole
 
 Роль/направление внутри проекта. Поле `is_open` удалено из MVP. Роль существует — с ней можно работать; роль удалена — новые applications/invitations невозможны.
+
+В одном проекте specialization представлена только одной ProjectRole. Это не ограничивает количество участников на роли: одна ProjectRole может иметь несколько active participants.
 
 ProjectRole можно удалить только при отсутствии active memberships и pending interests. Historical rejected/accepted interests и left/removed memberships по удаляемой роли в MVP удаляются каскадно. История по удалённой роли не сохраняется.
 
@@ -49,6 +59,8 @@ ProjectRole можно удалить только при отсутствии a
 - `/projects/{project_id}/invitations/`;
 - `/users/me/applications/`;
 - `/users/me/notifications/`.
+
+Repeated applications/invitations для той же пары `(user_id, project_role_id)` не поддерживаются в MVP. Historical accepted/rejected RoleInterest тоже блокирует создание нового RoleInterest по той же паре.
 
 ### ProjectMembership
 
@@ -80,7 +92,7 @@ Accepted RoleInterest создаёт ProjectMembership. Rejected RoleInterest me
 
 `GET /users/me/projects/` возвращает объект:
 
-- `memberships` — текущие и завершённые участия;
+- `memberships` — активные участия текущего пользователя;
 - `invitations` — pending invitations на базе RoleInterest.
 
 ## Уведомления
@@ -90,12 +102,22 @@ Accepted RoleInterest создаёт ProjectMembership. Rejected RoleInterest me
 - для participant — pending invitations;
 - для owner — pending applications на его проекты.
 
+## Справочники и поиск
+
+`GET /api/v1/fields/`, `GET /api/v1/specializations/`, `GET /api/v1/skills/` публичны. `Field` и `Specialization` управляются администратором/seed/служебными инструментами; публичных create endpoints для них нет. `Skill` можно создавать авторизованному пользователю через `POST /api/v1/skills/`.
+
+`GET /api/v1/fields/featured/` возвращает featured области для главной. "Все профили" — фронтовая синтетическая карточка, а не запись `Field`.
+
+Поиск в MVP контекстный: раздел проектов использует `GET /api/v1/projects/?search=...`, раздел участников использует `GET /api/v1/users/?search=...`. Отдельный глобальный `/search/` endpoint не добавляется.
+
 ## Ключевые инварианты домена
 
 - ProjectRole не является одним местом.
 - На одну ProjectRole может быть несколько участников.
+- В одном проекте нет двух ProjectRole с одной specialization.
 - `is_open` отсутствует.
 - RoleInterest уникален для пары `(user_id, project_role_id)`.
+- Повторные applications/invitations для той же пары user + project_role не поддерживаются.
 - Один accepted RoleInterest может породить максимум один ProjectMembership.
 - ProjectMembership не создаётся напрямую публичным API.
 - Historical rejected/accepted interests и left/removed memberships по удаляемой ProjectRole в MVP удаляются каскадно.

@@ -111,6 +111,7 @@ class PortfolioWorkReadSerializer(serializers.ModelSerializer):
 
 
 class PortfolioWorkWriteSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
     image = Base64ImageField(required=False, allow_null=True)
     technologies = serializers.ListField(
         child=serializers.CharField(),
@@ -122,6 +123,7 @@ class PortfolioWorkWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortfolioWork
         fields = (
+            'id',
             'title',
             'task',
             'solution',
@@ -129,13 +131,13 @@ class PortfolioWorkWriteSerializer(serializers.ModelSerializer):
             'technologies',
             'link',
         )
-    
-    def create(self, validated_data):
-        request = self.context['request']
+        read_only_fields = ('id',)
 
+    def create(self, validated_data):
+        user = validated_data.pop('user')
         return PortfolioWork.objects.create(
-            user=request.user,
-            **validated_data
+            user=user,
+            **validated_data,
         )
 
 
@@ -479,6 +481,7 @@ class CurrentUserUpdateSerializer(serializers.ModelSerializer):
             replace_user_skills(instance, skills_data)
 
         return instance
+
 
 class FavoriteProjectCardSerializer(serializers.ModelSerializer):
     roles_preview = FavoriteProjectRolePreviewSerializer(

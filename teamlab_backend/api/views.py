@@ -4,6 +4,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, mixins, status, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -15,8 +16,13 @@ from rest_framework_simplejwt.views import (
 )
 
 from .serializers import (
+    AvatarSerializer,
+    CurrentUserDetailSerializer,
     CurrentUserNotificationSerializer,
+    CurrentUserUpdateSerializer,
     CurrentUserApplicationCardSerializer,
+    CurrentUserMembershipProjectCardSerializer,
+    CurrentUserInvitedProjectCardSerializer,
     PortfolioWorkReadSerializer,
     PortfolioWorkWriteSerializer,
     ProjectApplicationCardSerializer,
@@ -24,30 +30,42 @@ from .serializers import (
     ProjectDetailSerializer,
     ProjectCreateSerializer,
     ProjectUpdateSerializer,
+    ProjectRoleReadSerializer,
+    ProjectRoleUpdateSerializer,
+    ProjectRoleCreateSerializer,
     ProjectInvitationCardSerializer,
     ProjectInvitationCreateSerializer,
+    ProjectMembershipActionResultSerializer,
+    RoleInterestActionResultSerializer,
+    SetPasswordSerializer,
     TokenLoginSerializer,
     TokenRefreshWithUserSerializer,
+    UserCreateSerializer,
+    UserDetailSerializer,
+    UserListSerializer,
     FavoriteProjectCreateSerializer,
     FavoriteProjectReadSerializer,
     FieldSerializer,
     SkillSerializer,
     SpecializationSerializer
 )
-from .permissions import (
-    IsAdminOrReadOnly,
-)
 from .filters import (
-    ProjectFilter
+    ProjectFilter,
+    UserFilter
 )
 from projects.services import (
+    accept_role_interest,
+    reject_role_interest,
     validate_project_role_can_be_deleted,
     create_project_application,
-    create_project_invitation
+    create_project_invitation,
+    remove_project_membership,
+    leave_project_membership
 )
 from projects.models import (
     Project,
     ProjectRole,
+    ProjectMembership,
     RoleInterest,
     Field,
     Specialization,
@@ -136,7 +154,6 @@ class ProjectViewSet(
         filters.SearchFilter,
         filters.OrderingFilter,
     )
-    filterset_fields = ('field_id', 'status')
     filterset_class = ProjectFilter
     search_fields = (
         'title',
@@ -182,6 +199,40 @@ class ProjectViewSet(
             return ProjectUpdateSerializer
 
         return ProjectDetailSerializer
+    
+    def perform_update(self, serializer):
+        project = self.get_object()
+
+        if project.owner_id != self.request.user.id:
+            raise PermissionDenied(
+                'Редактировать проект может только его владелец.'
+            )
+
+        serializer.save()
+    
+    def create(self, request, *args, **kwargs):
+        input_serializer = self.get_serializer(
+            data=request.data,
+            context=self.get_serializer_context(),
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        if request.user.account_type != User.AccountType.OWNER:
+            raise PermissionDenied(
+                'Создавать проекты может только владелец проекта.'
+            )
+
+        project = input_serializer.save(owner=request.user)
+
+        output_serializer = ProjectDetailSerializer(
+            project,
+            context=self.get_serializer_context(),
+        )
+
+        return Response(
+            output_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=False, methods=('get',), url_path='featured')
     def featured(self, request):
@@ -203,6 +254,11 @@ class ProjectViewSet(
         project = self.get_object()
 
         if request.method == 'GET':
+            if project.owner_id != request.user.id:
+                raise PermissionDenied(
+                    'Просматривать заявки и приглашения может '
+                    'только владелец проекта.'
+                )
             queryset = RoleInterest.objects.filter(
                 project_role__project=project,
                 source=RoleInterest.Source.APPLICATION,
@@ -234,11 +290,17 @@ class ProjectViewSet(
             context=self.get_serializer_context(),
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=('get', 'post'), url_path='invitations')
     def invitations(self, request, pk=None):
         project = self.get_object()
 
         if request.method == 'GET':
+            if project.owner_id != request.user.id:
+                raise PermissionDenied(
+                    'Просматривать заявки и приглашения может ' \
+                    'только владелец проекта.'
+                )
             queryset = RoleInterest.objects.filter(
                 project_role__project=project,
                 source=RoleInterest.Source.INVITATION,
@@ -252,13 +314,13 @@ class ProjectViewSet(
             serializer = ProjectInvitationCardSerializer(
                 queryset,
                 many=True,
-                conext=self.get_serializer_context(),
+                context=self.get_serializer_context(),
             )
             return Response(serializer.data)
         
         input_serializer = ProjectInvitationCreateSerializer(
             data=request.data,
-            conext=self.get_serializer_context(),
+            context=self.get_serializer_context(),
         )
         input_serializer.is_valid(raise_exception=True)
 
@@ -270,7 +332,7 @@ class ProjectViewSet(
 
         serializer = ProjectInvitationCardSerializer(
             interest,
-            conext=self.get_serializer_context(),
+            context=self.get_serializer_context(),
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -284,21 +346,148 @@ class UserViewSet(
     queryset = User.objects.all()
     http_method_names = ('get', 'post', 'patch', 'head', 'options')
     lookup_value_regex = r'\d+'
+    filter_backends = (
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    )
+    filterset_class = UserFilter
+    search_fields = (
+        'username',
+        'bio',
+        'city',
+        'skills__skill__name',
+        'specialization__name',
+    )
+    ordering_fields = ('created_at', 'updated_at', 'username')
+    ordering = ('-created_at',)
+
+    def get_queryset(self):
+        return User.objects.select_related(
+            'specialization',
+            'specialization__field',
+        ).prefetch_related(
+            'skills',
+            'skills__skill',
+            'portfolio_works',
+        ).distinct()
 
     def get_serializer_class(self):
-        return super().get_serializer_class()
+        if self.action == 'list':
+            return UserListSerializer
+        if self.action == 'retrieve':
+            return UserDetailSerializer
+        if self.action == 'create':
+            return UserCreateSerializer
+        if self.action == 'me':
+            if self.request.method == 'PATCH':
+                return CurrentUserUpdateSerializer
+            return CurrentUserDetailSerializer
+        if self.action == 'applications':
+            return CurrentUserApplicationCardSerializer
+        if self.action == 'notifications':
+            return CurrentUserNotificationSerializer
+
+        return UserDetailSerializer
+    
+    def get_permissions(self):
+        if self.action in (
+            'me',
+            'projects',
+            'applications',
+            'notifications',
+        ):
+            return (IsAuthenticated(),)
+        
+        return (AllowAny(),)
     
     @action(detail=False, methods=('get', 'patch'), url_path='me')
     def me(self, request):
-        ...
+        if request.method == 'GET':
+            serializer = CurrentUserDetailSerializer(
+                request.user,
+                context=self.get_serializer_context(),
+            )
+            return Response(serializer.data)
 
-    @action(detail=False, methods=('get',), url_path='me/projects')
+        serializer = CurrentUserUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context=self.get_serializer_context(),
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        response_serializer = CurrentUserDetailSerializer(
+            request.user,
+            context=self.get_serializer_context(),
+        )
+        return Response(response_serializer.data)
+
+    @action(
+        detail=False,
+        methods=('get',),
+        url_path='me/projects',
+        permission_classes=(IsAuthenticated,),
+    )
     def projects(self, request):
-        ...
+        memberships = ProjectMembership.objects.filter(
+            user=request.user,
+            status=ProjectMembership.Status.ACTIVE,
+        ).select_related(
+            'project_role',
+            'project_role__project',
+            'project_role__specialization',
+        ).order_by('-created_at')
+
+        invitations = RoleInterest.objects.filter(
+            user=request.user,
+            source=RoleInterest.Source.INVITATION,
+            status=RoleInterest.Status.PENDING,
+        ).select_related(
+            'project_role',
+            'project_role__project',
+            'project_role__specialization',
+        ).order_by('-created_at')
+
+        return Response({
+            'memberships': CurrentUserMembershipProjectCardSerializer(
+                memberships,
+                many=True,
+                context=self.get_serializer_context(),
+            ).data,
+            'invitations': CurrentUserInvitedProjectCardSerializer(
+                invitations,
+                many=True,
+                context=self.get_serializer_context(),
+            ).data,
+        })
     
-    @action(detail=False, methods=('get',), url_path='me/applications')
+    @action(
+        detail=False,
+        methods=('get',),
+        url_path='me/applications',
+        permission_classes=(IsAuthenticated,),
+    )
     def applications(self, request):
-        ...
+        applications = RoleInterest.objects.filter(
+            user=request.user,
+            source=RoleInterest.Source.APPLICATION,
+            status=RoleInterest.Status.PENDING,
+        ).select_related(
+            'project_role',
+            'project_role__project',
+            'project_role__specialization',
+        ).order_by('-created_at')
+
+        serializer = CurrentUserApplicationCardSerializer(
+            applications,
+            many=True,
+            context=self.get_serializer_context(),
+        )
+
+        return Response(serializer.data)
 
     @action(
         detail=False,
@@ -356,7 +545,7 @@ class CurrentUserPortfolioWorkListCreateView(
         serializer.save(user=self.request.user)
 
 
-class CurrentUSerPortfolioWorkDetailView(
+class CurrentUserPortfolioWorkDetailView(
     generics.UpdateAPIView,
     generics.DestroyAPIView,
 ):
@@ -407,21 +596,178 @@ class CurrentUserFavoriteProjectDeleteView(
         )
 
 
-class CurrentUserAvatarSerializer(
-    generics.RetrieveDestroyAPIView
-)
+class CurrentUserAvatarView(generics.GenericAPIView):
+    serializer_class = AvatarSerializer
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ('put', 'delete', 'head', 'options')
+
+    def get_object(self):
+        return self.request.user
+    
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            self.get_object(),
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, *args, **kwargs):
+        user = self.get_object()
+
+        if user.avatar:
+            user.avatar.delete(save=False)
+            user.avatar = None
+            user.save(update_fields=('avatar',))
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+class SetPasswordView(generics.GenericAPIView):
+    serializer_class = SetPasswordSerializer
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ('post', 'head', 'options')
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ProjectRoleViewSet(viewsets.ModelViewSet):
+class ProjectRoleViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet
+):
     queryset = ProjectRole.objects.all()
+    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
+
+    def get_queryset(self):
+        return ProjectRole.objects.select_related(
+            'project',
+            'project__owner',
+            'specialization',
+        ).prefetch_related(
+            'skill_requirements',
+            'skill_requirements__skill',
+        )
+
+    def get_permissions(self):
+        if self.action in ('create', 'partial_update', 'destroy'):
+            return (IsAuthenticated(),)
+
+        return (AllowAny(),)
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ProjectRoleReadSerializer
+        if self.action == 'retrieve':
+            return ProjectRoleReadSerializer
+        if self.action == 'create':
+            return ProjectRoleCreateSerializer
+        if self.action in ('partial_update', 'update'):
+            return ProjectRoleUpdateSerializer
+
+        return ProjectRoleReadSerializer
 
     def destroy(self, request, *args, **kwargs):
         role = self.get_object()
 
-        validate_project_role_can_be_deleted(role)
+        validate_project_role_can_be_deleted(
+            project_role=role,
+            actor=request.user
+        )
         role.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+class RoleInterestViewSet(viewsets.GenericViewSet):
+    queryset = RoleInterest.objects.all()
+    serializer_class = RoleInterestActionResultSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_url_kwarg = 'interest_id'
+    lookup_value_regex = r'\d+'
+    http_method_names = ('post', 'head', 'options')
+
+    def get_queryset(self):
+        return RoleInterest.objects.select_related(
+            'user',
+            'project_role',
+            'project_role__project',
+            'project_role__specialization',
+        )
+    
+    @action(detail=True, methods=('post',), url_path='accept')
+    def accept(self, request, interest_id=None):
+        interest = accept_role_interest(
+            interest=self.get_object(),
+            actor=request.user,
+        )
+        serializer = self.get_serializer(interest)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=('post',), url_path='reject')
+    def reject(self, request, interest_id=None):
+        interest = reject_role_interest(
+            interest=self.get_object(),
+            actor=request.user,
+        )
+        serializer = self.get_serializer(interest)
+        return Response(serializer.data)
+
+
+class ProjectMembershipViewSet(viewsets.GenericViewSet):
+    queryset = ProjectMembership.objects.all()
+    serializer_class = ProjectMembershipActionResultSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_url_kwarg = 'membership_id'
+    lookup_value_regex = r'\d+'
+    http_method_names = ('post', 'head', 'options')
+
+    def get_queryset(self):
+        return ProjectMembership.objects.select_related(
+            'user',
+            'project_role',
+            'project_role__project',
+            'project_role__specialization',
+        )
+
+    @action(detail=True, methods=('post',), url_path='leave')
+    def leave(self, request, membership_id=None):
+        membership = self.get_object()
+
+        membership = leave_project_membership(
+            membership=membership,
+            actor=request.user,
+        )
+
+        serializer = self.get_serializer(
+            membership,
+            context=self.get_serializer_context(),
+        )
+        return Response(serializer.data)
+
+    @action(detail=True, methods=('post',), url_path='remove')
+    def remove(self, request, membership_id=None):
+        membership = self.get_object()
+
+        membership = remove_project_membership(
+            membership=membership,
+            actor=request.user,
+        )
+
+        serializer = self.get_serializer(
+            membership,
+            context=self.get_serializer_context(),
+        )
+        return Response(serializer.data)
 
 
 class TokenLoginView(TokenObtainPairView):

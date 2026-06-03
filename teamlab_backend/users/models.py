@@ -126,7 +126,7 @@ class User(AbstractUser):
         default=ProfileVisibility.PUBLIC,
         verbose_name='Видимость профиля'
     )
-    notifications_enabled = models.BooleanField(
+    notification_enabled = models.BooleanField(
         default=True,
         verbose_name='Уведомления включены'
     )

@@ -427,13 +427,13 @@ class ProjectCreateSerializer(serializers.Serializer):
         return roles
 
     def create(self, validated_data):
-        roles_data = validated_data.pop('roles')
-        request = self.context['request']
+        owner = validated_data.pop('owner')
+        roles_data = validated_data.pop('roles', [])
 
         return create_project_with_roles(
-            owner=request.user,
-            project_data=validated_data,
+            owner=owner,
             roles_data=roles_data,
+            project_data=validated_data,
         )
 
 

@@ -46,7 +46,7 @@ paths:
     post:
       tags: [Auth]
       summary: Получить JWT-токены
-      description: Авторизация по email и паролю. Возвращает access/refresh и краткую карточку пользователя.
+      description: Авторизация по username и паролю. Email сохраняется как контактное/будущее поле, но не является login identifier в MVP.
       operationId: tokenLogin
       requestBody:
         required: true
@@ -55,7 +55,7 @@ paths:
             schema:
               $ref: '#/components/schemas/TokenLoginRequest'
             example:
-              email: ivan.backend@example.com
+              username: ivan_backend
               password: current-password-2026
       responses:
         '200':
@@ -94,32 +94,42 @@ paths:
     get:
       tags: [Users]
       summary: Список пользователей
-      description: Возвращает карточки пользователей с фильтрацией по структурированным полям.
+      description: |
+        Публичный список безопасных карточек пользователей. Email, notification settings
+        и приватные контакты не возвращаются. Поиск в хедере раздела участников
+        использует `GET /api/v1/users/?search=...`; отдельный глобальный `/search/`
+        endpoint в MVP не добавляется.
+
+        `specialization_ids` и `skill_ids` принимают comma-separated lists и работают
+        как OR внутри своей группы. Разные группы фильтров применяются совместно.
       operationId: listUsers
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          description: Поиск по username, bio, city, названию специализации и навыкам.
+          schema:
+            type: string
+        - name: field_id
+          in: query
+          description: "Фильтр через `user.specialization.field_id`."
+          schema:
+            type: integer
+        - name: specialization_ids
+          in: query
+          description: Comma-separated list ID специализаций пользователя. OR внутри группы.
+          schema:
+            type: string
+        - name: skill_ids
+          in: query
+          description: Comma-separated list ID навыков пользователя. OR внутри группы.
+          schema:
+            type: string
         - name: level
           in: query
           schema:
             $ref: '#/components/schemas/UserLevel'
-        - name: account_type
-          in: query
-          schema:
-            $ref: '#/components/schemas/AccountType'
-        - name: specialization_id
-          in: query
-          schema:
-            type: integer
-        - name: field_id
-          in: query
-          schema:
-            type: integer
-        - name: skills
-          in: query
-          description: Comma-separated skill ids.
-          schema:
-            type: string
         - name: city
           in: query
           schema:
@@ -136,10 +146,13 @@ paths:
           in: query
           schema:
             $ref: '#/components/schemas/SearchStatus'
-        - name: period
+        - name: ordering
           in: query
+          description: |
+            Сортировка минимум по `created_at`, `updated_at`, `username`.
+            Пример: `ordering=-created_at`.
           schema:
-            $ref: '#/components/schemas/Period'
+            type: string
       responses:
         '200':
           description: Список пользователей
@@ -236,6 +249,11 @@ paths:
     patch:
       tags: [Me]
       summary: Изменить профиль текущего пользователя
+      description: |
+        Participant не может убрать или изменить `specialization_id`, если у него есть
+        active ProjectMembership, pending RoleInterest(source=application) или pending
+        RoleInterest(source=invitation). Historical states (`rejected`, `accepted`,
+        `left`, `removed`) сами по себе не блокируют смену specialization.
       operationId: updateCurrentUser
       security:
         - BearerAuth: []
@@ -318,6 +336,7 @@ paths:
     get:
       tags: [Skills]
       summary: Список навыков
+      description: Публичный справочник навыков.
       operationId: listSkills
       parameters:
         - name: search
@@ -340,6 +359,7 @@ paths:
     post:
       tags: [Skills]
       summary: Создать навык
+      description: Skill — расширяемый пользовательский справочник; создание доступно авторизованному пользователю.
       operationId: createSkill
       security:
         - BearerAuth: []
@@ -367,6 +387,10 @@ paths:
     get:
       tags: [Specializations]
       summary: Список специализаций
+      description: |
+        Публичный системный справочник специализаций. Specialization управляется
+        через админку, seed или служебные инструменты; пользователь не создаёт
+        specializations через публичный API.
       operationId: listSpecializations
       parameters:
         - name: search
@@ -386,36 +410,15 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Specialization'
-    post:
-      tags: [Specializations]
-      summary: Создать специализацию
-      operationId: createSpecialization
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SpecializationCreateRequest'
-      responses:
-        '201':
-          description: Специализация создана
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Specialization'
-        '400':
-          $ref: '#/components/responses/ValidationErrorResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedResponse'
-        '403':
-          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/fields/:
     get:
       tags: [Fields]
       summary: Список областей
+      description: |
+        Публичный системный справочник областей. Field управляется через админку,
+        seed или служебные инструменты; пользователь не создаёт fields через публичный API.
+        Синтетическая карточка "Все профили" не является записью Field в базе.
       operationId: listFields
       parameters:
         - name: search
@@ -431,59 +434,71 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Field'
-    post:
+
+  /api/v1/fields/featured/:
+    get:
       tags: [Fields]
-      summary: Создать область
-      operationId: createField
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FieldCreateRequest'
+      summary: Области для главной
+      description: |
+        Публичный endpoint для блока на главной. Возвращает Field с
+        `is_featured = true`, порядок: `featured_order`, затем `name`.
+        `is_featured` и `featured_order` управляются администратором через
+        админку/служебные инструменты. `featured_order` не отдаётся в публичном response.
+      operationId: listFeaturedFields
       responses:
-        '201':
-          description: Область создана
+        '200':
+          description: Featured области
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
-        '400':
-          $ref: '#/components/responses/ValidationErrorResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedResponse'
-        '403':
-          $ref: '#/components/responses/ForbiddenResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Field'
 
   /api/v1/projects/:
     get:
       tags: [Projects]
       summary: Список проектов
+      description: |
+        Публичный список проектов с `roles_preview`. Поиск в хедере раздела проектов
+        использует `GET /api/v1/projects/?search=...`.
+
+        `specialization_ids` и `skill_ids` принимают comma-separated lists и работают
+        как OR внутри своей группы. Разные группы фильтров применяются совместно.
       operationId: listProjects
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          description: Поиск по названию, описанию, проблеме, области, специализациям ролей и навыкам ролей проекта.
+          schema:
+            type: string
         - name: status
           in: query
+          description: Фильтр по статусу проекта.
           schema:
             $ref: '#/components/schemas/ProjectStatus'
         - name: field_id
           in: query
+          description: Фильтр по области проекта.
           schema:
             type: integer
-        - name: period
+        - name: specialization_ids
           in: query
+          description: Comma-separated list ID специализаций ролей проекта. OR внутри группы.
           schema:
-            $ref: '#/components/schemas/Period'
-        - name: role_specialization_id
+            type: string
+        - name: skill_ids
           in: query
+          description: Comma-separated list ID навыков, требуемых в ролях проекта. OR внутри группы.
           schema:
-            type: integer
-        - name: skills
+            type: string
+        - name: ordering
           in: query
-          description: Comma-separated skill ids.
+          description: |
+            Сортировка минимум по `created_at`, `updated_at`, `title`.
+            Пример: `ordering=-created_at`.
           schema:
             type: string
       responses:
@@ -496,7 +511,11 @@ paths:
     post:
       tags: [Projects]
       summary: Создать проект с ролями
-      description: Создаёт проект и вложенные роли. `roles` обязателен и должен содержать минимум одну роль.
+      description: |
+        Создаёт проект и вложенные роли. `roles` обязателен и должен содержать
+        минимум одну роль. В одном проекте не может быть две ProjectRole с одной
+        specialization. `is_featured` и `featured_order` не принимаются публичным API
+        и управляются администратором через админку/служебные инструменты.
       operationId: createProject
       security:
         - BearerAuth: []
@@ -534,11 +553,38 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
 
+  /api/v1/projects/featured/:
+    get:
+      tags: [Projects]
+      summary: Проекты недели
+      description: |
+        Публичный endpoint для блока "Проекты недели" на главной. Использует ту же
+        response schema, что `GET /api/v1/projects/`. Возвращает проекты с
+        `is_featured = true`, порядок: `featured_order`, затем `-created_at`.
+        `is_featured` и `featured_order` управляются администратором; `featured_order`
+        не отдаётся в публичном response и не принимается публичным create/update API.
+      operationId: listFeaturedProjects
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Featured проекты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjects'
+
   /api/v1/projects/{project_id}/:
     get:
       tags: [Projects]
       summary: Детали проекта
-      description: Детальная карточка проекта содержит roles и контекст текущего пользователя; roles_preview здесь не возвращается.
+      description: |
+        Детальная карточка проекта содержит roles и контекст текущего пользователя;
+        roles_preview здесь не возвращается. Для anonymous пользователя context fields
+        возвращаются как `null`: `matching_role_id`, `matching_role_name`,
+        `my_interest_id`, `my_interest_status`, `my_interest_source`,
+        `my_membership_id`, `my_membership_status`.
       operationId: retrieveProject
       parameters:
         - $ref: '#/components/parameters/ProjectIdParam'
@@ -554,6 +600,10 @@ paths:
     patch:
       tags: [Projects]
       summary: Изменить проект
+      description: |
+        Обновляет публично редактируемые поля проекта. `is_featured` и
+        `featured_order` не принимаются публичным API и управляются администратором
+        через админку/служебные инструменты.
       operationId: updateProject
       security:
         - BearerAuth: []
@@ -609,7 +659,12 @@ paths:
     post:
       tags: [Projects]
       summary: Откликнуться на проект
-      description: Participant создаёт заявку. Backend определяет подходящую ProjectRole по специализации текущего пользователя.
+      description: |
+        Participant создаёт заявку. Backend определяет подходящую ProjectRole по
+        специализации текущего пользователя. Если RoleInterest для пары
+        `(user, project_role)` уже существует, новое application по этой же паре
+        в MVP не создаётся, включая historical состояния `accepted` и `rejected`.
+        Anonymous пользователь должен пройти auth-flow; прямой вызов возвращает 401.
       operationId: createProjectApplication
       security:
         - BearerAuth: []
@@ -661,7 +716,11 @@ paths:
     post:
       tags: [Projects]
       summary: Пригласить пользователя в проект
-      description: Owner приглашает пользователя. Backend определяет подходящую ProjectRole по специализации приглашённого пользователя.
+      description: |
+        Owner приглашает пользователя. Backend определяет подходящую ProjectRole по
+        специализации приглашённого пользователя. Если RoleInterest для пары
+        `(user, project_role)` уже существует, новое invitation по этой же паре
+        в MVP не создаётся, включая historical состояния `accepted` и `rejected`.
       operationId: createProjectInvitation
       security:
         - BearerAuth: []
@@ -717,7 +776,10 @@ paths:
     post:
       tags: [Project Roles]
       summary: Создать роль проекта
-      description: Создаёт роль/направление внутри проекта. Наличие роли означает, что по ней можно откликаться и приглашать.
+      description: |
+        Создаёт роль/направление внутри проекта. Наличие роли означает, что по ней
+        можно откликаться и приглашать. В одном проекте не может быть две ProjectRole
+        с одной specialization; это не ограничивает число active participants на одной роли.
       operationId: createProjectRole
       security:
         - BearerAuth: []
@@ -762,6 +824,9 @@ paths:
     patch:
       tags: [Project Roles]
       summary: Изменить роль проекта
+      description: |
+        В одном проекте не может быть две ProjectRole с одной specialization.
+        Одна ProjectRole может иметь сколько угодно active participants.
       operationId: updateProjectRole
       security:
         - BearerAuth: []
@@ -927,7 +992,7 @@ paths:
     get:
       tags: [Me]
       summary: Мои проекты
-      description: Возвращает memberships и pending invitations текущего пользователя.
+      description: Возвращает active memberships и pending invitations текущего пользователя.
       operationId: listMyProjects
       security:
         - BearerAuth: []
@@ -1320,6 +1385,9 @@ components:
     Field:
       type: object
       required: [id, name, created_at, updated_at]
+      description: |
+        Публичное представление системной области. Админские поля `is_featured`
+        и `featured_order` используются для подборок, но не отдаются здесь.
       properties:
         id:
           type: integer
@@ -1334,16 +1402,10 @@ components:
           type: string
           format: date-time
           readOnly: true
-    FieldCreateRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          minLength: 1
     Specialization:
       type: object
       required: [id, field_id, name, created_at, updated_at]
+      description: Публичное представление системной специализации.
       properties:
         id:
           type: integer
@@ -1360,16 +1422,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-    SpecializationCreateRequest:
-      type: object
-      required: [field_id, name]
-      properties:
-        field_id:
-          type: integer
-        name:
-          type: string
-          minLength: 1
-
     UserSkill:
       type: object
       required: [id, user_id, skill_id, name, level, created_at, updated_at]
@@ -1505,11 +1557,11 @@ components:
           $ref: '#/components/schemas/AccountType'
     TokenLoginRequest:
       type: object
-      required: [email, password]
+      required: [username, password]
+      description: Login выполняется по username и password. Email не является login identifier в MVP.
       properties:
-        email:
+        username:
           type: string
-          format: email
         password:
           type: string
           writeOnly: true
@@ -1795,6 +1847,10 @@ components:
     UserCreateRequest:
       type: object
       required: [username, email, password, account_type]
+      description: |
+        Регистрация содержит `username`, `email`, `password`, `account_type`.
+        `specialization_id` условно обязателен: required для `participant`,
+        optional/nullable для `owner`.
       properties:
         username:
           type: string
@@ -1809,6 +1865,7 @@ components:
         specialization_id:
           type: integer
           nullable: true
+          description: Required для participant; optional/nullable для owner.
     UserCreatedResponse:
       type: object
       required: [id, username, email, account_type, specialization_id]
@@ -1828,6 +1885,11 @@ components:
           nullable: true
     UserUpdateRequest:
       type: object
+      description: |
+        Для participant `specialization_id` нельзя убрать или изменить при active
+        ProjectMembership, pending RoleInterest(source=application) или pending
+        RoleInterest(source=invitation). Historical records (`rejected`, `accepted`,
+        `left`, `removed`) сами по себе не блокируют смену specialization.
       properties:
         username:
           type: string
@@ -2000,6 +2062,7 @@ components:
     ProjectRoleCreateInput:
       type: object
       required: [specialization_id, tasks, benefits, skills]
+      description: В одном проекте specialization может быть представлена только одной ProjectRole.
       properties:
         specialization_id:
           type: integer
@@ -2026,8 +2089,10 @@ components:
             project_id:
               type: integer
         - $ref: '#/components/schemas/ProjectRoleCreateInput'
+      description: В одном проекте specialization может быть представлена только одной ProjectRole.
     ProjectRoleUpdateRequest:
       type: object
+      description: В одном проекте specialization может быть представлена только одной ProjectRole.
       properties:
         specialization_id:
           type: integer
@@ -2058,6 +2123,9 @@ components:
     ProjectListItem:
       type: object
       required: [id, owner_id, field_id, title, description, problem, image, status, is_favorited, roles_preview, created_at, updated_at]
+      description: |
+        Публичная карточка проекта. `featured_order` не отдаётся; `is_featured`
+        управляется администратором и не принимается create/update API.
       properties:
         id:
           type: integer
@@ -2096,6 +2164,11 @@ components:
           readOnly: true
     ProjectDetail:
       type: object
+      description: |
+        Публичная детальная карточка проекта. Для anonymous пользователя context fields
+        `matching_role_id`, `matching_role_name`, `my_interest_id`,
+        `my_interest_status`, `my_interest_source`, `my_membership_id`,
+        `my_membership_status` возвращаются как `null`.
       required:
         - id
         - owner_id
@@ -2222,6 +2295,9 @@ components:
     ProjectCreateRequest:
       type: object
       required: [field_id, title, description, problem, image, roles]
+      description: |
+        `is_featured` и `featured_order` не принимаются публичным create API.
+        Вложенные роли не могут повторять одну specialization внутри проекта.
       properties:
         field_id:
           type: integer
@@ -2242,6 +2318,7 @@ components:
             $ref: '#/components/schemas/ProjectRoleCreateInput'
     ProjectUpdateRequest:
       type: object
+      description: "`is_featured` и `featured_order` не принимаются публичным update API."
       properties:
         field_id:
           type: integer
@@ -2620,6 +2697,7 @@ components:
       properties:
         memberships:
           type: array
+          description: Active ProjectMembership текущего пользователя.
           items:
             $ref: '#/components/schemas/MyMembershipCard'
         invitations:

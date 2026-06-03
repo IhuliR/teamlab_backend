@@ -1,6 +1,8 @@
 CREATE TABLE "Field"(
     "id" bigserial NOT NULL,
     "name" VARCHAR(255) NOT NULL,
+    "is_featured" BOOLEAN NOT NULL DEFAULT FALSE,
+    "featured_order" SMALLINT NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -94,6 +96,8 @@ CREATE TABLE "Project"(
     "problem" TEXT NULL,
     "image" VARCHAR(255) NULL,
     "status" VARCHAR(20) NOT NULL DEFAULT 'open',
+    "is_featured" BOOLEAN NOT NULL DEFAULT FALSE,
+    "featured_order" SMALLINT NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -116,6 +120,8 @@ CREATE TABLE "ProjectRole"(
 );
 ALTER TABLE
     "ProjectRole" ADD PRIMARY KEY("id");
+ALTER TABLE
+    "ProjectRole" ADD CONSTRAINT "unique_project_role_specialization" UNIQUE("project_id", "specialization_id");
 CREATE INDEX "projectrole_project_id_index" ON
     "ProjectRole"("project_id");
 CREATE TABLE "ProjectRoleSkill"(

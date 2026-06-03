@@ -1,517 +1,259 @@
 {
   "info": {
-    "_postman_id": "8d8d2f76-5611-4f2a-8ad2-6d0af3d9460b",
-    "name": "TeamLab API",
+    "_postman_id": "9ab7295b-1d9a-4d33-a1b9-b708304530b7",
+    "name": "TeamLab API MVP - Seeded Demo",
+    "description": "Postman collection aligned with teamlab_api_schema_8.yml and python manage.py seed_demo_data. Run seed_demo_data before happy-path checks. Mutating requests are marked in descriptions.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Auth",
+      "name": "00 Setup / Auth",
       "item": [
         {
-          "name": "Register Owner",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Owner created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"email\");",
-                  "  pm.expect(data).to.have.property(\"account_type\", \"owner\");",
-                  "});",
-                  "pm.environment.set(\"owner_id\", String(data.id));",
-                  "pm.environment.set(\"owner_email\", data.email);",
-                  "pm.collectionVariables.set(\"owner_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"owner_email\", data.email);"
-                ]
-              }
-            }
-          ],
+          "name": "Login owner",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"owner_{{$timestamp}}\",\"email\":\"owner_{{$timestamp}}@example.com\",\"password\":\"{{owner_password}}\",\"account_type\":\"owner\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/",
+              "raw": "{{base_url}}/auth/token/login/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
-                "users",
-                ""
-              ]
-            },
-            "description": "Создание владельца проекта."
-          },
-          "response": []
-        },
-        {
-          "name": "Login Owner",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"JWT pair and auth user returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "  pm.expect(data).to.have.property(\"refresh\");",
-                  "  pm.expect(data).to.have.property(\"user\");",
-                  "  pm.expect(data.user).to.have.property(\"id\");",
-                  "  pm.expect(data.user).to.have.property(\"username\");",
-                  "  pm.expect(data.user).to.have.property(\"account_type\", \"owner\");",
-                  "});",
-                  "pm.environment.set(\"access_token\", data.access);",
-                  "pm.environment.set(\"refresh_token\", data.refresh);",
-                  "pm.collectionVariables.set(\"access_token\", data.access);",
-                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"{{owner_password}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/login/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
                 "auth",
                 "token",
                 "login",
                 ""
               ]
             },
-            "description": "Получение JWT для владельца."
+            "description": "Login for seeded demo user owner. Uses username + password per current MVP contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{owner_username}}\",\n  \"password\": \"{{demo_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
-        },
-        {
-          "name": "Refresh Token",
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Access token and auth user returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "  pm.expect(data).to.have.property(\"user\");",
-                  "  pm.expect(data.user).to.have.property(\"id\");",
-                  "  pm.expect(data.user).to.have.property(\"account_type\");",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Token pair returned\", function () {",
+                  "  pm.expect(json).to.have.property(\"access\");",
+                  "  pm.expect(json).to.have.property(\"refresh\");",
                   "});",
-                  "pm.environment.set(\"access_token\", data.access);",
-                  "pm.collectionVariables.set(\"access_token\", data.access);"
+                  "pm.environment.set(\"owner_access_token\", json.access);",
+                  "pm.environment.set(\"owner_refresh_token\", json.refresh);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set(\"owner_user_id\", json.user.id);",
+                  "}"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Login backend participant",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/token/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "token",
+                "login",
+                ""
+              ]
+            },
+            "description": "Login for seeded demo user backend. Uses username + password per current MVP contract.",
             "body": {
               "mode": "raw",
-              "raw": "{\"refresh\":\"{{refresh_token}}\"}",
+              "raw": "{\n  \"username\": \"{{backend_username}}\",\n  \"password\": \"{{demo_password}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Token pair returned\", function () {",
+                  "  pm.expect(json).to.have.property(\"access\");",
+                  "  pm.expect(json).to.have.property(\"refresh\");",
+                  "});",
+                  "pm.environment.set(\"backend_access_token\", json.access);",
+                  "pm.environment.set(\"backend_refresh_token\", json.refresh);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set(\"backend_user_id\", json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login designer participant",
+          "request": {
+            "method": "POST",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/refresh/",
+              "raw": "{{base_url}}/auth/token/login/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
+                "auth",
+                "token",
+                "login",
+                ""
+              ]
+            },
+            "description": "Login for seeded demo user designer. Uses username + password per current MVP contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{designer_username}}\",\n  \"password\": \"{{demo_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Token pair returned\", function () {",
+                  "  pm.expect(json).to.have.property(\"access\");",
+                  "  pm.expect(json).to.have.property(\"refresh\");",
+                  "});",
+                  "pm.environment.set(\"designer_access_token\", json.access);",
+                  "pm.environment.set(\"designer_refresh_token\", json.refresh);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set(\"designer_user_id\", json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login member participant",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/token/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "token",
+                "login",
+                ""
+              ]
+            },
+            "description": "Login for seeded demo user member. Uses username + password per current MVP contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{member_username}}\",\n  \"password\": \"{{demo_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Token pair returned\", function () {",
+                  "  pm.expect(json).to.have.property(\"access\");",
+                  "  pm.expect(json).to.have.property(\"refresh\");",
+                  "});",
+                  "pm.environment.set(\"member_access_token\", json.access);",
+                  "pm.environment.set(\"member_refresh_token\", json.refresh);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set(\"member_user_id\", json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh backend token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
                 "auth",
                 "token",
                 "refresh",
                 ""
               ]
             },
-            "description": "Обновление access-токена по refresh-токену."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Projects",
-      "item": [
-        {
-          "name": "List Fields",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Fields list is not empty\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "  pm.expect(data.length).to.be.above(0);",
-                  "  pm.expect(data[0]).to.have.property(\"id\");",
-                  "  pm.expect(data[0]).to.have.property(\"name\");",
-                  "});",
-                  "pm.collectionVariables.set(\"field_id\", String(data[0].id));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/api/v1/fields/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "fields",
-                ""
-              ]
-            },
-            "description": "Получение Field для создания проекта."
-          },
-          "response": []
-        },
-        {
-          "name": "List Skills",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Skills list returned\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/api/v1/skills/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "skills",
-                ""
-              ]
-            },
-            "description": "Получение Skill справочника."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Project",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Project created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"title\", \"MVP TeamLab Project\");",
-                  "  pm.expect(data).to.have.property(\"field_id\");",
-                  "});",
-                  "pm.environment.set(\"project_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"project_id\", String(data.id));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "description": "Checks token refresh response. Uses backend refresh token and updates backend_access_token when access is returned.",
             "body": {
               "mode": "raw",
-              "raw": "{\"field_id\":{{field_id}},\"title\":\"MVP TeamLab Project\",\"description\":\"Project created from Postman flow\",\"idea\":\"Validate canonical team formation flow\",\"benefits\":\"API QA coverage\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/projects/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "projects",
-                ""
-              ]
-            },
-            "description": "Создание проекта владельцем."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "ProjectRoles",
-      "item": [
-        {
-          "name": "List Specializations",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Specializations list is not empty\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "  pm.expect(data.length).to.be.above(0);",
-                  "  pm.expect(data[0]).to.have.property(\"id\");",
-                  "  pm.expect(data[0]).to.have.property(\"field_id\");",
-                  "});",
-                  "pm.collectionVariables.set(\"specialization_id\", String(data[0].id));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/api/v1/specializations/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "specializations",
-                ""
-              ]
-            },
-            "description": "Получение specialization для создания роли."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Project Role",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Role created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"project_id\");",
-                  "  pm.expect(data).to.have.property(\"specialization_id\");",
-                  "  pm.expect(data).to.have.property(\"is_open\", true);",
-                  "});",
-                  "pm.environment.set(\"role_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"role_id\", String(data.id));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"project_id\":{{project_id}},\"specialization_id\":{{specialization_id}},\"description\":\"Backend engineer for MVP delivery\",\"capacity\":1}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/project-roles/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "project-roles",
-                ""
-              ]
-            },
-            "description": "Создание роли проекта через top-level endpoint /api/v1/project-roles/."
-          },
-          "response": []
-        },
-        {
-          "name": "List Project Roles",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Project roles response returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"results\");",
-                  "  pm.expect(data.results).to.be.an(\"array\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/api/v1/project-roles/?project_id={{project_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "project-roles",
-                ""
-              ],
-              "query": [
-                {
-                  "key": "project_id",
-                  "value": "{{project_id}}"
-                }
-              ]
-            },
-            "description": "Список ролей проекта по контрактному top-level endpoint."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Reject Project Role",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{base_url}}/api/v1/project-roles/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "project-roles",
-                ""
-              ]
-            },
-            "description": "Создание отдельной роли для независимого reject-сценария.",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"project_id\":{{project_id}},\"specialization_id\":{{specialization_id}},\"description\":\"QA reject-flow role\",\"capacity\":1}",
+              "raw": "{\n  \"refresh\": \"{{backend_refresh_token}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -526,17 +268,593 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Reject-flow role created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"project_id\");",
-                  "  pm.expect(data).to.have.property(\"is_open\", true);",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Access token returned\", function () { pm.expect(json).to.have.property(\"access\"); });",
+                  "pm.environment.set(\"backend_access_token\", json.access);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get fields and save IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/fields/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "fields",
+                ""
+              ]
+            },
+            "description": "Discovers seeded fields by name and saves field_development_id, field_design_id, field_ai_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "pm.environment.set(\"reject_role_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"reject_role_id\", String(data.id));"
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const byName = Object.fromEntries(items.map(item => [item.name, item.id]));",
+                  "if (byName[\"Разработка\"]) pm.environment.set(\"field_development_id\", byName[\"Разработка\"]);",
+                  "if (byName[\"Дизайн\"]) pm.environment.set(\"field_design_id\", byName[\"Дизайн\"]);",
+                  "if (byName[\"AI\"]) pm.environment.set(\"field_ai_id\", byName[\"AI\"]);",
+                  "pm.test(\"Seed fields can be discovered\", function () {",
+                  "  pm.expect(byName).to.have.property(\"Разработка\");",
+                  "  pm.expect(byName).to.have.property(\"Дизайн\");",
+                  "  pm.expect(byName).to.have.property(\"AI\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get specializations and save IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/specializations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "specializations",
+                ""
+              ]
+            },
+            "description": "Discovers seeded specializations by name and saves specialization_* variables."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const byName = Object.fromEntries(items.map(item => [item.name, item.id]));",
+                  "if (byName[\"Backend-разработчик\"]) pm.environment.set(\"specialization_backend_id\", byName[\"Backend-разработчик\"]);",
+                  "if (byName[\"Frontend-разработчик\"]) pm.environment.set(\"specialization_frontend_id\", byName[\"Frontend-разработчик\"]);",
+                  "if (byName[\"UI/UX-дизайнер\"]) pm.environment.set(\"specialization_designer_id\", byName[\"UI/UX-дизайнер\"]);",
+                  "if (byName[\"AI-дизайнер\"]) pm.environment.set(\"specialization_ai_designer_id\", byName[\"AI-дизайнер\"]);",
+                  "pm.test(\"Seed specializations can be discovered\", function () {",
+                  "  pm.expect(byName).to.have.property(\"Backend-разработчик\");",
+                  "  pm.expect(byName).to.have.property(\"Frontend-разработчик\");",
+                  "  pm.expect(byName).to.have.property(\"UI/UX-дизайнер\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get skills and save IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/skills/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "skills",
+                ""
+              ]
+            },
+            "description": "Discovers seeded skills by name and saves skill_* variables."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const byName = Object.fromEntries(items.map(item => [item.name, item.id]));",
+                  "if (byName[\"Python\"]) pm.environment.set(\"skill_python_id\", byName[\"Python\"]);",
+                  "if (byName[\"Django\"]) pm.environment.set(\"skill_django_id\", byName[\"Django\"]);",
+                  "if (byName[\"DRF\"]) pm.environment.set(\"skill_drf_id\", byName[\"DRF\"]);",
+                  "if (byName[\"React\"]) pm.environment.set(\"skill_react_id\", byName[\"React\"]);",
+                  "if (byName[\"Figma\"]) pm.environment.set(\"skill_figma_id\", byName[\"Figma\"]);",
+                  "pm.test(\"Seed skills can be discovered\", function () {",
+                  "  pm.expect(byName).to.have.property(\"Python\");",
+                  "  pm.expect(byName).to.have.property(\"Django\");",
+                  "  pm.expect(byName).to.have.property(\"DRF\");",
+                  "  pm.expect(byName).to.have.property(\"React\");",
+                  "  pm.expect(byName).to.have.property(\"Figma\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get projects and save demo project ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                ""
+              ]
+            },
+            "description": "Discovers seeded demo project by title. Falls back to the first project if the seed title is not present."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const demo = items.find(item => item.title === \"Демо-проект TeamLab\") || items[0];",
+                  "pm.test(\"At least one project exists\", function () { pm.expect(demo).to.exist; });",
+                  "if (demo) {",
+                  "  pm.environment.set(\"demo_project_id\", demo.id);",
+                  "  if (demo.title === \"Демо-проект TeamLab\") pm.environment.set(\"featured_project_id\", demo.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get project detail and save role IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                ""
+              ]
+            },
+            "description": "Reads demo project detail and saves backend/frontend/designer ProjectRole IDs by specialization_name."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const roles = json.roles || [];",
+                  "function saveRole(name, variable) {",
+                  "  const role = roles.find(item => item.specialization_name === name || item.project_role_name === name);",
+                  "  if (role) pm.environment.set(variable, role.id || role.project_role_id);",
+                  "}",
+                  "saveRole(\"Backend-разработчик\", \"backend_role_id\");",
+                  "saveRole(\"Frontend-разработчик\", \"frontend_role_id\");",
+                  "saveRole(\"UI/UX-дизайнер\", \"designer_role_id\");",
+                  "pm.test(\"Project detail contains roles\", function () { pm.expect(roles.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get users and save user IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                ""
+              ]
+            },
+            "description": "Discovers seeded public users by username. If owner is not public in a future contract, run Current owner /users/me/ to save owner_user_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const byUsername = Object.fromEntries(items.map(item => [item.username, item.id]));",
+                  "if (byUsername.demo_owner) pm.environment.set(\"owner_user_id\", byUsername.demo_owner);",
+                  "if (byUsername.demo_backend) pm.environment.set(\"backend_user_id\", byUsername.demo_backend);",
+                  "if (byUsername.demo_designer) pm.environment.set(\"designer_user_id\", byUsername.demo_designer);",
+                  "if (byUsername.demo_member) pm.environment.set(\"member_user_id\", byUsername.demo_member);",
+                  "pm.test(\"Seed participant users can be discovered\", function () {",
+                  "  pm.expect(byUsername).to.have.property(\"demo_backend\");",
+                  "  pm.expect(byUsername).to.have.property(\"demo_designer\");",
+                  "  pm.expect(byUsername).to.have.property(\"demo_member\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current owner and save owner ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                ""
+              ]
+            },
+            "description": "Fallback discovery for owner_user_id via authenticated current-user endpoint."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"owner_user_id\", json.id);",
+                  "pm.test(\"Current user is owner\", function () { pm.expect(json.account_type).to.eql(\"owner\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Login seeded demo users and discover IDs from public catalogs."
+    },
+    {
+      "name": "01 Public dictionaries",
+      "item": [
+        {
+          "name": "GET fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/fields/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "fields",
+                ""
+              ]
+            },
+            "description": "Public Field catalog. No auth required."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET featured fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/fields/featured/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "fields",
+                "featured",
+                ""
+              ]
+            },
+            "description": "Public featured fields for the home page. featured_order is internal and not required in response."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET specializations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/specializations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "specializations",
+                ""
+              ]
+            },
+            "description": "Public Specialization catalog. Field and Specialization are system dictionaries managed by admin/seed/service tools."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/skills/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "skills",
+                ""
+              ]
+            },
+            "description": "Public Skill catalog. No auth required."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST skill authenticated user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/skills/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "skills",
+                ""
+              ]
+            },
+            "description": "Creates a Skill with any authenticated user token. This endpoint is not admin-only. Saves created_skill_id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Skill {{$timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.expect([201]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Created skill has id and name\", function () {",
+                  "  pm.expect(json).to.have.property(\"id\");",
+                  "  pm.expect(json).to.have.property(\"name\");",
+                  "});",
+                  "pm.environment.set(\"created_skill_id\", json.id);"
                 ]
               }
             }
@@ -545,307 +863,1674 @@
       ]
     },
     {
-      "name": "Users / Profile",
+      "name": "02 Public projects catalog",
       "item": [
         {
-          "name": "Register Participant",
+          "name": "GET projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                ""
+              ]
+            },
+            "description": "Public projects catalog. List cards contain roles_preview."
+          },
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Participant created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"email\");",
-                  "  pm.expect(data).to.have.property(\"account_type\", \"participant\");",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
                   "});",
-                  "pm.environment.set(\"user_id\", String(data.id));",
-                  "pm.environment.set(\"participant_id\", String(data.id));",
-                  "pm.environment.set(\"participant_email\", data.email);",
-                  "pm.collectionVariables.set(\"user_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"participant_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"participant_email\", data.email);"
+                  "",
+                  "pm.test(\"Project list items contain roles_preview\", function () {",
+                  "  if (items.length) pm.expect(items[0]).to.have.property(\"roles_preview\");",
+                  "});"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "GET featured projects",
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"participant_{{$timestamp}}\",\"email\":\"participant_{{$timestamp}}@example.com\",\"password\":\"{{participant_password}}\",\"account_type\":\"participant\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/",
+              "raw": "{{base_url}}/projects/featured/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
+                "projects",
+                "featured",
+                ""
+              ]
+            },
+            "description": "Public featured projects. Uses same response shape as GET /projects/. featured_order is internal and not required in response."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"Featured project response does not require featured_order\", function () {",
+                  "  if (items.length) pm.expect(items[0]).to.not.have.property(\"featured_order\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET demo project detail anonymous",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                ""
+              ]
+            },
+            "description": "Anonymous project detail. Context my_* fields should be null for anonymous users."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Detail contains roles\", function () { pm.expect(json.roles).to.be.an(\"array\"); });",
+                  "[\"matching_role_id\", \"matching_role_name\", \"my_interest_id\", \"my_interest_status\", \"my_interest_source\", \"my_membership_id\", \"my_membership_status\"].forEach(key => {",
+                  "  pm.test(key + \" is null for anonymous\", function () { pm.expect(json[key]).to.eql(null); });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET projects search TeamLab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?search=TeamLab",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?search=TeamLab"
+              ]
+            },
+            "description": "Project contextual search via /projects/?search=..."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET projects by field",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?field_id={{field_development_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?field_id={{field_development_id}}"
+              ]
+            },
+            "description": "Project filter by field_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET projects by skills OR group",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?skill_ids={{skill_python_id}},{{skill_django_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?skill_ids={{skill_python_id}},{{skill_django_id}}"
+              ]
+            },
+            "description": "Project filter by comma-separated skill_ids. OR inside skill group."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET projects by specialization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?specialization_ids={{specialization_backend_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?specialization_ids={{specialization_backend_id}}"
+              ]
+            },
+            "description": "Project filter by comma-separated specialization_ids."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET projects ordering",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?ordering=-created_at",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?ordering=-created_at"
+              ]
+            },
+            "description": "Project ordering by -created_at."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Public users catalog",
+      "item": [
+        {
+          "name": "GET users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
                 "users",
                 ""
               ]
             },
-            "description": "Создание участника для отклика на роль."
+            "description": "Public users catalog. Must not expose private fields."
           },
-          "response": []
-        },
-        {
-          "name": "Login Participant",
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"JWT pair and auth user returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "  pm.expect(data).to.have.property(\"refresh\");",
-                  "  pm.expect(data).to.have.property(\"user\");",
-                  "  pm.expect(data.user).to.have.property(\"id\");",
-                  "  pm.expect(data.user).to.have.property(\"username\");",
-                  "  pm.expect(data.user).to.have.property(\"account_type\", \"participant\");",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
                   "});",
-                  "pm.environment.set(\"access_token\", data.access);",
-                  "pm.environment.set(\"refresh_token\", data.refresh);",
-                  "pm.collectionVariables.set(\"access_token\", data.access);",
-                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
+                  "",
+                  "pm.test(\"Public list hides private fields\", function () {",
+                  "  if (items.length) {",
+                  "    pm.expect(items[0]).to.not.have.property(\"email\");",
+                  "    pm.expect(items[0]).to.not.have.property(\"notification_enabled\");",
+                  "    pm.expect(items[0]).to.not.have.property(\"account_type\");",
+                  "  }",
+                  "});",
+                  "pm.test(\"Skills include names when present\", function () {",
+                  "  const userWithSkills = items.find(item => item.skills && item.skills.length);",
+                  "  if (userWithSkills) pm.expect(userWithSkills.skills[0]).to.have.property(\"name\");",
+                  "});"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "GET backend public profile",
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"{{participant_password}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/login/",
+              "raw": "{{base_url}}/users/{{backend_user_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
-                "auth",
-                "token",
-                "login",
+                "users",
+                "{{backend_user_id}}",
                 ""
               ]
             },
-            "description": "Получение JWT для участника."
+            "description": "Public user detail. account_type, email and notification settings must stay private."
           },
-          "response": []
-        },
-        {
-          "name": "Get Current User Profile",
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Current user profile returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"email\");",
-                  "  pm.expect(data).to.have.property(\"account_type\", \"participant\");",
-                  "  pm.expect(data.id).to.eql(Number(pm.environment.get(\"user_id\")));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Public detail hides private fields\", function () {",
+                  "  pm.expect(json).to.not.have.property(\"email\");",
+                  "  pm.expect(json).to.not.have.property(\"account_type\");",
+                  "  pm.expect(json).to.not.have.property(\"notification_enabled\");",
                   "});",
-                  "pm.environment.set(\"user_id\", String(data.id));",
-                  "pm.environment.set(\"participant_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"user_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"participant_id\", String(data.id));"
+                  "pm.test(\"Public detail has specialization and skills shape\", function () {",
+                  "  pm.expect(json).to.have.property(\"specialization_name\");",
+                  "  pm.expect(json.skills).to.be.an(\"array\");",
+                  "  if (json.skills.length) pm.expect(json.skills[0]).to.have.property(\"name\");",
+                  "});"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "GET users search backend",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?search=backend",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?search=backend"
+              ]
+            },
+            "description": "User contextual search via /users/?search=..."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET users by field",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?field_id={{field_development_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?field_id={{field_development_id}}"
+              ]
+            },
+            "description": "User filter by specialization.field_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET users by specialization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?specialization_ids={{specialization_backend_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?specialization_ids={{specialization_backend_id}}"
+              ]
+            },
+            "description": "User filter by comma-separated specialization_ids."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET users by skill",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?skill_ids={{skill_python_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?skill_ids={{skill_python_id}}"
+              ]
+            },
+            "description": "User filter by comma-separated skill_ids."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET users ordering username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?ordering=username",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?ordering=username"
+              ]
+            },
+            "description": "User ordering by username."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Current user / Me",
+      "item": [
+        {
+          "name": "Current owner",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{access_token}}"
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/me/",
+              "raw": "{{base_url}}/users/me/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
                 "users",
                 "me",
                 ""
               ]
             },
-            "description": "Проверка профиля текущего участника."
+            "description": "Current owner profile includes account_type and owned_project_ids and does not include contacts_visible."
           },
-          "response": []
-        },
-        {
-          "name": "List Portfolio Works",
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Portfolio works list returned\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"owner_user_id\", json.id);",
+                  "pm.test(\"Owner current profile shape\", function () {",
+                  "  pm.expect(json.account_type).to.eql(\"owner\");",
+                  "  pm.expect(json).to.have.property(\"owned_project_ids\");",
+                  "  pm.expect(json).to.not.have.property(\"contacts_visible\");",
                   "});"
                 ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Current backend participant",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{access_token}}"
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/me/portfolio-works/",
+              "raw": "{{base_url}}/users/me/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
+                "users",
+                "me",
+                ""
+              ]
+            },
+            "description": "Current backend participant profile."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"backend_user_id\", json.id);",
+                  "pm.test(\"Backend current profile shape\", function () {",
+                  "  pm.expect(json.account_type).to.eql(\"participant\");",
+                  "  pm.expect(json).to.not.have.property(\"contacts_visible\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH current backend bio",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                ""
+              ]
+            },
+            "description": "Safe profile update. Does not change specialization because active/pending relations can block specialization changes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Updated from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current member projects active memberships",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{member_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "projects",
+                ""
+              ]
+            },
+            "description": "For demo_member, memberships[] should contain active ProjectMembership from seed. Saves active_membership_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"memberships is array\", function () { pm.expect(json.memberships).to.be.an(\"array\"); });",
+                  "if (json.memberships && json.memberships.length) {",
+                  "  pm.environment.set(\"active_membership_id\", json.memberships[0].id);",
+                  "  pm.test(\"First membership is active\", function () { pm.expect(json.memberships[0].status).to.eql(\"active\"); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current designer projects pending invitation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{designer_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "projects",
+                ""
+              ]
+            },
+            "description": "For demo_designer, invitations[] should contain pending invitation from seed. Saves designer_invitation_interest_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"invitations is array\", function () { pm.expect(json.invitations).to.be.an(\"array\"); });",
+                  "if (json.invitations && json.invitations.length) {",
+                  "  pm.environment.set(\"designer_invitation_interest_id\", json.invitations[0].id);",
+                  "  pm.test(\"First invitation is pending\", function () { pm.expect(json.invitations[0].status).to.eql(\"pending\"); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current backend applications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "applications",
+                ""
+              ]
+            },
+            "description": "For demo_backend, list should contain pending application from seed. Saves backend_application_interest_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const pending = items.find(item => item.status === \"pending\");",
+                  "if (pending) pm.environment.set(\"backend_application_interest_id\", pending.id);",
+                  "pm.test(\"Applications list is readable\", function () { pm.expect(items).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/notifications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "notifications",
+                ""
+              ]
+            },
+            "description": "For owner, notifications are pending applications on owned projects. Saves backend_application_interest_id when present."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const application = items.find(item => item.source === \"application\" && item.status === \"pending\");",
+                  "if (application) pm.environment.set(\"backend_application_interest_id\", application.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Designer notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{designer_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/notifications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "notifications",
+                ""
+              ]
+            },
+            "description": "For participant, notifications are pending invitations. Saves designer_invitation_interest_id when present."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const invitation = items.find(item => item.source === \"invitation\" && item.status === \"pending\");",
+                  "if (invitation) pm.environment.set(\"designer_invitation_interest_id\", invitation.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Projects owner flow",
+      "item": [
+        {
+          "name": "Create project with nested roles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                ""
+              ]
+            },
+            "description": "Creates a project with nested roles per current contract. Does not send is_featured or featured_order. Saves created_project_id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"title\": \"Postman Project {{$timestamp}}\",\n  \"description\": \"Created from Postman collection\",\n  \"problem\": \"Validate project create contract with nested roles.\",\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=\",\n  \"roles\": [\n    {\n      \"specialization_id\": \"{{specialization_ai_designer_id}}\",\n      \"tasks\": [\"Validate API contract\"],\n      \"benefits\": [\"Reusable Postman scenario\"],\n      \"skills\": [\n        {\"skill_id\": \"{{skill_figma_id}}\", \"description\": \"Design validation\", \"order\": 1}\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () { pm.expect([201]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Project created with roles\", function () {",
+                  "  pm.expect(json).to.have.property(\"id\");",
+                  "  pm.expect(json.roles).to.be.an(\"array\");",
+                  "});",
+                  "pm.expect(json).to.not.have.property(\"featured_order\");",
+                  "pm.environment.set(\"created_project_id\", json.id);",
+                  "if (json.roles && json.roles.length) pm.environment.set(\"created_project_role_id\", json.roles[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH created project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{created_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{created_project_id}}",
+                ""
+              ]
+            },
+            "description": "Updates owner project fields. Does not send is_featured or featured_order.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Project Updated\",\n  \"description\": \"Updated from Postman\",\n  \"problem\": \"Updated problem statement\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Project applications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "applications",
+                ""
+              ]
+            },
+            "description": "Owner reads pending applications for demo project. Saves backend_application_interest_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const app = items.find(item => item.source === \"application\" && item.status === \"pending\") || items[0];",
+                  "if (app) pm.environment.set(\"backend_application_interest_id\", app.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Project invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/invitations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "invitations",
+                ""
+              ]
+            },
+            "description": "Owner reads pending invitations for demo project. Saves designer_invitation_interest_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "const invitation = items.find(item => item.source === \"invitation\" && item.status === \"pending\") || items[0];",
+                  "if (invitation) pm.environment.set(\"designer_invitation_interest_id\", invitation.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create invitation for designer (repeat-tolerant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/invitations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "invitations",
+                ""
+              ]
+            },
+            "description": "Creates an invitation. Seed already creates a designer invitation, so repeated collection runs may return 400/409 due to MVP no-repeated-invitations rule.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{designer_user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201, 400, 409\", function () { pm.expect([201, 400, 409]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 201) {",
+                  "  ",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set(\"created_invitation_interest_id\", json.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Applications and invitations",
+      "item": [
+        {
+          "name": "Create backend application (repeat-tolerant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "applications",
+                ""
+              ]
+            },
+            "description": "Creates an application without request body. Seed already creates this application, so repeated runs may return 400/409 due to MVP no-repeated-applications rule."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201, 400, 409\", function () { pm.expect([201, 400, 409]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 201) {",
+                  "  ",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set(\"created_application_interest_id\", json.id);",
+                  "  pm.environment.set(\"backend_application_interest_id\", json.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous application should be unauthorized",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "applications",
+                ""
+              ]
+            },
+            "description": "Anonymous user must go through auth-flow before creating an application."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", function () { pm.expect([401]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 RoleInterest actions",
+      "item": [
+        {
+          "name": "Accept flow",
+          "item": [
+            {
+              "name": "Accept backend application (destructive)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{owner_access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/role-interests/{{backend_application_interest_id}}/accept/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "role-interests",
+                    "{{backend_application_interest_id}}",
+                    "accept",
+                    ""
+                  ]
+                },
+                "description": "Mutates seeded backend application to accepted and creates ProjectMembership. Re-running after accept may return 400 because the RoleInterest is no longer pending. Re-run seed_demo_data to reset."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200, 400\", function () { pm.expect([200, 400]).to.include(pm.response.code); });",
+                      "if (pm.response.code === 200) {",
+                      "  ",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.withBody;",
+                      "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                      "});",
+                      "  const json = pm.response.json();",
+                      "  pm.test(\"Accepted response shape\", function () {",
+                      "    pm.expect(json.status).to.eql(\"accepted\");",
+                      "    pm.expect(json).to.have.property(\"membership_id\");",
+                      "    pm.expect(json).to.have.property(\"membership_status\");",
+                      "  });",
+                      "  if (json.membership_id) pm.environment.set(\"created_membership_id\", json.membership_id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "description": "Mutating accept scenario. Do not run together with checks that require the original pending application unless you reset seed data."
+        },
+        {
+          "name": "Reject flow",
+          "item": [
+            {
+              "name": "Reject designer invitation (destructive)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{designer_access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/role-interests/{{designer_invitation_interest_id}}/reject/",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "role-interests",
+                    "{{designer_invitation_interest_id}}",
+                    "reject",
+                    ""
+                  ]
+                },
+                "description": "Mutates seeded designer invitation to rejected. Re-running after reject may return 400 because the RoleInterest is no longer pending. Re-run seed_demo_data to reset."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200, 400\", function () { pm.expect([200, 400]).to.include(pm.response.code); });",
+                      "if (pm.response.code === 200) {",
+                      "  ",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.withBody;",
+                      "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                      "});",
+                      "  const json = pm.response.json();",
+                      "  pm.test(\"Rejected response shape\", function () { pm.expect(json.status).to.eql(\"rejected\"); });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "description": "Mutating reject scenario. Do not run together with accept invitation for the same interest without resetting seed data."
+        }
+      ],
+      "description": "Mutating accept/reject actions. Reset seed data between conflicting flows."
+    },
+    {
+      "name": "08 Membership actions",
+      "item": [
+        {
+          "name": "Leave membership (destructive)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{member_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project-memberships/{{active_membership_id}}/leave/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project-memberships",
+                "{{active_membership_id}}",
+                "leave",
+                ""
+              ]
+            },
+            "description": "Mutates demo_member active membership to left. Conflicts with Remove membership on the same active_membership_id; re-run seed_demo_data to reset."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200, 400, 403, 404\", function () { pm.expect([200, 400, 403, 404]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 200) {",
+                  "  ",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "  const json = pm.response.json();",
+                  "  pm.test(\"Membership left\", function () { pm.expect(json.status).to.eql(\"left\"); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove membership (destructive)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project-memberships/{{active_membership_id}}/remove/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project-memberships",
+                "{{active_membership_id}}",
+                "remove",
+                ""
+              ]
+            },
+            "description": "Owner removes an active membership. Requires an active membership ID. Conflicts with Leave membership on the same active_membership_id; re-run seed_demo_data or use a separate membership."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200, 400, 403, 404\", function () { pm.expect([200, 400, 403, 404]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 200) {",
+                  "  ",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "  const json = pm.response.json();",
+                  "  pm.test(\"Membership removed\", function () { pm.expect(json.status).to.eql(\"removed\"); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Mutating leave/remove actions. Do not run both on the same active membership without resetting seed data."
+    },
+    {
+      "name": "09 Portfolio works",
+      "item": [
+        {
+          "name": "GET portfolio works",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{designer_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/portfolio-works/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
                 "users",
                 "me",
                 "portfolio-works",
                 ""
               ]
             },
-            "description": "Список работ портфолио текущего пользователя."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "RoleInterests",
-      "item": [
-        {
-          "name": "Create Role Interest",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Role interest created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"user_id\");",
-                  "  pm.expect(data).to.have.property(\"project_role_id\");",
-                  "  pm.expect(data).to.have.property(\"status\", \"pending\");",
-                  "});",
-                  "pm.environment.set(\"interest_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"interest_id\", String(data.id));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/project-roles/{{role_id}}/interests/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "project-roles",
-                "{{role_id}}",
-                "interests",
-                ""
-              ]
-            },
-            "description": "Отклик участника на роль."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Reject Role Interest",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{base_url}}/api/v1/project-roles/{{reject_role_id}}/interests/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "project-roles",
-                "{{reject_role_id}}",
-                "interests",
-                ""
-              ]
-            },
-            "description": "Создание отдельного pending RoleInterest для reject-сценария.",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ]
+            "description": "Designer current-user portfolio works. Saves portfolio_work_id from seed when present."
           },
           "response": [],
           "event": [
@@ -854,275 +2539,134 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
+                  "pm.test(\"Status is 200\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Reject RoleInterest created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"project_role_id\", Number(pm.environment.get(\"reject_role_id\")));",
-                  "  pm.expect(data).to.have.property(\"source\", \"application\");",
-                  "  pm.expect(data).to.have.property(\"status\", \"pending\");",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "pm.environment.set(\"reject_interest_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"reject_interest_id\", String(data.id));"
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "if (items.length) {",
+                  "  const id = items[0].id || items[0].portfolio_work_id;",
+                  "  if (id !== undefined && id !== null && id !== \"\") {",
+                  "    pm.environment.set(\"portfolio_work_id\", id);",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test(\"portfolio_work_id saved\", function () {",
+                  "  pm.expect(pm.environment.get(\"portfolio_work_id\")).to.not.be.oneOf([",
+                  "    undefined,",
+                  "    null,",
+                  "    \"\",",
+                  "    \"null\"",
+                  "  ]);",
+                  "});"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Switch Auth To Owner",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"JWT pair and auth user returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "  pm.expect(data).to.have.property(\"refresh\");",
-                  "  pm.expect(data).to.have.property(\"user\");",
-                  "  pm.expect(data.user).to.have.property(\"id\");",
-                  "  pm.expect(data.user).to.have.property(\"username\");",
-                  "  pm.expect(data.user).to.have.property(\"account_type\", \"owner\");",
-                  "});",
-                  "pm.environment.set(\"access_token\", data.access);",
-                  "pm.environment.set(\"refresh_token\", data.refresh);",
-                  "pm.collectionVariables.set(\"access_token\", data.access);",
-                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
-                ]
-              }
-            }
-          ],
+          "name": "POST portfolio work",
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
+                "key": "Authorization",
+                "value": "Bearer {{designer_access_token}}",
+                "type": "text"
               }
             ],
+            "url": {
+              "raw": "{{base_url}}/users/me/portfolio-works/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "portfolio-works",
+                ""
+              ]
+            },
+            "description": "Creates portfolio work with minimal valid body. image is optional.",
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{owner_email}}\",\"password\":\"{{owner_password}}\"}",
+              "raw": "{\n  \"title\": \"Postman portfolio work\",\n  \"task\": \"Validate portfolio API\",\n  \"solution\": \"Postman request\",\n  \"technologies\": [\n    \"Postman\",\n    \"DRF\"\n  ],\n  \"link\": \"https://example.com\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/login/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "token",
-                "login",
-                ""
-              ]
-            },
-            "description": "Переключение токена на владельца для обработки отклика."
-          },
-          "response": []
-        },
-        {
-          "name": "Accept Role Interest",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Membership created after accept\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"accepted_interest_id\");",
-                  "  pm.expect(data).to.have.property(\"project_role_id\");",
-                  "  pm.expect(data).to.have.property(\"status\", \"active\");",
-                  "  pm.expect(String(data.accepted_interest_id)).to.eql(pm.environment.get(\"interest_id\"));",
-                  "});",
-                  "pm.environment.set(\"membership_id\", String(data.id));",
-                  "pm.collectionVariables.set(\"membership_id\", String(data.id));"
-                ]
-              }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/role-interests/{{interest_id}}/accept/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "role-interests",
-                "{{interest_id}}",
-                "accept",
-                ""
-              ]
-            },
-            "description": "Принятие RoleInterest владельцем. Membership создаётся только после accepted RoleInterest."
           },
-          "response": []
-        },
-        {
-          "name": "Reject Role Interest",
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
+                  "pm.test(\"Status is 201\", function () { pm.expect([201]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Pending RoleInterest rejected\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\", Number(pm.environment.get(\"reject_interest_id\")));",
-                  "  pm.expect(data).to.have.property(\"status\", \"rejected\");",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"portfolio_work_id\", json.id || json.portfolio_work_id);",
+                  "",
+                  "pm.test(\"portfolio_work_id saved\", function () {",
+                  "  pm.expect(pm.environment.get(\"portfolio_work_id\")).to.not.be.oneOf([",
+                  "    undefined,",
+                  "    null,",
+                  "    \"\",",
+                  "    \"null\"",
+                  "  ]);",
                   "});"
                 ]
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/role-interests/{{reject_interest_id}}/reject/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "role-interests",
-                "{{reject_interest_id}}",
-                "reject",
-                ""
-              ]
-            },
-            "description": "Отклонение отдельного pending RoleInterest; не использует accepted interest из happy path."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "ProjectMemberships",
-      "item": [
-        {
-          "name": "List Project Memberships",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Membership list returned\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "  const membership = data.find(function (item) {",
-                  "    return String(item.id) === pm.environment.get(\"membership_id\");",
-                  "  });",
-                  "  pm.expect(membership).to.exist;",
-                  "  pm.expect(membership).to.have.property(\"status\", \"active\");",
-                  "  pm.expect(membership).to.have.property(\"accepted_interest_id\");",
-                  "  pm.expect(String(membership.accepted_interest_id)).to.eql(pm.environment.get(\"interest_id\"));",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/api/v1/project-memberships/?project_id={{project_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "project-memberships",
-                ""
-              ],
-              "query": [
-                {
-                  "key": "project_id",
-                  "value": "{{project_id}}"
-                }
-              ]
-            },
-            "description": "Проверка созданного membership через /api/v1/project-memberships/ после accepted RoleInterest.",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ]
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Leave Project Membership",
+          "name": "PATCH portfolio work",
           "request": {
             "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{designer_access_token}}",
+                "type": "text"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/api/v1/project-memberships/{{membership_id}}/",
+              "raw": "{{base_url}}/users/me/portfolio-works/{{portfolio_work_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
-                "project-memberships",
-                "{{membership_id}}",
+                "users",
+                "me",
+                "portfolio-works",
+                "{{portfolio_work_id}}",
                 ""
               ]
             },
-            "description": "Завершение участия через контрактный PATCH endpoint. Не создаёт membership.",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "description": "Updates selected portfolio work. Before running this request, run GET portfolio works when a seeded portfolio work exists, or POST portfolio work to create a new work and save portfolio_work_id. If portfolio_work_id is empty, this request should fail as a setup error.",
             "body": {
               "mode": "raw",
-              "raw": "{\"status\":\"left\"}",
+              "raw": "{\n  \"title\": \"Postman portfolio work updated\",\n  \"solution\": \"Updated from Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1137,316 +2681,848 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
+                  "pm.test(\"portfolio_work_id is set before request\", function () {",
+                  "  pm.expect(pm.environment.get(\"portfolio_work_id\")).to.not.be.oneOf([",
+                  "    undefined,",
+                  "    null,",
+                  "    \"\",",
+                  "    \"null\"",
+                  "  ]);",
                   "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Membership status updated\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\", Number(pm.environment.get(\"membership_id\")));",
-                  "  pm.expect(data).to.have.property(\"status\", \"left\");",
+                  "",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});"
                 ]
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "Favorites",
-      "item": [
-        {
-          "name": "Switch Auth To Participant",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"JWT pair and auth user returned\", function () {",
-                  "  pm.expect(data).to.have.property(\"access\");",
-                  "  pm.expect(data).to.have.property(\"refresh\");",
-                  "  pm.expect(data).to.have.property(\"user\");",
-                  "  pm.expect(data.user).to.have.property(\"id\");",
-                  "  pm.expect(data.user).to.have.property(\"username\");",
-                  "  pm.expect(data.user).to.have.property(\"account_type\", \"participant\");",
-                  "});",
-                  "pm.environment.set(\"access_token\", data.access);",
-                  "pm.environment.set(\"refresh_token\", data.refresh);",
-                  "pm.collectionVariables.set(\"access_token\", data.access);",
-                  "pm.collectionVariables.set(\"refresh_token\", data.refresh);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\":\"{{participant_email}}\",\"password\":\"{{participant_password}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/token/login/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "token",
-                "login",
-                ""
-              ]
-            },
-            "description": "Переключение токена на участника для работы с FavoriteProject."
-          },
-          "response": []
         },
         {
-          "name": "Add Favorite Project",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"Favorite project created\", function () {",
-                  "  pm.expect(data).to.have.property(\"id\");",
-                  "  pm.expect(data).to.have.property(\"project_id\", Number(pm.environment.get(\"project_id\")));",
-                  "  pm.expect(data).to.have.property(\"user_id\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"project_id\":{{project_id}}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/me/favorite-projects/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "me",
-                "favorite-projects",
-                ""
-              ]
-            },
-            "description": "Добавление проекта в избранное участником."
-          },
-          "response": []
-        },
-        {
-          "name": "List Favorite Projects",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "const data = pm.response.json();",
-                  "pm.test(\"FavoriteProject list returned\", function () {",
-                  "  pm.expect(data).to.be.an(\"array\");",
-                  "  const favorite = data.find(function (item) {",
-                  "    return String(item.project_id) === pm.environment.get(\"project_id\");",
-                  "  });",
-                  "  pm.expect(favorite).to.exist;",
-                  "  pm.expect(favorite).to.have.property(\"id\");",
-                  "  pm.expect(favorite).to.have.property(\"user_id\");",
-                  "  pm.expect(favorite).to.have.property(\"created_at\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/me/favorite-projects/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "me",
-                "favorite-projects",
-                ""
-              ]
-            },
-            "description": "Список FavoriteProject объектов текущего participant."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Favorite Project",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 204\", function () {",
-                  "  pm.response.to.have.status(204);",
-                  "});"
-                ]
-              }
-            }
-          ],
+          "name": "DELETE portfolio work (destructive)",
           "request": {
             "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{access_token}}"
+                "value": "Bearer {{designer_access_token}}",
+                "type": "text"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/me/favorite-projects/{{project_id}}/",
+              "raw": "{{base_url}}/users/me/portfolio-works/{{portfolio_work_id}}/",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
                 "users",
                 "me",
-                "favorite-projects",
-                "{{project_id}}",
+                "portfolio-works",
+                "{{portfolio_work_id}}",
                 ""
               ]
             },
-            "description": "Удаление проекта из избранного текущего participant."
+            "description": "Deletes selected portfolio work. Before running this request, run GET portfolio works when a seeded portfolio work exists, or POST portfolio work to create a new work and save portfolio_work_id. Destructive and can break repeated runs until seed_demo_data or POST portfolio work is run again. If portfolio_work_id is empty, this request should fail as a setup error."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"portfolio_work_id is set before request\", function () {",
+                  "  pm.expect(pm.environment.get(\"portfolio_work_id\")).to.not.be.oneOf([",
+                  "    undefined,",
+                  "    null,",
+                  "    \"\",",
+                  "    \"null\"",
+                  "  ]);",
+                  "});",
+                  "",
+                  "pm.test(\"Status is 204 or already deleted 404\", function () {",
+                  "  pm.expect([204, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
-    }
-  ],
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000"
     },
     {
-      "key": "access_token",
-      "value": ""
+      "name": "10 Favorite projects",
+      "item": [
+        {
+          "name": "GET favorite projects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/favorite-projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "favorite-projects",
+                ""
+              ]
+            },
+            "description": "Backend participant favorite projects. Seed includes demo project as favorite. Saves favorite_project_id."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "if (items.length) {",
+                  "  pm.environment.set(\"favorite_project_id\", items[0].id);",
+                  "  pm.test(\"Favorite contains nested project card\", function () {",
+                  "    pm.expect(items[0]).to.have.property(\"project\");",
+                  "    pm.expect(items[0].project).to.have.property(\"title\");",
+                  "    pm.expect(items[0].project).to.have.property(\"roles_preview\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST favorite project (repeat-tolerant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/favorite-projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "favorite-projects",
+                ""
+              ]
+            },
+            "description": "Adds demo project to favorites. Seed already adds it, so repeated runs may return 400/409 due to duplicate favorite.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{demo_project_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201, 400, 409\", function () { pm.expect([201, 400, 409]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 201) {",
+                  "  ",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set(\"favorite_project_id\", json.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE favorite project (destructive)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/favorite-projects/{{demo_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "favorite-projects",
+                "{{demo_project_id}}",
+                ""
+              ]
+            },
+            "description": "Deletes demo project from backend participant favorites. Destructive; re-run seed_demo_data to restore seeded favorite."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204, 404\", function () { pm.expect([204, 404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
-      "key": "refresh_token",
-      "value": ""
+      "name": "11 Negative / permissions checks",
+      "item": [
+        {
+          "name": "Participant cannot create project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                ""
+              ]
+            },
+            "description": "Participants cannot create projects. Expected 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"title\": \"Postman Project {{$timestamp}}\",\n  \"description\": \"Created from Postman collection\",\n  \"problem\": \"Validate project create contract with nested roles.\",\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=\",\n  \"roles\": [\n    {\n      \"specialization_id\": \"{{specialization_ai_designer_id}}\",\n      \"tasks\": [\"Validate API contract\"],\n      \"benefits\": [\"Reusable Postman scenario\"],\n      \"skills\": [\n        {\"skill_id\": \"{{skill_figma_id}}\", \"description\": \"Design validation\", \"order\": 1}\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () { pm.expect([403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Participant cannot view project applications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "applications",
+                ""
+              ]
+            },
+            "description": "Only project owner can view applications. Expected 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () { pm.expect([403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Participant cannot view project invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/invitations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "invitations",
+                ""
+              ]
+            },
+            "description": "Only project owner can view invitations. Expected 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () { pm.expect([403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Participant cannot patch owner project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                ""
+              ]
+            },
+            "description": "Only owner can patch project. Expected 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should not update\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () { pm.expect([403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner cannot apply to own project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{demo_project_id}}/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{demo_project_id}}",
+                "applications",
+                ""
+              ]
+            },
+            "description": "Owner cannot create an application to own project. Implementation may return 400 or 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400, 403\", function () { pm.expect([400, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong actor cannot accept application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/role-interests/{{backend_application_interest_id}}/accept/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "role-interests",
+                "{{backend_application_interest_id}}",
+                "accept",
+                ""
+              ]
+            },
+            "description": "Application accept is owner action, not applicant action. If the interest was already mutated, 400 is also acceptable."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400, 403\", function () { pm.expect([400, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong actor cannot reject invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/role-interests/{{designer_invitation_interest_id}}/reject/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "role-interests",
+                "{{designer_invitation_interest_id}}",
+                "reject",
+                ""
+              ]
+            },
+            "description": "Invitation accept/reject is invited user action. If the interest was already mutated, 400 is also acceptable."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400, 403\", function () { pm.expect([400, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
-      "key": "owner_id",
-      "value": ""
-    },
-    {
-      "key": "owner_email",
-      "value": "owner@example.test"
-    },
-    {
-      "key": "owner_password",
-      "value": "CHANGE_ME_OWNER_PASSWORD"
-    },
-    {
-      "key": "participant_id",
-      "value": ""
-    },
-    {
-      "key": "user_id",
-      "value": ""
-    },
-    {
-      "key": "participant_email",
-      "value": "participant@example.test"
-    },
-    {
-      "key": "participant_password",
-      "value": "CHANGE_ME_PARTICIPANT_PASSWORD"
-    },
-    {
-      "key": "project_id",
-      "value": ""
-    },
-    {
-      "key": "role_id",
-      "value": ""
-    },
-    {
-      "key": "reject_role_id",
-      "value": ""
-    },
-    {
-      "key": "interest_id",
-      "value": ""
-    },
-    {
-      "key": "reject_interest_id",
-      "value": ""
-    },
-    {
-      "key": "membership_id",
-      "value": ""
-    },
-    {
-      "key": "field_id",
-      "value": ""
-    },
-    {
-      "key": "specialization_id",
-      "value": ""
+      "name": "99 Removed endpoints guard",
+      "item": [
+        {
+          "name": "Removed GET role-interests list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/role-interests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "role-interests",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. Guard request should return 404/405 and is not part of happy path."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed GET project-memberships list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project-memberships/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project-memberships",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. Guard request should return 404/405 and is not part of happy path."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed PATCH project-membership detail",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/project-memberships/{{active_membership_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "project-memberships",
+                "{{active_membership_id}}",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. leave/remove action endpoints are used instead.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"removed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed GET incoming interests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/incoming-interests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "incoming-interests",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. Notifications/applications endpoints are used instead."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed GET my interests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{backend_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/interests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "interests",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. /users/me/applications/ is used instead."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed POST fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/fields/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "fields",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. Field is system-managed via admin/seed/service tools.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Removed Field {{$timestamp}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed POST specializations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/specializations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "specializations",
+                ""
+              ]
+            },
+            "description": "Removed from public MVP API. Specialization is system-managed via admin/seed/service tools.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"name\": \"Removed Specialization\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Removed DELETE account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                ""
+              ]
+            },
+            "description": "Account deletion is not in MVP. Guard request should return 404/405."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404, 405\", function () { pm.expect([404, 405]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Negative guard requests for endpoints removed from public MVP API. Not part of happy path."
     }
   ]
 }
