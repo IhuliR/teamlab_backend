@@ -576,7 +576,15 @@ class CurrentUserFavoriteProjectListCreateView(
         if self.request.method == 'POST':
             return FavoriteProjectCreateSerializer
         return FavoriteProjectReadSerializer
-    
+
+    def perform_create(self, serializer):
+        if self.request.user.account_type != User.AccountType.PARTICIPANT:
+            raise PermissionDenied(
+                'Добавлять проекты в избранное может только участник.'
+            )
+
+        serializer.save(user=self.request.user)
+
 
 class CurrentUserFavoriteProjectDeleteView(
     generics.DestroyAPIView,
@@ -681,11 +689,63 @@ class ProjectRoleViewSet(
 
         validate_project_role_can_be_deleted(
             project_role=role,
-            actor=request.user
+            actor=request.user,
         )
+
+        ProjectMembership.objects.filter(
+            project_role=role,
+        ).exclude(
+            status=ProjectMembership.Status.ACTIVE,
+        ).delete()
+
+        RoleInterest.objects.filter(
+            project_role=role,
+        ).exclude(
+            status=RoleInterest.Status.PENDING,
+        ).delete()
+
         role.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    def create(self, request, *args, **kwargs):
+        input_serializer = self.get_serializer(
+            data=request.data,
+            context=self.get_serializer_context(),
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        role = input_serializer.save()
+
+        output_serializer = ProjectRoleReadSerializer(
+            role,
+            context=self.get_serializer_context(),
+        )
+
+        return Response(
+            output_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        role = self.get_object()
+
+        input_serializer = self.get_serializer(
+            role,
+            data=request.data,
+            partial=True,
+            context=self.get_serializer_context(),
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        role = input_serializer.save()
+
+        output_serializer = ProjectRoleReadSerializer(
+            role,
+            context=self.get_serializer_context(),
+        )
+
+        return Response(output_serializer.data)
     
 
 class RoleInterestViewSet(viewsets.GenericViewSet):

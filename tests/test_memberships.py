@@ -1,95 +1,157 @@
 import pytest
 
+from projects.models import ProjectMembership
+
+from .utils import assert_missing_or_method_not_allowed
+
 
 pytestmark = pytest.mark.django_db
 
 
-def test_accept_interest_creates_project_membership(
+def test_active_member_can_leave_project(
+    member_client,
+    api_request,
+    active_membership,
+):
+    response = api_request(
+        member_client,
+        'post',
+        f'/api/v1/project-memberships/{active_membership.pk}/leave/',
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data['status'] == 'left'
+    assert data['ended_at'] is not None
+    active_membership.refresh_from_db()
+    assert active_membership.status == ProjectMembership.Status.LEFT
+    assert active_membership.ended_at is not None
+
+
+def test_user_cannot_leave_another_membership(
+    backend_client,
+    api_request,
+    active_membership,
+):
+    response = api_request(
+        backend_client,
+        'post',
+        f'/api/v1/project-memberships/{active_membership.pk}/leave/',
+    )
+
+    assert response.status_code == 403
+
+
+def test_owner_cannot_leave_for_participant(
     owner_client,
     api_request,
-    project,
-    role_interest,
+    active_membership,
 ):
-    accept_response = api_request(
+    response = api_request(
         owner_client,
         'post',
-        f'/api/v1/role-interests/{role_interest.pk}/accept/',
+        f'/api/v1/project-memberships/{active_membership.pk}/leave/',
     )
 
-    assert accept_response.status_code == 200
-    membership_data = accept_response.json()
-    assert membership_data['user_id'] == role_interest.user_id
-    assert membership_data['project_role_id'] == role_interest.project_role_id
-    assert membership_data['accepted_interest_id'] == role_interest.pk
+    assert response.status_code == 403
 
-    list_response = api_request(
-        owner_client,
-        'get',
-        '/api/v1/project-memberships/',
-        data={'project_id': project.pk},
+
+def test_cannot_leave_non_active_membership(
+    member_client,
+    api_request,
+    active_membership,
+):
+    active_membership.status = ProjectMembership.Status.LEFT
+    active_membership.save(update_fields=('status',))
+
+    response = api_request(
+        member_client,
+        'post',
+        f'/api/v1/project-memberships/{active_membership.pk}/leave/',
     )
 
-    assert list_response.status_code == 200
-    memberships = list_response.json()
-    assert any(
-        item['accepted_interest_id'] == role_interest.pk
-        and item['user_id'] == role_interest.user_id
-        and item['project_role_id'] == role_interest.project_role_id
-        for item in memberships
-    )
+    assert response.status_code == 400
 
 
-def test_project_membership_cannot_be_created_directly(
+def test_project_owner_can_remove_active_participant(
     owner_client,
     api_request,
-    project,
-    project_role,
-    participant,
-    role_interest,
+    active_membership,
 ):
-    payload = {
-        'user_id': participant.pk,
-        'project_role_id': project_role.pk,
-        'accepted_interest_id': role_interest.pk,
-        'status': 'active',
-    }
+    response = api_request(
+        owner_client,
+        'post',
+        f'/api/v1/project-memberships/{active_membership.pk}/remove/',
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data['status'] == 'removed'
+    assert data['ended_at'] is not None
+    active_membership.refresh_from_db()
+    assert active_membership.status == ProjectMembership.Status.REMOVED
+    assert active_membership.ended_at is not None
+
+
+def test_non_owner_cannot_remove_participant(
+    backend_client,
+    api_request,
+    active_membership,
+):
+    response = api_request(
+        backend_client,
+        'post',
+        f'/api/v1/project-memberships/{active_membership.pk}/remove/',
+    )
+
+    assert response.status_code == 403
+
+
+def test_member_cannot_remove_self(
+    member_client,
+    api_request,
+    active_membership,
+):
+    response = api_request(
+        member_client,
+        'post',
+        f'/api/v1/project-memberships/{active_membership.pk}/remove/',
+    )
+
+    assert response.status_code == 403
+
+
+def test_cannot_remove_non_active_membership(
+    owner_client,
+    api_request,
+    active_membership,
+):
+    active_membership.status = ProjectMembership.Status.REMOVED
+    active_membership.save(update_fields=('status',))
 
     response = api_request(
         owner_client,
         'post',
-        '/api/v1/project-memberships/',
-        data=payload,
+        f'/api/v1/project-memberships/{active_membership.pk}/remove/',
     )
 
-    assert response.status_code == 405
+    assert response.status_code == 400
 
 
-def test_accept_interest_respects_role_capacity(
+@pytest.mark.parametrize(
+    ('method', 'path'),
+    [
+        ('get', '/api/v1/project-memberships/'),
+        ('post', '/api/v1/project-memberships/'),
+        ('patch', '/api/v1/project-memberships/1/'),
+    ],
+)
+def test_removed_membership_generic_api_is_not_available(
     owner_client,
     api_request,
-    project_role,
-    role_interest,
-    second_participant,
+    method,
+    path,
 ):
-    role_interest_model = role_interest.__class__
-    second_interest = role_interest_model.objects.create(
-        user=second_participant,
-        project_role=project_role,
-        source='application',
-        status='pending',
-    )
+    response = api_request(owner_client, method, path)
 
-    first_accept_response = api_request(
-        owner_client,
-        'post',
-        f'/api/v1/role-interests/{role_interest.pk}/accept/',
-    )
-    assert first_accept_response.status_code == 200
-
-    second_accept_response = api_request(
-        owner_client,
-        'post',
-        f'/api/v1/role-interests/{second_interest.pk}/accept/',
-    )
-
-    assert second_accept_response.status_code == 409
+    assert_missing_or_method_not_allowed(response)

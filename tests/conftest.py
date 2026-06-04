@@ -1,102 +1,56 @@
 import uuid
 
 import pytest
-from django.apps import apps
 from django.contrib.auth import get_user_model
-from django.urls import Resolver404, resolve
+from rest_framework.test import APIClient
+
+from projects.models import (
+    Field,
+    Project,
+    ProjectMembership,
+    ProjectRole,
+    ProjectRoleSkill,
+    RoleInterest,
+    Specialization,
+)
+from users.models import FavoriteProject, PortfolioWork, Skill
 
 
-CRITICAL_MODELS = {
-    'Field',
-    'Specialization',
-    'Skill',
-    'Project',
-    'ProjectRole',
-    'RoleInterest',
-}
-
-CRITICAL_RELATIONS = {
-    ('Specialization', 'field'): 'Specialization.field is required by DOMAIN_MODEL.md',
-    ('Project', 'owner'): 'Project.owner is required by DOMAIN_MODEL.md',
-    ('ProjectRole', 'project'): 'ProjectRole.project is part of core flow',
-    ('RoleInterest', 'project_role'): 'RoleInterest.project_role is part of core flow',
-}
+BASE64_IMAGE = (
+    'data:image/png;base64,'
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+    'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+)
 
 
-def _model_by_name(model_name):
-    for model in apps.get_models():
-        if model.__name__ == model_name:
-            return model
-    if model_name in CRITICAL_MODELS:
-        pytest.fail(f'{model_name} model is required by DOMAIN_MODEL.md')
-    pytest.skip(f'TODO: model {model_name} is not implemented yet.')
+def unique(prefix):
+    return f'{prefix}_{uuid.uuid4().hex[:8]}'
 
 
-def _field_names(model):
-    return {field.name for field in model._meta.get_fields()}
+def pk(instance):
+    return instance.pk
 
 
-def _pk_value(instance):
-    return getattr(instance, 'pk', getattr(instance, 'id', None))
-
-
-def _fk_kwargs(model, relation_name, instance):
-    names = _field_names(model)
-    if relation_name in names:
-        return {relation_name: instance}
-    relation_id_name = f'{relation_name}_id'
-    if relation_id_name in names:
-        return {relation_id_name: _pk_value(instance)}
-    error_message = CRITICAL_RELATIONS.get((model.__name__, relation_name))
-    if error_message:
-        pytest.fail(error_message)
-    pytest.skip(
-        f'TODO: relation {relation_name} is missing on model {model.__name__}.'
-    )
-
-
-def _require_user_with_account_type():
-    user_model = get_user_model()
-    names = _field_names(user_model)
-    if 'account_type' not in names:
-        pytest.fail('User.account_type is required in MVP')
-    return user_model
-
-
-def _build_user_kwargs(user_model, username, email, account_type, specialization=None):
-    kwargs = {
-        'username': username,
-        'email': email,
-        'account_type': account_type,
-    }
-    names = _field_names(user_model)
-    if specialization is not None:
-        if 'specialization' in names:
-            kwargs['specialization'] = specialization
-        elif 'specialization_id' in names:
-            kwargs['specialization_id'] = _pk_value(specialization)
-    return kwargs
+@pytest.fixture(autouse=True)
+def media_root(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path / 'media'
 
 
 @pytest.fixture
-def api_client_class():
-    module = pytest.importorskip('rest_framework.test')
-    return module.APIClient
+def api_client():
+    client = APIClient()
+    client.raise_request_exception = False
+    return client
 
 
 @pytest.fixture
-def api_client(api_client_class):
-    return api_client_class()
+def anonymous_client(api_client):
+    return api_client
 
 
 @pytest.fixture
 def api_request():
     def _request(client, method, path, **kwargs):
-        try:
-            resolve(path)
-        except Resolver404:
-            pytest.fail(f'Endpoint is missing from URLConf: {path}')
-
         request_method = getattr(client, method.lower())
         if method.lower() in {'post', 'patch', 'put'} and 'format' not in kwargs:
             kwargs['format'] = 'json'
@@ -106,190 +60,416 @@ def api_request():
 
 
 @pytest.fixture
+def password():
+    return 'StrongPass123!'
+
+
+@pytest.fixture
+def create_user(db, password):
+    def _create_user(
+        username=None,
+        email=None,
+        account_type='participant',
+        specialization=None,
+        **extra,
+    ):
+        User = get_user_model()
+        username = username or unique(account_type)
+        email = email or f'{username}@example.com'
+        return User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            account_type=account_type,
+            specialization=specialization,
+            **extra,
+        )
+
+    return _create_user
+
+
+@pytest.fixture
+def make_client():
+    def _make_client(user):
+        client = APIClient()
+        client.raise_request_exception = False
+        client.force_authenticate(user=user)
+        return client
+
+    return _make_client
+
+
+@pytest.fixture
 def field(db):
-    field_model = _model_by_name('Field')
-    return field_model.objects.create(name=f'Field {uuid.uuid4().hex[:8]}')
+    return Field.objects.create(name=unique('Development'))
 
 
 @pytest.fixture
-def specialization(db, field):
-    specialization_model = _model_by_name('Specialization')
-    kwargs = {'name': f'Specialization {uuid.uuid4().hex[:8]}'}
-    kwargs.update(_fk_kwargs(specialization_model, 'field', field))
-    return specialization_model.objects.create(**kwargs)
+def another_field(db):
+    return Field.objects.create(name=unique('Design'))
 
 
 @pytest.fixture
-def skill(db):
-    skill_model = _model_by_name('Skill')
-    return skill_model.objects.create(name=f'Skill {uuid.uuid4().hex[:8]}')
-
-
-@pytest.fixture
-def owner_password():
-    return 'OwnerPass123!'
-
-
-@pytest.fixture
-def participant_password():
-    return 'ParticipantPass123!'
-
-
-@pytest.fixture
-def owner(db, specialization, owner_password):
-    user_model = _require_user_with_account_type()
-    kwargs = _build_user_kwargs(
-        user_model=user_model,
-        username=f'owner_{uuid.uuid4().hex[:8]}',
-        email=f'owner_{uuid.uuid4().hex[:8]}@example.com',
-        account_type='owner',
-        specialization=specialization,
+def featured_field(db):
+    return Field.objects.create(
+        name=unique('Featured'),
+        is_featured=True,
+        featured_order=2,
     )
-    return user_model.objects.create_user(password=owner_password, **kwargs)
 
 
 @pytest.fixture
-def participant(db, specialization, participant_password):
-    user_model = _require_user_with_account_type()
-    kwargs = _build_user_kwargs(
-        user_model=user_model,
-        username=f'participant_{uuid.uuid4().hex[:8]}',
-        email=f'participant_{uuid.uuid4().hex[:8]}@example.com',
+def first_featured_field(db):
+    return Field.objects.create(
+        name=unique('AlphaFeatured'),
+        is_featured=True,
+        featured_order=1,
+    )
+
+
+@pytest.fixture
+def backend_specialization(db, field):
+    return Specialization.objects.create(name='Backend', field=field)
+
+
+@pytest.fixture
+def frontend_specialization(db, field):
+    return Specialization.objects.create(name='Frontend', field=field)
+
+
+@pytest.fixture
+def designer_specialization(db, another_field):
+    return Specialization.objects.create(name='Designer', field=another_field)
+
+
+@pytest.fixture
+def specialization(backend_specialization):
+    return backend_specialization
+
+
+@pytest.fixture
+def python_skill(db):
+    return Skill.objects.create(name='Python')
+
+
+@pytest.fixture
+def django_skill(db):
+    return Skill.objects.create(name='Django')
+
+
+@pytest.fixture
+def react_skill(db):
+    return Skill.objects.create(name='React')
+
+
+@pytest.fixture
+def figma_skill(db):
+    return Skill.objects.create(name='Figma')
+
+
+@pytest.fixture
+def skill(python_skill):
+    return python_skill
+
+
+@pytest.fixture
+def owner(create_user):
+    return create_user(account_type='owner', specialization=None)
+
+
+@pytest.fixture
+def participant_backend_user(create_user, backend_specialization):
+    return create_user(
+        username=unique('backend'),
         account_type='participant',
-        specialization=specialization,
+        specialization=backend_specialization,
     )
-    return user_model.objects.create_user(password=participant_password, **kwargs)
 
 
 @pytest.fixture
-def second_participant(db, specialization, participant_password):
-    user_model = _require_user_with_account_type()
-    kwargs = _build_user_kwargs(
-        user_model=user_model,
-        username=f'participant_{uuid.uuid4().hex[:8]}',
-        email=f'participant_{uuid.uuid4().hex[:8]}@example.com',
+def participant_designer_user(create_user, designer_specialization):
+    return create_user(
+        username=unique('designer'),
         account_type='participant',
-        specialization=specialization,
+        specialization=designer_specialization,
     )
-    return user_model.objects.create_user(password=participant_password, **kwargs)
 
 
 @pytest.fixture
-def owner_client(api_client_class, owner):
-    client = api_client_class()
-    client.force_authenticate(user=owner)
-    return client
+def participant_member_user(create_user, frontend_specialization):
+    return create_user(
+        username=unique('member'),
+        account_type='participant',
+        specialization=frontend_specialization,
+    )
 
 
 @pytest.fixture
-def participant_client(api_client_class, participant):
-    client = api_client_class()
-    client.force_authenticate(user=participant)
-    return client
+def participant(participant_backend_user):
+    return participant_backend_user
 
 
 @pytest.fixture
-def second_participant_client(api_client_class, second_participant):
-    client = api_client_class()
-    client.force_authenticate(user=second_participant)
-    return client
+def second_participant(participant_designer_user):
+    return participant_designer_user
 
 
 @pytest.fixture
-def project_payload(field):
-    return {
-        'field_id': _pk_value(field),
-        'title': 'TeamLab MVP Project',
-        'description': 'Project description',
-        'idea': 'Useful idea',
-        'benefits': 'Useful benefits',
-    }
+def owner_client(make_client, owner):
+    return make_client(owner)
 
 
 @pytest.fixture
-def role_payload(specialization):
-    return {
-        'specialization_id': _pk_value(specialization),
-        'description': 'Need one participant',
-        'capacity': 1,
-    }
+def backend_client(make_client, participant_backend_user):
+    return make_client(participant_backend_user)
+
+
+@pytest.fixture
+def designer_client(make_client, participant_designer_user):
+    return make_client(participant_designer_user)
+
+
+@pytest.fixture
+def member_client(make_client, participant_member_user):
+    return make_client(participant_member_user)
+
+
+@pytest.fixture
+def participant_client(backend_client):
+    return backend_client
+
+
+@pytest.fixture
+def second_participant_client(designer_client):
+    return designer_client
 
 
 @pytest.fixture
 def project(db, owner, field):
-    project_model = _model_by_name('Project')
-    kwargs = {
-        'title': 'Open Project',
-        'description': 'Open project description',
-        'idea': 'Open idea',
-        'benefits': 'Open benefits',
-        'status': 'open',
-    }
-    kwargs.update(_fk_kwargs(project_model, 'owner', owner))
-    kwargs.update(_fk_kwargs(project_model, 'field', field))
-    return project_model.objects.create(**kwargs)
+    return Project.objects.create(
+        owner=owner,
+        field=field,
+        title=unique('Open Project'),
+        description='Project description',
+        problem='Project problem',
+        status=Project.Status.OPEN,
+    )
+
+
+@pytest.fixture
+def another_project(db, owner, another_field):
+    return Project.objects.create(
+        owner=owner,
+        field=another_field,
+        title=unique('Another Project'),
+        description='Another description',
+        problem='Another problem',
+        status=Project.Status.OPEN,
+    )
 
 
 @pytest.fixture
 def closed_project(db, owner, field):
-    project_model = _model_by_name('Project')
-    kwargs = {
-        'title': 'Closed Project',
-        'description': 'Closed project description',
-        'idea': 'Closed idea',
-        'benefits': 'Closed benefits',
-        'status': 'closed',
-    }
-    kwargs.update(_fk_kwargs(project_model, 'owner', owner))
-    kwargs.update(_fk_kwargs(project_model, 'field', field))
-    return project_model.objects.create(**kwargs)
+    return Project.objects.create(
+        owner=owner,
+        field=field,
+        title=unique('Closed Project'),
+        description='Closed description',
+        problem='Closed problem',
+        status=Project.Status.CLOSED,
+    )
 
 
 @pytest.fixture
-def project_role(db, project, specialization):
-    project_role_model = _model_by_name('ProjectRole')
-    kwargs = {
-        'description': 'Open role',
-        'capacity': 1,
-        'is_open': True,
-    }
-    kwargs.update(_fk_kwargs(project_role_model, 'project', project))
-    kwargs.update(_fk_kwargs(project_role_model, 'specialization', specialization))
-    return project_role_model.objects.create(**kwargs)
+def featured_project(db, owner, field):
+    return Project.objects.create(
+        owner=owner,
+        field=field,
+        title=unique('Featured Project'),
+        description='Featured description',
+        problem='Featured problem',
+        status=Project.Status.OPEN,
+        is_featured=True,
+        featured_order=1,
+    )
 
 
 @pytest.fixture
-def closed_project_role(db, project, specialization):
-    project_role_model = _model_by_name('ProjectRole')
-    kwargs = {
-        'description': 'Closed role',
-        'capacity': 1,
-        'is_open': False,
-    }
-    kwargs.update(_fk_kwargs(project_role_model, 'project', project))
-    kwargs.update(_fk_kwargs(project_role_model, 'specialization', specialization))
-    return project_role_model.objects.create(**kwargs)
+def closed_featured_project(db, owner, field):
+    return Project.objects.create(
+        owner=owner,
+        field=field,
+        title=unique('Closed Featured Project'),
+        description='Closed featured description',
+        problem='Closed featured problem',
+        status=Project.Status.CLOSED,
+        is_featured=True,
+        featured_order=0,
+    )
 
 
 @pytest.fixture
-def role_in_closed_project(db, closed_project, specialization):
-    project_role_model = _model_by_name('ProjectRole')
-    kwargs = {
-        'description': 'Role in closed project',
-        'capacity': 1,
-        'is_open': True,
-    }
-    kwargs.update(_fk_kwargs(project_role_model, 'project', closed_project))
-    kwargs.update(_fk_kwargs(project_role_model, 'specialization', specialization))
-    return project_role_model.objects.create(**kwargs)
+def backend_project_role(db, project, backend_specialization):
+    return ProjectRole.objects.create(
+        project=project,
+        specialization=backend_specialization,
+        tasks=['Build API'],
+        benefits=['Backend practice'],
+    )
 
 
 @pytest.fixture
-def role_interest(db, participant, project_role):
-    role_interest_model = _model_by_name('RoleInterest')
-    kwargs = {'status': 'pending'}
-    if 'source' in _field_names(role_interest_model):
-        kwargs['source'] = 'application'
-    kwargs.update(_fk_kwargs(role_interest_model, 'user', participant))
-    kwargs.update(_fk_kwargs(role_interest_model, 'project_role', project_role))
-    return role_interest_model.objects.create(**kwargs)
+def frontend_project_role(db, project, frontend_specialization):
+    return ProjectRole.objects.create(
+        project=project,
+        specialization=frontend_specialization,
+        tasks=['Build UI'],
+        benefits=['Frontend practice'],
+    )
+
+
+@pytest.fixture
+def designer_project_role(db, project, designer_specialization):
+    return ProjectRole.objects.create(
+        project=project,
+        specialization=designer_specialization,
+        tasks=['Design flows'],
+        benefits=['Design practice'],
+    )
+
+
+@pytest.fixture
+def project_role(backend_project_role):
+    return backend_project_role
+
+
+@pytest.fixture
+def closed_project_role(db, closed_project, backend_specialization):
+    return ProjectRole.objects.create(
+        project=closed_project,
+        specialization=backend_specialization,
+        tasks=['Closed task'],
+        benefits=['Closed benefit'],
+    )
+
+
+@pytest.fixture
+def project_role_skill(db, backend_project_role, python_skill):
+    return ProjectRoleSkill.objects.create(
+        project_role=backend_project_role,
+        skill=python_skill,
+        description='Python backend',
+        order=1,
+    )
+
+
+@pytest.fixture
+def pending_application(db, participant_backend_user, backend_project_role):
+    return RoleInterest.objects.create(
+        user=participant_backend_user,
+        project_role=backend_project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.PENDING,
+    )
+
+
+@pytest.fixture
+def pending_invitation(db, participant_designer_user, designer_project_role):
+    return RoleInterest.objects.create(
+        user=participant_designer_user,
+        project_role=designer_project_role,
+        source=RoleInterest.Source.INVITATION,
+        status=RoleInterest.Status.PENDING,
+    )
+
+
+@pytest.fixture
+def accepted_role_interest(db, participant_member_user, frontend_project_role):
+    return RoleInterest.objects.create(
+        user=participant_member_user,
+        project_role=frontend_project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.ACCEPTED,
+    )
+
+
+@pytest.fixture
+def role_interest(pending_application):
+    return pending_application
+
+
+@pytest.fixture
+def active_membership(db, accepted_role_interest, participant_member_user, frontend_project_role):
+    return ProjectMembership.objects.create(
+        user=participant_member_user,
+        project_role=frontend_project_role,
+        role_interest=accepted_role_interest,
+        status=ProjectMembership.Status.ACTIVE,
+    )
+
+
+@pytest.fixture
+def favorite_project(db, participant_backend_user, project):
+    return FavoriteProject.objects.create(
+        user=participant_backend_user,
+        project=project,
+    )
+
+
+@pytest.fixture
+def portfolio_work(db, participant_backend_user):
+    return PortfolioWork.objects.create(
+        user=participant_backend_user,
+        title='Portfolio item',
+        task='Task',
+        solution='Solution',
+        technologies=['Python', 'Django'],
+        link='https://example.com/work',
+    )
+
+
+@pytest.fixture
+def project_payload(field, backend_specialization, python_skill):
+    return {
+        'field_id': pk(field),
+        'title': 'TeamLab MVP Project',
+        'description': 'Project description',
+        'problem': 'Project problem',
+        'image': BASE64_IMAGE,
+        'roles': [
+            {
+                'specialization_id': pk(backend_specialization),
+                'tasks': ['Build REST API'],
+                'benefits': ['Real backend practice'],
+                'skills': [
+                    {
+                        'skill_id': pk(python_skill),
+                        'description': 'Python backend',
+                        'order': 1,
+                    }
+                ],
+            }
+        ],
+    }
+
+
+@pytest.fixture
+def role_payload(project, designer_specialization, figma_skill):
+    return {
+        'project_id': pk(project),
+        'specialization_id': pk(designer_specialization),
+        'tasks': ['Prepare UI kit'],
+        'benefits': ['Portfolio case'],
+        'skills': [
+            {
+                'skill_id': pk(figma_skill),
+                'description': 'Figma design',
+                'order': 1,
+            }
+        ],
+    }
+
+
+@pytest.fixture
+def base64_image():
+    return BASE64_IMAGE

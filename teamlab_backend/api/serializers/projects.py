@@ -1,6 +1,7 @@
 from django.db import transaction
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from projects.models import (
     Project,
@@ -111,7 +112,8 @@ class ProjectRoleBaseInputSerializer(serializers.Serializer):
     )
     skills = ProjectRoleSkillInputSerializer(
         many=True,
-        allow_empty=False
+        allow_empty=False,
+        write_only=True,
     )
 
 
@@ -128,8 +130,14 @@ class ProjectRoleCreateSerializer(ProjectRoleBaseInputSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
+        request = self.context['request']
         project = attrs.get('project')
         specialization = attrs.get('specialization')
+
+        if project.owner_id != request.user.id:
+            raise PermissionDenied(
+                'Создавать роль может только владелец проекта.'
+            )
 
         if ProjectRole.objects.filter(
             project=project,
@@ -158,7 +166,14 @@ class ProjectRoleUpdateSerializer(ProjectRoleBaseInputSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
+        request = self.context['request']
         project = self.instance.project
+
+        if project.owner_id != request.user.id:
+            raise PermissionDenied(
+                'Редактировать роль может только владелец проекта.'
+            )
+
         specialization = attrs.get(
             'specialization',
             self.instance.specialization,

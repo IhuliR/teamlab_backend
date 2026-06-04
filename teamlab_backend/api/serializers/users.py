@@ -536,9 +536,9 @@ class FavoriteProjectCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        request = self.context['request']
+        user = validated_data.pop('user')
         return FavoriteProject.objects.create(
-            user=request.user,
+            user=user,
             **validated_data,
         )
 
