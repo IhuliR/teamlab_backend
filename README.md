@@ -306,6 +306,7 @@ docs/api/teamlab_api_schema_8.yml
 * `docs/DOMAIN_MODEL.md` — доменная модель и инварианты;
 * `docs/ARCHITECTURE.md` — архитектурные решения backend-а;
 * `docs/API_GUIDE.md` — REST API, сценарии и endpoints;
+* `docs/FRONTEND_INTEGRATION.md` — краткая карта интеграции frontend-а с API;
 * `docs/STYLE_GUIDE.md` — правила разработки;
 * `docs/FAQ.md` — ответы на частые вопросы;
 * `docs/AGENTS.md` — контрольные правила и типовые риски.

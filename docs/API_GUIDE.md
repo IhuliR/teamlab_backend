@@ -18,7 +18,9 @@ TeamLab API описывает MVP-поток командообразовани
 
 ### Регистрация и авторизация
 
-Пользователь регистрируется через `POST /api/v1/users/` с `username`, `email`, `password`, `account_type`. `specialization_id` условно обязателен: required для `participant`, optional для `owner`.
+Пользователь регистрируется через `POST /api/v1/users/` с `username`, `email`, `password`, `account_type`; можно передать optional `display_name`. `specialization_id` условно обязателен: required для `participant`, optional для `owner`.
+
+`username` — логин пользователя для входа; `display_name` — отображаемое имя пользователя в интерфейсе.
 
 JWT login выполняется через `POST /api/v1/auth/token/login/` по `username + password`:
 
@@ -172,7 +174,7 @@ Repeated invitations для той же пары `(user, project_role)` в MVP �
 
 `GET /api/v1/projects/` query params: `search`, `field_id`, `status`, `specialization_ids`, `skill_ids`, `ordering`. `search` ищет по названию, описанию, проблеме, области, специализациям ролей и навыкам ролей проекта. `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. `ordering` поддерживает минимум `created_at`, `updated_at`, `title`.
 
-`GET /api/v1/users/` query params: `search`, `field_id`, `specialization_ids`, `skill_ids`, `level`, `work_format`, `employment_type`, `search_status`, `city`, `ordering`. `search` ищет по username, bio, city, specialization name, skills. `field_id` фильтрует через `user.specialization.field_id`. `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. `ordering` поддерживает минимум `created_at`, `updated_at`, `username`.
+`GET /api/v1/users/` query params: `search`, `field_id`, `specialization_ids`, `skill_ids`, `level`, `work_format`, `employment_type`, `search_status`, `city`, `ordering`. `search` ищет по username, display_name, bio, city, specialization name, skills. `field_id` фильтрует через `user.specialization.field_id`. `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. `ordering` поддерживает минимум `created_at`, `updated_at`, `username`.
 
 Для MVP поиск остаётся контекстным: фронт выбирает `/projects/` или `/users/` в зависимости от текущего раздела/сценария. Отдельный глобальный endpoint `/search/` не добавляется.
 

@@ -108,7 +108,7 @@ paths:
         - $ref: '#/components/parameters/LimitParam'
         - name: search
           in: query
-          description: Поиск по username, bio, city, названию специализации и навыкам.
+          description: Поиск по username, display_name, bio, city, названию специализации и навыкам.
           schema:
             type: string
         - name: field_id
@@ -167,6 +167,7 @@ paths:
                 results:
                   - id: 2
                     username: ivan_backend
+                    display_name: Иван Backend
                     avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
                     specialization_id: 1
                     specialization_name: Backend-разработчик
@@ -198,6 +199,7 @@ paths:
               $ref: '#/components/schemas/UserCreateRequest'
             example:
               username: maria_ux
+              display_name: Мария UX
               email: maria.ux@example.com
               password: strong-password-2026
               account_type: participant
@@ -1546,13 +1548,17 @@ components:
 
     AuthUser:
       type: object
-      required: [id, username, account_type]
+      required: [id, username, display_name, account_type]
       properties:
         id:
           type: integer
           readOnly: true
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         account_type:
           $ref: '#/components/schemas/AccountType'
     TokenLoginRequest:
@@ -1592,13 +1598,17 @@ components:
 
     UserListItem:
       type: object
-      required: [id, username, avatar, specialization_id, specialization_name, level, city, workload_hours_per_week, work_format, employment_type, skills, search_status]
+      required: [id, username, display_name, avatar, specialization_id, specialization_name, level, city, workload_hours_per_week, work_format, employment_type, skills, search_status]
       properties:
         id:
           type: integer
           readOnly: true
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         avatar:
           type: string
           format: uri
@@ -1641,6 +1651,7 @@ components:
       required:
         - id
         - username
+        - display_name
         - bio
         - specialization_id
         - specialization_name
@@ -1670,6 +1681,10 @@ components:
           readOnly: true
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         bio:
           type: string
           nullable: true
@@ -1783,13 +1798,17 @@ components:
                 type: integer
     UserPublicBase:
       type: object
-      required: [id, username, bio, specialization_id, specialization_name, level, workload_hours_per_week, work_format, employment_type, search_status, city, avatar, social_links, created_at, updated_at, skills, portfolio_works]
+      required: [id, username, display_name, bio, specialization_id, specialization_name, level, workload_hours_per_week, work_format, employment_type, search_status, city, avatar, social_links, created_at, updated_at, skills, portfolio_works]
       properties:
         id:
           type: integer
           readOnly: true
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         bio:
           type: string
           nullable: true
@@ -1849,11 +1868,17 @@ components:
       required: [username, email, password, account_type]
       description: |
         Регистрация содержит `username`, `email`, `password`, `account_type`.
+        `username` — логин пользователя для входа.
+        `display_name` — отображаемое имя пользователя в интерфейсе.
         `specialization_id` условно обязателен: required для `participant`,
         optional/nullable для `owner`.
       properties:
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         email:
           type: string
           format: email
@@ -1868,13 +1893,17 @@ components:
           description: Required для participant; optional/nullable для owner.
     UserCreatedResponse:
       type: object
-      required: [id, username, email, account_type, specialization_id]
+      required: [id, username, display_name, email, account_type, specialization_id]
       properties:
         id:
           type: integer
           readOnly: true
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         email:
           type: string
           format: email
@@ -1893,6 +1922,10 @@ components:
       properties:
         username:
           type: string
+          description: Логин пользователя для входа.
+        display_name:
+          type: string
+          description: Отображаемое имя пользователя в интерфейсе.
         bio:
           type: string
           nullable: true
@@ -2388,6 +2421,7 @@ components:
         user:
           id: 2
           username: ivan_backend
+          display_name: Иван Backend
           avatar: https://cdn.teamlab.example/avatars/ivan_backend.png
           specialization_id: 1
           specialization_name: Backend-разработчик

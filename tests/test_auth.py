@@ -10,6 +10,9 @@ def test_login_with_username_returns_tokens_and_user(
     owner,
     password,
 ):
+    owner.display_name = 'Owner Display Name'
+    owner.save(update_fields=('display_name',))
+
     response = api_request(
         api_client,
         'post',
@@ -23,7 +26,27 @@ def test_login_with_username_returns_tokens_and_user(
     assert data['refresh']
     assert data['user']['id'] == owner.pk
     assert data['user']['username'] == owner.username
+    assert data['user']['display_name'] == owner.display_name
     assert data['user']['account_type'] == 'owner'
+
+
+def test_display_name_is_not_login_identifier(
+    api_client,
+    api_request,
+    owner,
+    password,
+):
+    owner.display_name = 'Owner Display Name'
+    owner.save(update_fields=('display_name',))
+
+    response = api_request(
+        api_client,
+        'post',
+        '/api/v1/auth/token/login/',
+        data={'username': owner.display_name, 'password': password},
+    )
+
+    assert response.status_code in (400, 401)
 
 
 def test_login_with_email_is_not_primary_happy_path(
@@ -83,4 +106,5 @@ def test_refresh_returns_new_access_token_and_user(
     assert data['access']
     assert data['user']['id'] == owner.pk
     assert data['user']['username'] == owner.username
+    assert data['user']['display_name'] == owner.display_name
     assert data['user']['account_type'] == 'owner'

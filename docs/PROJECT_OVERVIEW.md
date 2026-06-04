@@ -26,7 +26,7 @@ Participant видит pending invitations в `GET /api/v1/users/me/projects/` �
 
 Профиль содержит специализацию, навыки, portfolio works с `image`, настройки видимости, `notification_enabled` и социальные ссылки. `contacts_visible` вычисляется для публичного профиля и не хранится в БД.
 
-Регистрация использует `username`, `email`, `password`, `account_type`; вход выполняется по `username + password`. `specialization_id` обязателен для participant и optional для owner. Participant не может убрать или изменить specialization при active ProjectMembership или pending application/invitation.
+Регистрация использует `username`, `email`, `password`, `account_type` и optional `display_name`; вход выполняется по `username + password`. `username` остаётся логином, `display_name` используется как отображаемое имя. `specialization_id` обязателен для participant и optional для owner. Participant не может убрать или изменить specialization при active ProjectMembership или pending application/invitation.
 
 Удаление аккаунта не входит в MVP и не представлено endpoint `DELETE /api/v1/users/me/`.
 

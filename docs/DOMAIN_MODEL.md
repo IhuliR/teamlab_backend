@@ -20,7 +20,7 @@
 
 ### User
 
-Пользователь платформы. `account_type` определяет основной сценарий: `participant` или `owner`. У пользователя может быть `specialization`, набор `UserSkill`, portfolio works, favorite projects и настройка уведомлений `notification_enabled`.
+Пользователь платформы. `username` — уникальный логин для входа, `display_name` — отображаемое имя в интерфейсе. `account_type` определяет основной сценарий: `participant` или `owner`. У пользователя может быть `specialization`, набор `UserSkill`, portfolio works, favorite projects и настройка уведомлений `notification_enabled`.
 
 `User.specialization_id` nullable на уровне БД. Через публичный API `participant` без specialization недопустим: при регистрации и обновлении профиля participant обязан иметь `specialization_id`. Для `owner` specialization optional.
 

@@ -62,6 +62,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'username',
+            'display_name',
             'email',
             'password',
             'account_type',
@@ -111,7 +112,7 @@ class AuthUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'account_type')
+        fields = ('id', 'username', 'display_name', 'account_type')
         read_only_fields = fields
 
 

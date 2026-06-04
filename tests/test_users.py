@@ -21,6 +21,7 @@ def test_user_list_is_public_without_private_fields(
         item for item in results(response.json())
         if item['id'] == participant_backend_user.pk
     )
+    assert item['display_name'] == participant_backend_user.display_name
     assert 'email' not in item
     assert 'notification_enabled' not in item
     assert 'account_type' not in item
@@ -47,6 +48,7 @@ def test_user_detail_is_public_profile_without_private_fields(
     assert response.status_code == 200
     data = response.json()
     assert data['id'] == participant_backend_user.pk
+    assert data['display_name'] == participant_backend_user.display_name
     assert data['specialization_name'] == 'Backend'
     assert data['skills'][0]['name'] == 'Python'
     assert data['contacts_visible'] is False
@@ -79,6 +81,7 @@ def test_owner_registration_does_not_require_specialization(api_client, api_requ
         '/api/v1/users/',
         data={
             'username': 'new_owner',
+            'display_name': 'New Owner',
             'email': 'new_owner@example.com',
             'password': 'StrongPass123!',
             'account_type': 'owner',
@@ -88,6 +91,7 @@ def test_owner_registration_does_not_require_specialization(api_client, api_requ
     assert response.status_code == 201
     data = response.json()
     assert data['username'] == 'new_owner'
+    assert data['display_name'] == 'New Owner'
     assert data['email'] == 'new_owner@example.com'
     assert data['account_type'] == 'owner'
 
@@ -131,6 +135,7 @@ def test_current_user_owner_profile_contains_private_fields(
     assert response.status_code == 200
     data = response.json()
     assert data['id'] == owner.pk
+    assert data['display_name'] == owner.display_name
     assert data['account_type'] == 'owner'
     assert data['notification_enabled'] is True
     assert project.pk in data['owned_project_ids']
@@ -170,6 +175,7 @@ def test_user_can_patch_current_profile(
         '/api/v1/users/me/',
         data={
             'bio': 'Updated bio',
+            'display_name': 'Updated Backend Name',
             'city': 'Moscow',
             'skills': [{'skill_id': python_skill.pk, 'level': 'basic'}],
         },
@@ -178,8 +184,30 @@ def test_user_can_patch_current_profile(
     assert response.status_code == 200
     participant_backend_user.refresh_from_db()
     assert participant_backend_user.bio == 'Updated bio'
+    assert participant_backend_user.display_name == 'Updated Backend Name'
     assert participant_backend_user.city == 'Moscow'
     assert participant_backend_user.skills.get().skill_id == python_skill.pk
+
+
+def test_user_search_matches_display_name(
+    api_client,
+    api_request,
+    participant_backend_user,
+):
+    participant_backend_user.display_name = 'Searchable Backend Name'
+    participant_backend_user.save(update_fields=('display_name',))
+
+    response = api_request(
+        api_client,
+        'get',
+        '/api/v1/users/?search=Searchable%20Backend',
+    )
+
+    assert response.status_code == 200
+    assert any(
+        item['id'] == participant_backend_user.pk
+        for item in results(response.json())
+    )
 
 
 def test_participant_cannot_remove_specialization(backend_client, api_request):

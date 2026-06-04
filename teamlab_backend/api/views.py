@@ -354,6 +354,7 @@ class UserViewSet(
     filterset_class = UserFilter
     search_fields = (
         'username',
+        'display_name',
         'bio',
         'city',
         'skills__skill__name',

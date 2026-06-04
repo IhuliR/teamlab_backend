@@ -75,6 +75,7 @@ class UserListSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'username',
+            'display_name',
             'avatar',
             'specialization_id',
             'specialization_name',
@@ -171,6 +172,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'username',
+            'display_name',
             'bio',
             'specialization_id',
             'specialization_name',
@@ -376,6 +378,7 @@ class CurrentUserDetailSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'username',
+            'display_name',
             'email',
             'bio',
             'account_type',
@@ -423,6 +426,7 @@ class CurrentUserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'username',
+            'display_name',
             'bio',
             'specialization_id',
             'level',

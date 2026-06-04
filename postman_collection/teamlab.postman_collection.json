@@ -1643,7 +1643,7 @@
             "description": "Safe profile update. Does not change specialization because active/pending relations can block specialization changes.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bio\": \"Updated from Postman\"\n}",
+              "raw": "{\n  \"display_name\": \"Backend Demo Updated\",\n  \"bio\": \"Updated from Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

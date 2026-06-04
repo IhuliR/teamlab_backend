@@ -61,6 +61,11 @@ class User(AbstractUser):
         validators=[username_validator],
         verbose_name='Юзернейм'
     )
+    display_name = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name='Имя'
+    )
     email = models.EmailField(
         unique=True,
         max_length=MAX_EMAIL_LEN,

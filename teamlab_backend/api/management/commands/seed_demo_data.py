@@ -135,6 +135,7 @@ class Command(BaseCommand):
     def create_users(self, specializations):
         owner = self.create_user(
             username='demo_owner',
+            display_name='Demo Owner',
             email='owner@example.com',
             account_type=User.AccountType.OWNER,
             specialization=None,
@@ -143,6 +144,7 @@ class Command(BaseCommand):
         )
         backend = self.create_user(
             username='demo_backend',
+            display_name='Backend Demo',
             email='backend@example.com',
             account_type=User.AccountType.PARTICIPANT,
             specialization=specializations['backend'],
@@ -151,6 +153,7 @@ class Command(BaseCommand):
         )
         designer = self.create_user(
             username='demo_designer',
+            display_name='Designer Demo',
             email='designer@example.com',
             account_type=User.AccountType.PARTICIPANT,
             specialization=specializations['designer'],
@@ -159,6 +162,7 @@ class Command(BaseCommand):
         )
         member = self.create_user(
             username='demo_member',
+            display_name='Member Demo',
             email='member@example.com',
             account_type=User.AccountType.PARTICIPANT,
             specialization=specializations['frontend'],
@@ -176,6 +180,7 @@ class Command(BaseCommand):
     def create_user(
         self,
         username,
+        display_name,
         email,
         account_type,
         specialization,
@@ -186,6 +191,7 @@ class Command(BaseCommand):
             username=username,
             defaults={
                 'email': email,
+                'display_name': display_name,
                 'account_type': account_type,
                 'specialization': specialization,
                 'bio': bio,
