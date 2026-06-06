@@ -95,6 +95,17 @@ Refresh:
 POST /api/v1/auth/token/refresh/
 ```
 
+```json
+{
+  "refresh": "<current-jwt-refresh>"
+}
+```
+
+Успешный response имеет ту же auth-форму: новый `access`, новый `refresh`
+и `user`. После каждого успешного refresh frontend должен атомарно сохранить
+оба новых токена. Старый refresh token после rotation повторно использовать
+нельзя.
+
 ## 6. Роли пользователей в интерфейсе
 
 ### Anonymous

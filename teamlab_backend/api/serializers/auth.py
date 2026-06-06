@@ -127,17 +127,17 @@ class TokenLoginSerializer(TokenObtainPairSerializer):
 
 
 class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
-    """Refresh access-токена с информацией о user в ответе."""
+    """Refresh пары токенов с информацией о user в ответе."""
 
     def validate(self, attrs):
-        data = super().validate(attrs)
-
         try:
             refresh = RefreshToken(attrs['refresh'])
         except TokenError as error:
             raise InvalidToken(error.args[0])
-        
+
         user_id = refresh[api_settings.USER_ID_CLAIM]
         user = User.objects.get(**{api_settings.USER_ID_FIELD: user_id})
+
+        data = super().validate(attrs)
         data['user'] = AuthUserSerializer(user).data
         return data

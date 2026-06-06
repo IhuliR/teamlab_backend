@@ -72,7 +72,7 @@ paths:
   /api/v1/auth/token/refresh/:
     post:
       tags: [Auth]
-      summary: Обновить access-токен
+      summary: Обновить access- и refresh-токены
       operationId: tokenRefresh
       requestBody:
         required: true
@@ -82,7 +82,7 @@ paths:
               $ref: '#/components/schemas/TokenRefreshRequest'
       responses:
         '200':
-          description: Access-токен обновлён
+          description: Access- и refresh-токены обновлены
           content:
             application/json:
               schema:
@@ -1589,9 +1589,11 @@ components:
           type: string
     TokenRefreshResponse:
       type: object
-      required: [access]
+      required: [access, refresh, user]
       properties:
         access:
+          type: string
+        refresh:
           type: string
         user:
           $ref: '#/components/schemas/AuthUser'

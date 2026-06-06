@@ -250,7 +250,7 @@
                 ""
               ]
             },
-            "description": "Checks token refresh response. Uses backend refresh token and updates backend_access_token when access is returned.",
+            "description": "Checks refresh token rotation. Uses backend refresh token and replaces both backend tokens after a successful response.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refresh\": \"{{backend_refresh_token}}\"\n}",
@@ -275,8 +275,17 @@
                   "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
                   "const json = pm.response.json();",
-                  "pm.test(\"Access token returned\", function () { pm.expect(json).to.have.property(\"access\"); });",
-                  "pm.environment.set(\"backend_access_token\", json.access);"
+                  "pm.test(\"Response contains access token\", function () {",
+                  "  pm.expect(json.access).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Response contains refresh token\", function () {",
+                  "  pm.expect(json.refresh).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Response contains user\", function () {",
+                  "  pm.expect(json.user).to.be.an(\"object\");",
+                  "});",
+                  "pm.environment.set(\"backend_access_token\", json.access);",
+                  "pm.environment.set(\"backend_refresh_token\", json.refresh);"
                 ]
               }
             }

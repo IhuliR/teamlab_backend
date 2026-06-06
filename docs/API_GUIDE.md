@@ -31,7 +31,7 @@ JWT login выполняется через `POST /api/v1/auth/token/login/` п�
 }
 ```
 
-Email сохраняется как контактное/будущее поле, но не является login identifier в MVP. Access-токен обновляется через `POST /api/v1/auth/token/refresh/`.
+Email сохраняется как контактное/будущее поле, но не является login identifier в MVP. `POST /api/v1/auth/token/refresh/` принимает текущий refresh token и возвращает новую пару `access + refresh` вместе с `user`. После успешного обновления frontend должен сохранить оба новых токена; старый refresh token повторно использовать нельзя.
 
 ### Публичные каталоги и подборки
 
@@ -123,7 +123,7 @@ Repeated invitations для той же пары `(user, project_role)` в MVP �
 | `/api/v1/users/me/avatar/` | PUT/DELETE | Аватар текущего пользователя. |
 | `/api/v1/users/set_password/` | POST | Смена пароля текущего пользователя. |
 | `/api/v1/auth/token/login/` | POST | JWT login. |
-| `/api/v1/auth/token/refresh/` | POST | JWT refresh. |
+| `/api/v1/auth/token/refresh/` | POST | Rotation JWT-пары: новый `access`, новый `refresh` и `user`. |
 
 ### Projects and roles
 

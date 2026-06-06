@@ -80,7 +80,7 @@ def test_login_with_wrong_password_returns_auth_error(
     assert response.status_code in (400, 401)
 
 
-def test_refresh_returns_new_access_token_and_user(
+def test_refresh_rotates_token_pair_and_blacklists_previous_refresh(
     api_client,
     api_request,
     owner,
@@ -93,18 +93,43 @@ def test_refresh_returns_new_access_token_and_user(
         data={'username': owner.username, 'password': password},
     )
     assert login_response.status_code == 200
+    first_refresh = login_response.json()['refresh']
 
-    response = api_request(
+    first_response = api_request(
         api_client,
         'post',
         '/api/v1/auth/token/refresh/',
-        data={'refresh': login_response.json()['refresh']},
+        data={'refresh': first_refresh},
     )
 
-    assert response.status_code == 200
-    data = response.json()
+    assert first_response.status_code == 200
+    data = first_response.json()
     assert data['access']
+    assert data['refresh']
+    assert data['refresh'] != first_refresh
     assert data['user']['id'] == owner.pk
     assert data['user']['username'] == owner.username
     assert data['user']['display_name'] == owner.display_name
     assert data['user']['account_type'] == 'owner'
+
+    reused_response = api_request(
+        api_client,
+        'post',
+        '/api/v1/auth/token/refresh/',
+        data={'refresh': first_refresh},
+    )
+
+    assert reused_response.status_code == 401
+
+    second_response = api_request(
+        api_client,
+        'post',
+        '/api/v1/auth/token/refresh/',
+        data={'refresh': data['refresh']},
+    )
+
+    assert second_response.status_code == 200
+    second_data = second_response.json()
+    assert second_data['access']
+    assert second_data['refresh']
+    assert second_data['user']['id'] == owner.pk

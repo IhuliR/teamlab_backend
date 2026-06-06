@@ -274,6 +274,8 @@ python manage.py seed_demo_data
 ```
 
 Она логинит демо-пользователей и сохраняет токены/ID в environment.
+Refresh request заменяет в environment оба backend-токена: новый `access`
+и новый `refresh`.
 
 После этого можно запускать остальные папки коллекции.
 
@@ -325,6 +327,9 @@ POST /api/v1/auth/token/refresh/
 ```
 
 Login выполняется по `username + password`.
+`POST /api/v1/auth/token/refresh/` возвращает новую пару `access + refresh`
+и `user`. После успешного refresh клиент должен сохранить оба новых токена:
+старый refresh token повторно использовать нельзя.
 
 ### Projects
 
