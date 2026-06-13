@@ -7,7 +7,13 @@ from django.core.management.utils import get_random_secret_key
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BASE_DIR.parent
 ROOT_DIR = BASE_DIR.parent
+STATIC_URL = "static/"
+
+STATICFILES_DIRS = [
+    ("api", PROJECT_ROOT / "docs" / "api"),
+]
 
 load_dotenv(ROOT_DIR / '.env')
 
@@ -70,7 +76,7 @@ ROOT_URLCONF = 'teamlab_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

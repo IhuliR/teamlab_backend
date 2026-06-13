@@ -1,0 +1,48 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>TeamLab API Docs</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+  </head>
+  <body>
+    <div id="redoc-container"></div>
+
+    <script>
+      Redoc.init(
+        "{% static 'api/teamlab_api_schema_8.yml' %}",
+        {
+          theme: {
+            colors: {
+              primary: {
+                main: "#6C5CE7"
+              }
+            },
+            typography: {
+              fontSize: "15px",
+              fontFamily: "Arial, sans-serif",
+              headings: {
+                fontFamily: "Arial, sans-serif",
+                fontWeight: "600"
+              },
+              code: {
+                fontFamily: "Menlo, Monaco, Consolas, monospace"
+              }
+            },
+            sidebar: {
+              backgroundColor: "#F7F7FB",
+              textColor: "#2D3436"
+            },
+            rightPanel: {
+              backgroundColor: "#1F2937",
+              textColor: "#FFFFFF"
+            }
+          }
+        },
+        document.getElementById("redoc-container")
+      );
+    </script>
+  </body>
+</html>
