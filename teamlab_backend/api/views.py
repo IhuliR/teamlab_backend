@@ -51,7 +51,8 @@ from .serializers import (
 )
 from .filters import (
     ProjectFilter,
-    UserFilter
+    UserFilter,
+    SkillFilter
 )
 from projects.services import (
     accept_role_interest,
@@ -80,15 +81,16 @@ from users.models import(
 User = get_user_model()
 
 
-class SkillListCreateView(
+class SkillListView(
     mixins.ListModelMixin,
-    mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
     permission_classes = (IsAuthenticatedOrReadOnly,)
+    filterset_class = SkillFilter
     filter_backends = (
+        DjangoFilterBackend,
         filters.SearchFilter,
         filters.OrderingFilter,
     )

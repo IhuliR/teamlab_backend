@@ -11,7 +11,7 @@ Backend TeamLab обслуживает MVP workflow командообразов
 - В одном проекте specialization представлена одной ProjectRole: unique `(project_id, specialization_id)`.
 - `is_open` отсутствует: существование роли определяет возможность applications/invitations.
 - `Project.is_featured`/`featured_order` и `Field.is_featured`/`featured_order` — админские поля для главной, не публичные write-поля owner/user API.
-- `Field` и `Specialization` — системные справочники; публичный API отдаёт только GET. `Skill` остаётся пользовательски расширяемым authenticated POST.
+- `Field`, `Specialization` и `Skill` — системные справочники; публичный API отдаёт только GET.
 - Context fields не хранятся на ProjectRole. Они возвращаются на project detail и user detail.
 - `RoleInterest` остаётся внутренней моделью для applications и invitations.
 - Repeated applications/invitations для той же пары `(user_id, project_role_id)` не поддерживаются в MVP.

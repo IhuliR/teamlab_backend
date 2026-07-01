@@ -13,7 +13,7 @@ from .views import (
     ProjectViewSet,
     RoleInterestViewSet,
     SetPasswordView,
-    SkillListCreateView,
+    SkillListView,
     SpecializationListView,
     TokenLoginView,
     TokenRefreshWithUserView,
@@ -25,7 +25,7 @@ router = DefaultRouter()
 
 router.register(
     'skills',
-    SkillListCreateView,
+    SkillListView,
     basename='skills',
 )
 router.register(

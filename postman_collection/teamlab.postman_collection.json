@@ -787,7 +787,7 @@
                 ""
               ]
             },
-            "description": "Public Skill catalog. No auth required."
+            "description": "Public system Skill catalog. No auth required. Skills are managed through admin/seed/service tools, not public POST."
           },
           "response": [],
           "event": [
@@ -807,6 +807,13 @@
                   "const items = Array.isArray(json) ? json : (json.results || []);",
                   "pm.test(\"Response is list or paginated list\", function () {",
                   "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"Skill items expose slug and field_ids\", function () {",
+                  "  if (items.length) {",
+                  "    pm.expect(items[0]).to.have.property(\"slug\");",
+                  "    pm.expect(items[0]).to.have.property(\"field_ids\");",
+                  "  }",
                   "});"
                 ]
               }
@@ -814,36 +821,21 @@
           ]
         },
         {
-          "name": "POST skill authenticated user",
+          "name": "GET skills by field_ids",
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{owner_access_token}}",
-                "type": "text"
-              }
-            ],
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/skills/",
+              "raw": "{{base_url}}/skills/?field_ids={{field_development_id}},{{field_design_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "skills",
-                ""
+                "?field_ids={{field_development_id}},{{field_design_id}}"
               ]
             },
-            "description": "Creates a Skill with any authenticated user token. This endpoint is not admin-only. Saves created_skill_id.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Postman Skill {{$timestamp}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
+            "description": "Public Skill catalog filtered by comma-separated field_ids. OR inside field group; skills linked to multiple selected fields are not duplicated."
           },
           "response": [],
           "event": [
@@ -852,18 +844,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 201\", function () { pm.expect([201]).to.include(pm.response.code); });",
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
                   "",
                   "pm.test(\"Response is JSON\", function () {",
                   "  pm.response.to.be.withBody;",
                   "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
                   "});",
+                  "",
                   "const json = pm.response.json();",
-                  "pm.test(\"Created skill has id and name\", function () {",
-                  "  pm.expect(json).to.have.property(\"id\");",
-                  "  pm.expect(json).to.have.property(\"name\");",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
                   "});",
-                  "pm.environment.set(\"created_skill_id\", json.id);"
+                  "",
+                  "pm.test(\"Skill items expose slug and field_ids\", function () {",
+                  "  if (items.length) {",
+                  "    pm.expect(items[0]).to.have.property(\"slug\");",
+                  "    pm.expect(items[0]).to.have.property(\"field_ids\");",
+                  "  }",
+                  "});"
                 ]
               }
             }
@@ -1090,6 +1089,88 @@
           ]
         },
         {
+          "name": "GET projects by field_ids and skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?field_ids={{field_development_id}},{{field_design_id}}&skill_ids={{skill_python_id}},{{skill_django_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?field_ids={{field_development_id}},{{field_design_id}}&skill_ids={{skill_python_id}},{{skill_django_id}}"
+              ]
+            },
+            "description": "Project filter combining comma-separated field_ids and skill_ids. OR inside each group; groups are applied together."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET projects by field_ids",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/?field_ids={{field_development_id}},{{field_design_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "?field_ids={{field_development_id}},{{field_design_id}}"
+              ]
+            },
+            "description": "Project filter by comma-separated field_ids. OR inside field group; projects are not duplicated by matching joins."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "GET projects by skills OR group",
           "request": {
             "method": "GET",
@@ -1104,7 +1185,7 @@
                 "?skill_ids={{skill_python_id}},{{skill_django_id}}"
               ]
             },
-            "description": "Project filter by comma-separated skill_ids. OR inside skill group."
+            "description": "Project filter by comma-separated skill_ids from role skill requirements. OR inside skill group; projects are not duplicated by matching role/skill joins."
           },
           "response": [],
           "event": [
@@ -1145,7 +1226,7 @@
                 "?specialization_ids={{specialization_backend_id}}"
               ]
             },
-            "description": "Project filter by comma-separated specialization_ids."
+            "description": "Project filter by comma-separated specialization_ids from project roles. OR inside specialization group; projects are not duplicated by multiple matching roles."
           },
           "response": [],
           "event": [
@@ -1401,6 +1482,88 @@
           ]
         },
         {
+          "name": "GET users by field_ids and skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?field_ids={{field_development_id}},{{field_design_id}}&skill_ids={{skill_python_id}},{{skill_figma_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?field_ids={{field_development_id}},{{field_design_id}}&skill_ids={{skill_python_id}},{{skill_figma_id}}"
+              ]
+            },
+            "description": "User filter combining comma-separated field_ids and skill_ids. OR inside each group; groups are applied together."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET users by field_ids",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/?field_ids={{field_development_id}},{{field_design_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "?field_ids={{field_development_id}},{{field_design_id}}"
+              ]
+            },
+            "description": "User filter by comma-separated field_ids through user.specialization.field_id. OR inside field group."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Response is list or paginated list\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "GET users by specialization",
           "request": {
             "method": "GET",
@@ -1415,7 +1578,7 @@
                 "?specialization_ids={{specialization_backend_id}}"
               ]
             },
-            "description": "User filter by comma-separated specialization_ids."
+            "description": "User filter by comma-separated specialization_ids. OR inside specialization group."
           },
           "response": [],
           "event": [
@@ -1456,7 +1619,7 @@
                 "?skill_ids={{skill_python_id}}"
               ]
             },
-            "description": "User filter by comma-separated skill_ids."
+            "description": "User filter by comma-separated skill_ids from user skills. OR inside skill group; users are not duplicated by multiple matching skills."
           },
           "response": [],
           "event": [

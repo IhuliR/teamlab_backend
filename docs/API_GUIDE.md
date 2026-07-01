@@ -41,9 +41,9 @@ Email сохраняется как контактное/будущее поле
 
 `GET /api/v1/fields/featured/` возвращает области для главной: `is_featured = true`, сортировка `featured_order`, затем `name`. "Все профили" не является записью `Field` в базе, это фронтовая синтетическая карточка.
 
-`Field` и `Specialization` — системные справочники, управляются через админку, seed или служебные инструменты. Публичных `POST /api/v1/fields/` и `POST /api/v1/specializations/` в MVP нет. `Skill` остаётся пользовательски расширяемым справочником: `POST /api/v1/skills/` доступен авторизованному пользователю.
+`Field`, `Specialization` и `Skill` — системные справочники, управляются через админку, seed или служебные инструменты. Публичных `POST /api/v1/fields/`, `POST /api/v1/specializations/` и `POST /api/v1/skills/` в MVP нет.
 
-Публичные каталоги не отдают приватные поля. User list/detail остаются публично безопасными: email, notification settings и private contacts не возвращаются. Контакты/social links в публичном профиле отдаются только по правилам contacts visibility/match logic.
+Публичные каталоги не отдают приватные поля. User list/detail остаются публично безопасными: email, notification settings и private contacts не возвращаются. Контакты/social links в публичном профиле отдаются только по правилам contacts visibility/match logic. `city` — свободная строка профиля: frontend может предлагать локальные autocomplete-подсказки, но backend не валидирует город по справочнику.
 
 ### Создание проекта с ролями
 
@@ -167,14 +167,15 @@ Repeated invitations для той же пары `(user, project_role)` в MVP �
 | `/api/v1/fields/` | GET | Публичный список системных областей. |
 | `/api/v1/fields/featured/` | GET | Featured области для главной. |
 | `/api/v1/specializations/` | GET | Публичный список системных специализаций. |
-| `/api/v1/skills/` | GET | Публичный список навыков. |
-| `/api/v1/skills/` | POST | Создать навык, требуется авторизация. |
+| `/api/v1/skills/` | GET | Публичный список системных навыков. Поддерживает `field_ids`. |
 
 ## 5. Search, filters, ordering
 
-`GET /api/v1/projects/` query params: `search`, `field_id`, `status`, `specialization_ids`, `skill_ids`, `ordering`. `search` ищет по названию, описанию, проблеме, области, специализациям ролей и навыкам ролей проекта. `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. `ordering` поддерживает минимум `created_at`, `updated_at`, `title`.
+`GET /api/v1/skills/` query params: `search`, `field_ids`, `ordering`. `field_ids` — comma-separated list областей, связанных с навыками; OR внутри группы. Если навык связан с несколькими выбранными областями, он не дублируется в выдаче. Примеры: `GET /api/v1/skills/?field_ids=1`, `GET /api/v1/skills/?field_ids=1,5`.
 
-`GET /api/v1/users/` query params: `search`, `field_id`, `specialization_ids`, `skill_ids`, `level`, `work_format`, `employment_type`, `search_status`, `city`, `ordering`. `search` ищет по username, display_name, bio, city, specialization name, skills. `field_id` фильтрует через `user.specialization.field_id`. `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. `ordering` поддерживает минимум `created_at`, `updated_at`, `username`.
+`GET /api/v1/projects/` query params: `search`, `field_id`, `field_ids`, `status`, `specialization_ids`, `skill_ids`, `ordering`. `search` ищет по названию, описанию, проблеме, области, специализациям ролей и навыкам ролей проекта. `field_id` фильтрует по одной области проекта, `field_ids` — по нескольким областям проекта. `specialization_ids` фильтрует через роли проекта, `skill_ids` — через требования к навыкам в ролях. `field_ids`, `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. Проекты не дублируются из-за совпадений в нескольких ролях/навыках. Примеры: `GET /api/v1/projects/?field_ids=1,5`, `GET /api/v1/projects/?field_ids=1,5&skill_ids=10,12`, `GET /api/v1/projects/?specialization_ids=3,7`. `ordering` поддерживает минимум `created_at`, `updated_at`, `title`.
+
+`GET /api/v1/users/` query params: `search`, `account_type`, `field_id`, `field_ids`, `specialization_ids`, `skill_ids`, `level`, `work_format`, `employment_type`, `search_status`, `city`, `ordering`. `search` ищет по username, display_name, bio, city, specialization name, skills. `account_type` принимает `participant` или `owner`. `field_id` фильтрует через `user.specialization.field_id` по одной области, `field_ids` — по нескольким областям. `specialization_ids` фильтрует по специализациям пользователя, `skill_ids` — по навыкам пользователя. `field_ids`, `specialization_ids` и `skill_ids` — comma-separated lists, OR внутри группы; разные группы применяются совместно. Пользователи не дублируются из-за нескольких совпавших навыков. Примеры: `GET /api/v1/users/?field_ids=1,5`, `GET /api/v1/users/?field_ids=1,5&skill_ids=10,12`, `GET /api/v1/users/?specialization_ids=3,7`. `city` — свободная строка, не backend-справочник. `ordering` поддерживает минимум `created_at`, `updated_at`, `username`.
 
 Для MVP поиск остаётся контекстным: фронт выбирает `/projects/` или `/users/` в зависимости от текущего раздела/сценария. Отдельный глобальный endpoint `/search/` не добавляется.
 

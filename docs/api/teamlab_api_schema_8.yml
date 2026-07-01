@@ -100,8 +100,9 @@ paths:
         использует `GET /api/v1/users/?search=...`; отдельный глобальный `/search/`
         endpoint в MVP не добавляется.
 
-        `specialization_ids` и `skill_ids` принимают comma-separated lists и работают
-        как OR внутри своей группы. Разные группы фильтров применяются совместно.
+        `field_ids`, `specialization_ids` и `skill_ids` принимают comma-separated
+        lists и работают как OR внутри своей группы. Разные группы фильтров
+        применяются совместно.
       operationId: listUsers
       parameters:
         - $ref: '#/components/parameters/PageParam'
@@ -111,11 +112,21 @@ paths:
           description: Поиск по username, display_name, bio, city, названию специализации и навыкам.
           schema:
             type: string
+        - name: account_type
+          in: query
+          description: Фильтр по типу аккаунта пользователя.
+          schema:
+            $ref: '#/components/schemas/AccountType'
         - name: field_id
           in: query
           description: "Фильтр через `user.specialization.field_id`."
           schema:
             type: integer
+        - name: field_ids
+          in: query
+          description: Comma-separated list ID областей через `user.specialization.field_id`. OR внутри группы.
+          schema:
+            type: string
         - name: specialization_ids
           in: query
           description: Comma-separated list ID специализаций пользователя. OR внутри группы.
@@ -338,7 +349,13 @@ paths:
     get:
       tags: [Skills]
       summary: Список навыков
-      description: Публичный справочник навыков.
+      description: |
+        Публичный системный справочник навыков. Skill управляется через админку,
+        seed или служебные инструменты; публичного create-сценария нет.
+
+        `field_ids` принимает comma-separated list ID областей и работает как OR
+        внутри группы. Навык, связанный с несколькими выбранными областями,
+        не дублируется в выдаче.
       operationId: listSkills
       parameters:
         - name: search
@@ -347,6 +364,11 @@ paths:
             type: string
         - name: ordering
           in: query
+          schema:
+            type: string
+        - name: field_ids
+          in: query
+          description: Comma-separated list ID областей, связанных с навыком. OR внутри группы.
           schema:
             type: string
       responses:
@@ -358,32 +380,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Skill'
-    post:
-      tags: [Skills]
-      summary: Создать навык
-      description: Skill — расширяемый пользовательский справочник; создание доступно авторизованному пользователю.
-      operationId: createSkill
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SkillCreateRequest'
-      responses:
-        '201':
-          description: Навык создан
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Skill'
-        '400':
-          $ref: '#/components/responses/ValidationErrorResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedResponse'
-        '403':
-          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/specializations/:
     get:
@@ -465,8 +461,10 @@ paths:
         Публичный список проектов с `roles_preview`. Поиск в хедере раздела проектов
         использует `GET /api/v1/projects/?search=...`.
 
-        `specialization_ids` и `skill_ids` принимают comma-separated lists и работают
-        как OR внутри своей группы. Разные группы фильтров применяются совместно.
+        `field_ids`, `specialization_ids` и `skill_ids` принимают comma-separated
+        lists и работают как OR внутри своей группы. Разные группы фильтров
+        применяются совместно. Проекты не дублируются из-за совпадений в
+        нескольких ролях или навыках.
       operationId: listProjects
       parameters:
         - $ref: '#/components/parameters/PageParam'
@@ -486,6 +484,11 @@ paths:
           description: Фильтр по области проекта.
           schema:
             type: integer
+        - name: field_ids
+          in: query
+          description: Comma-separated list ID областей проекта. OR внутри группы.
+          schema:
+            type: string
         - name: specialization_ids
           in: query
           description: Comma-separated list ID специализаций ролей проекта. OR внутри группы.
@@ -1362,13 +1365,21 @@ components:
 
     Skill:
       type: object
-      required: [id, name, created_at, updated_at]
+      required: [id, name, slug, field_ids, created_at, updated_at]
+      description: Публичное представление системного навыка.
       properties:
         id:
           type: integer
           readOnly: true
         name:
           type: string
+        slug:
+          type: string
+        field_ids:
+          type: array
+          description: ID областей, связанных с навыком.
+          items:
+            type: integer
         created_at:
           type: string
           format: date-time
@@ -1377,13 +1388,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-    SkillCreateRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          minLength: 1
     Field:
       type: object
       required: [id, name, created_at, updated_at]
@@ -1629,6 +1633,7 @@ components:
         city:
           type: string
           nullable: true
+          description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         workload_hours_per_week:
           type: integer
           nullable: true
@@ -1719,6 +1724,7 @@ components:
         city:
           type: string
           nullable: true
+          description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         avatar:
           type: string
           format: uri
@@ -1843,6 +1849,7 @@ components:
         city:
           type: string
           nullable: true
+          description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         avatar:
           type: string
           format: uri
@@ -1952,6 +1959,7 @@ components:
         city:
           type: string
           nullable: true
+          description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         social_links:
           $ref: '#/components/schemas/SocialLinks'
         skills:

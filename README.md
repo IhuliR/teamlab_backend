@@ -379,11 +379,11 @@ GET  /api/v1/fields/
 GET  /api/v1/fields/featured/
 GET  /api/v1/specializations/
 GET  /api/v1/skills/
-POST /api/v1/skills/
 ```
 
-`Field` и `Specialization` управляются через админку/seed/служебные инструменты.
-Через публичный API создаётся только `Skill`, и только авторизованным пользователем.
+`Field`, `Specialization` и `Skill` управляются через админку/seed/служебные инструменты.
+Публичный API отдаёт эти справочники только на чтение. `GET /api/v1/skills/`
+поддерживает фильтр `field_ids`.
 
 ---
 
@@ -403,6 +403,7 @@ GET /api/v1/users/?search=...
 ```text
 search
 field_id
+field_ids
 status
 specialization_ids
 skill_ids
@@ -413,7 +414,9 @@ ordering
 
 ```text
 search
+account_type
 field_id
+field_ids
 specialization_ids
 skill_ids
 level
@@ -424,7 +427,9 @@ city
 ordering
 ```
 
-Multi-value filters вроде `skill_ids` и `specialization_ids` передаются comma-separated списком.
+Multi-value filters вроде `field_ids`, `skill_ids` и `specialization_ids`
+передаются comma-separated списком. `city` — свободная строка профиля, а не
+backend-справочник.
 
 ---
 

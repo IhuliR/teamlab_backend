@@ -169,6 +169,15 @@ class Skill(models.Model):
         unique=True,
         verbose_name='Название'
     )
+    slug = models.SlugField(
+        unique=True,
+        verbose_name='Слаг'
+    )
+    fields = models.ManyToManyField(
+        'projects.Field',
+        related_name='skills',
+        verbose_name='Области'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

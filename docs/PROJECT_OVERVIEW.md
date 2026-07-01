@@ -104,7 +104,9 @@ Accepted RoleInterest создаёт ProjectMembership. Rejected RoleInterest me
 
 ## Справочники и поиск
 
-`GET /api/v1/fields/`, `GET /api/v1/specializations/`, `GET /api/v1/skills/` публичны. `Field` и `Specialization` управляются администратором/seed/служебными инструментами; публичных create endpoints для них нет. `Skill` можно создавать авторизованному пользователю через `POST /api/v1/skills/`.
+`GET /api/v1/fields/`, `GET /api/v1/specializations/`, `GET /api/v1/skills/` публичны. `Field`, `Specialization` и `Skill` управляются администратором/seed/служебными инструментами; публичных create endpoints для них нет. `GET /api/v1/skills/` поддерживает `field_ids` для показа навыков, связанных с выбранными областями.
+
+`city` в профиле пользователя — свободная строка, а не backend-справочник.
 
 `GET /api/v1/fields/featured/` возвращает featured области для главной. "Все профили" — фронтовая синтетическая карточка, а не запись `Field`.
 

@@ -1,6 +1,7 @@
 frontend/node_modules
 infra/frontend/build
 .env
+.DS_Store
 backup_files/
 # Byte-compiled / optimized / DLL files
 __pycache__/

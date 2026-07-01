@@ -210,6 +210,143 @@ def test_user_search_matches_display_name(
     )
 
 
+def test_user_list_can_filter_by_field_id(
+    api_client,
+    api_request,
+    field,
+    participant_backend_user,
+    participant_designer_user,
+):
+    response = api_request(api_client, 'get', f'/api/v1/users/?field_id={field.pk}')
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert participant_backend_user.pk in ids
+    assert participant_designer_user.pk not in ids
+
+
+def test_user_list_can_filter_by_multiple_field_ids(
+    api_client,
+    api_request,
+    field,
+    another_field,
+    participant_backend_user,
+    participant_designer_user,
+):
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/users/?field_ids={field.pk},{another_field.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert participant_backend_user.pk in ids
+    assert participant_designer_user.pk in ids
+
+
+def test_user_list_can_filter_by_specialization_ids(
+    api_client,
+    api_request,
+    backend_specialization,
+    participant_backend_user,
+    participant_designer_user,
+):
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/users/?specialization_ids={backend_specialization.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert participant_backend_user.pk in ids
+    assert participant_designer_user.pk not in ids
+
+
+def test_user_list_can_filter_by_multiple_specialization_ids(
+    api_client,
+    api_request,
+    backend_specialization,
+    designer_specialization,
+    participant_backend_user,
+    participant_designer_user,
+):
+    response = api_request(
+        api_client,
+        'get',
+        (
+            '/api/v1/users/?specialization_ids='
+            f'{backend_specialization.pk},{designer_specialization.pk}'
+        ),
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert participant_backend_user.pk in ids
+    assert participant_designer_user.pk in ids
+
+
+def test_user_list_can_filter_by_skill_ids(
+    api_client,
+    api_request,
+    participant_backend_user,
+    participant_designer_user,
+    python_skill,
+    figma_skill,
+):
+    UserSkill.objects.create(
+        user=participant_backend_user,
+        skill=python_skill,
+        level='basic',
+    )
+    UserSkill.objects.create(
+        user=participant_designer_user,
+        skill=figma_skill,
+        level='basic',
+    )
+
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/users/?skill_ids={python_skill.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert participant_backend_user.pk in ids
+    assert participant_designer_user.pk not in ids
+
+
+def test_user_list_skill_filter_does_not_duplicate_users(
+    api_client,
+    api_request,
+    participant_backend_user,
+    python_skill,
+    django_skill,
+):
+    UserSkill.objects.create(
+        user=participant_backend_user,
+        skill=python_skill,
+        level='basic',
+    )
+    UserSkill.objects.create(
+        user=participant_backend_user,
+        skill=django_skill,
+        level='middle',
+    )
+
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/users/?skill_ids={python_skill.pk},{django_skill.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = [item['id'] for item in results(response.json())]
+    assert ids.count(participant_backend_user.pk) == 1
+
+
 def test_participant_cannot_remove_specialization(backend_client, api_request):
     response = api_request(
         backend_client,

@@ -51,10 +51,14 @@ def test_skills_list_is_public(api_client, api_request, python_skill):
 
     assert response.status_code == 200
     items = results(response.json())
-    assert any(item['id'] == python_skill.pk for item in items)
+    item = next(item for item in items if item['id'] == python_skill.pk)
+    assert item['slug'] == python_skill.slug
+    assert item['field_ids'] == [python_skill.fields.get().pk]
 
 
-def test_authenticated_user_can_create_skill(owner_client, api_request):
+def test_authenticated_user_cannot_create_skill(owner_client, api_request):
+    before_count = Skill.objects.count()
+
     response = api_request(
         owner_client,
         'post',
@@ -62,9 +66,8 @@ def test_authenticated_user_can_create_skill(owner_client, api_request):
         data={'name': 'FastAPI'},
     )
 
-    assert response.status_code == 201
-    assert response.json()['name'] == 'FastAPI'
-    assert Skill.objects.filter(name='FastAPI').exists()
+    assert response.status_code == 405
+    assert Skill.objects.count() == before_count
 
 
 def test_anonymous_user_cannot_create_skill(api_client, api_request):
@@ -76,6 +79,44 @@ def test_anonymous_user_cannot_create_skill(api_client, api_request):
     )
 
     assert response.status_code == 401
+
+
+def test_skills_can_be_filtered_by_single_field_id(
+    api_client,
+    api_request,
+    field,
+    another_field,
+    python_skill,
+    figma_skill,
+):
+    response = api_request(api_client, 'get', f'/api/v1/skills/?field_ids={field.pk}')
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert python_skill.pk in ids
+    assert figma_skill.pk not in ids
+
+
+def test_skills_can_be_filtered_by_multiple_field_ids_without_duplicates(
+    api_client,
+    api_request,
+    field,
+    another_field,
+    python_skill,
+    figma_skill,
+):
+    python_skill.fields.add(another_field)
+
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/skills/?field_ids={field.pk},{another_field.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = [item['id'] for item in results(response.json())]
+    assert figma_skill.pk in ids
+    assert ids.count(python_skill.pk) == 1
 
 
 @pytest.mark.parametrize(

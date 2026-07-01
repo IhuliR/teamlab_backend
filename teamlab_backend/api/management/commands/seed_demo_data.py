@@ -43,7 +43,7 @@ class Command(BaseCommand):
 
         fields = self.create_fields()
         specializations = self.create_specializations(fields)
-        skills = self.create_skills()
+        skills = self.create_skills(fields)
         users = self.create_users(specializations)
         project = self.create_project(users['owner'], fields['development'])
         roles = self.create_project_roles(project, specializations, skills)
@@ -112,22 +112,26 @@ class Command(BaseCommand):
             'ai_designer': ai_designer,
         }
 
-    def create_skills(self):
-        skill_names = (
-            'Python',
-            'Django',
-            'DRF',
-            'PostgreSQL',
-            'React',
-            'Figma',
-            'UX Research',
-            'Midjourney',
+    def create_skills(self, fields):
+        skill_data = (
+            ('Python', 'python', (fields['development'],)),
+            ('Django', 'django', (fields['development'],)),
+            ('DRF', 'drf', (fields['development'],)),
+            ('PostgreSQL', 'postgresql', (fields['development'],)),
+            ('React', 'react', (fields['development'],)),
+            ('Figma', 'figma', (fields['design'],)),
+            ('UX Research', 'ux-research', (fields['design'],)),
+            ('Midjourney', 'midjourney', (fields['ai'], fields['design'])),
         )
 
         result = {}
 
-        for name in skill_names:
-            skill, _ = Skill.objects.get_or_create(name=name)
+        for name, slug, skill_fields in skill_data:
+            skill, _ = Skill.objects.update_or_create(
+                slug=slug,
+                defaults={'name': name},
+            )
+            skill.fields.set(skill_fields)
             result[name] = skill
 
         return result

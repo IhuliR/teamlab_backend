@@ -126,7 +126,7 @@ POST /api/v1/auth/token/refresh/
 | --- | --- | --- | --- | --- |
 | Главная: проекты недели | `/projects/featured/` | GET | все | Карточки проектов как в `/projects/`. |
 | Главная: направления | `/fields/featured/` | GET | все | "Все профили" - синтетическая frontend-карточка. |
-| Все проекты | `/projects/` | GET | все | Фильтры: `search`, `field_id`, `status`, `specialization_ids`, `skill_ids`, `ordering`. |
+| Все проекты | `/projects/` | GET | все | Фильтры: `search`, `field_id`, `field_ids`, `status`, `specialization_ids`, `skill_ids`, `ordering`. |
 | Project detail | `/projects/{project_id}/` | GET | все | Полные `roles` и context fields текущего пользователя. |
 | Отклик на проект | `/projects/{project_id}/applications/` | POST | participant | Body отсутствует. Backend выбирает matching role. |
 | Participant profile | `/users/me/` | GET/PATCH | participant | Текущий профиль и настройки. |
@@ -144,12 +144,11 @@ POST /api/v1/auth/token/refresh/
 | Принять RoleInterest | `/role-interests/{interest_id}/accept/` | POST | owner/participant | Owner принимает application, participant принимает invitation. |
 | Отклонить RoleInterest | `/role-interests/{interest_id}/reject/` | POST | owner/participant | Правила такие же, как у accept. |
 | Удалить участника | `/project-memberships/{membership_id}/remove/` | POST | owner | Завершает membership со статусом `removed`. |
-| Участники | `/users/` | GET | все | Фильтры: `search`, `field_id`, `specialization_ids`, `skill_ids`, `level`, `work_format`, `employment_type`, `search_status`, `city`, `ordering`. |
+| Участники | `/users/` | GET | все | Фильтры: `search`, `account_type`, `field_id`, `field_ids`, `specialization_ids`, `skill_ids`, `level`, `work_format`, `employment_type`, `search_status`, `city`, `ordering`. |
 | User detail | `/users/{user_id}/` | GET | все | Public profile без email и приватных настроек. |
 | Fields | `/fields/` | GET | все | Системный справочник. |
 | Specializations | `/specializations/` | GET | все | Системный справочник. |
-| Skills | `/skills/` | GET | все | Справочник навыков. |
-| Create skill | `/skills/` | POST | auth | Единственный публично расширяемый справочник. |
+| Skills | `/skills/` | GET | все | Системный справочник навыков. Фильтр: `field_ids`. |
 
 ## 8. Поиск и подсказки
 
@@ -168,6 +167,10 @@ GET /users/?search=...
 - фиксированного frontend-списка, если это нужно для UX.
 
 Backend search endpoint вызывается после ввода/применения поиска.
+
+Skills — системный справочник: frontend не вызывает `POST /skills/`. Для выбора навыков после выбора области используйте `GET /skills/?field_ids=1` или `GET /skills/?field_ids=1,5`; backend применяет OR-логику и не возвращает дубли.
+
+`city` в профиле — свободная строка. Frontend может показывать локальные autocomplete-подсказки из статичного списка, но должен позволять сохранить значение, которого нет в подсказках.
 
 ```text
 Пользователь выбрал подсказку "графический дизайнер" -> frontend вызывает:

@@ -1,6 +1,6 @@
 import pytest
 
-from projects.models import Project, ProjectRole
+from projects.models import Project, ProjectRole, ProjectRoleSkill
 
 from .utils import results
 
@@ -151,6 +151,81 @@ def test_project_list_filters_include_expected_project(
     assert expected.pk in ids
     if 'ordering=' not in query:
         assert excluded.pk not in ids
+
+
+def test_project_list_can_filter_by_multiple_field_ids(
+    api_client,
+    api_request,
+    field,
+    another_field,
+    project,
+    another_project,
+):
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/projects/?field_ids={field.pk},{another_field.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert project.pk in ids
+    assert another_project.pk in ids
+
+
+def test_project_list_skill_filter_does_not_duplicate_projects(
+    api_client,
+    api_request,
+    project,
+    backend_project_role,
+    frontend_project_role,
+    python_skill,
+    django_skill,
+):
+    ProjectRoleSkill.objects.create(
+        project_role=backend_project_role,
+        skill=python_skill,
+        description='Python backend',
+        order=1,
+    )
+    ProjectRoleSkill.objects.create(
+        project_role=frontend_project_role,
+        skill=django_skill,
+        description='Django frontend',
+        order=1,
+    )
+
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/projects/?skill_ids={python_skill.pk},{django_skill.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = [item['id'] for item in results(response.json())]
+    assert ids.count(project.pk) == 1
+
+
+def test_project_list_specialization_filter_does_not_duplicate_projects(
+    api_client,
+    api_request,
+    project,
+    backend_project_role,
+    frontend_project_role,
+):
+    response = api_request(
+        api_client,
+        'get',
+        (
+            '/api/v1/projects/?specialization_ids='
+            f'{backend_project_role.specialization_id},'
+            f'{frontend_project_role.specialization_id}'
+        ),
+    )
+
+    assert response.status_code == 200
+    ids = [item['id'] for item in results(response.json())]
+    assert ids.count(project.pk) == 1
 
 
 def test_owner_can_create_project_with_nested_roles(

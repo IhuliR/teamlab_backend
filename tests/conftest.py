@@ -31,6 +31,12 @@ def pk(instance):
     return instance.pk
 
 
+def create_skill(name, slug, fields):
+    skill = Skill.objects.create(name=name, slug=slug)
+    skill.fields.set(fields)
+    return skill
+
+
 @pytest.fixture(autouse=True)
 def media_root(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / 'media'
@@ -148,23 +154,23 @@ def specialization(backend_specialization):
 
 
 @pytest.fixture
-def python_skill(db):
-    return Skill.objects.create(name='Python')
+def python_skill(db, field):
+    return create_skill('Python', unique('python'), [field])
 
 
 @pytest.fixture
-def django_skill(db):
-    return Skill.objects.create(name='Django')
+def django_skill(db, field):
+    return create_skill('Django', unique('django'), [field])
 
 
 @pytest.fixture
-def react_skill(db):
-    return Skill.objects.create(name='React')
+def react_skill(db, field):
+    return create_skill('React', unique('react'), [field])
 
 
 @pytest.fixture
-def figma_skill(db):
-    return Skill.objects.create(name='Figma')
+def figma_skill(db, another_field):
+    return create_skill('Figma', unique('figma'), [another_field])
 
 
 @pytest.fixture
