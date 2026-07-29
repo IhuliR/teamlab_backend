@@ -66,6 +66,62 @@
           ]
         },
         {
+          "name": "Login second project owner",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/token/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "token",
+                "login",
+                ""
+              ]
+            },
+            "description": "Login for the seeded owner of the second demo project.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{second_project_owner_username}}\",\n  \"password\": \"{{second_project_owner_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Token pair returned\", function () {",
+                  "  pm.expect(json).to.have.property(\"access\");",
+                  "  pm.expect(json).to.have.property(\"refresh\");",
+                  "});",
+                  "pm.environment.set(\"second_project_owner_access_token\", json.access);",
+                  "pm.environment.set(\"second_project_owner_refresh_token\", json.refresh);",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set(\"second_project_owner_user_id\", json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Login backend participant",
           "request": {
             "method": "POST",
@@ -331,11 +387,9 @@
                   "const byName = Object.fromEntries(items.map(item => [item.name, item.id]));",
                   "if (byName[\"Разработка\"]) pm.environment.set(\"field_development_id\", byName[\"Разработка\"]);",
                   "if (byName[\"Дизайн\"]) pm.environment.set(\"field_design_id\", byName[\"Дизайн\"]);",
-                  "if (byName[\"AI\"]) pm.environment.set(\"field_ai_id\", byName[\"AI\"]);",
                   "pm.test(\"Seed fields can be discovered\", function () {",
                   "  pm.expect(byName).to.have.property(\"Разработка\");",
                   "  pm.expect(byName).to.have.property(\"Дизайн\");",
-                  "  pm.expect(byName).to.have.property(\"AI\");",
                   "});"
                 ]
               }
@@ -382,12 +436,13 @@
                   "const byName = Object.fromEntries(items.map(item => [item.name, item.id]));",
                   "if (byName[\"Backend-разработчик\"]) pm.environment.set(\"specialization_backend_id\", byName[\"Backend-разработчик\"]);",
                   "if (byName[\"Frontend-разработчик\"]) pm.environment.set(\"specialization_frontend_id\", byName[\"Frontend-разработчик\"]);",
-                  "if (byName[\"UI/UX-дизайнер\"]) pm.environment.set(\"specialization_designer_id\", byName[\"UI/UX-дизайнер\"]);",
-                  "if (byName[\"AI-дизайнер\"]) pm.environment.set(\"specialization_ai_designer_id\", byName[\"AI-дизайнер\"]);",
+                  "if (byName[\"UX/UI-дизайнер\"]) pm.environment.set(\"specialization_designer_id\", byName[\"UX/UI-дизайнер\"]);",
+                  "if (byName[\"Иллюстратор\"]) pm.environment.set(\"specialization_illustrator_id\", byName[\"Иллюстратор\"]);",
                   "pm.test(\"Seed specializations can be discovered\", function () {",
                   "  pm.expect(byName).to.have.property(\"Backend-разработчик\");",
                   "  pm.expect(byName).to.have.property(\"Frontend-разработчик\");",
-                  "  pm.expect(byName).to.have.property(\"UI/UX-дизайнер\");",
+                  "  pm.expect(byName).to.have.property(\"UX/UI-дизайнер\");",
+                  "  pm.expect(byName).to.have.property(\"Иллюстратор\");",
                   "});"
                 ]
               }
@@ -434,15 +489,15 @@
                   "const byName = Object.fromEntries(items.map(item => [item.name, item.id]));",
                   "if (byName[\"Python\"]) pm.environment.set(\"skill_python_id\", byName[\"Python\"]);",
                   "if (byName[\"Django\"]) pm.environment.set(\"skill_django_id\", byName[\"Django\"]);",
-                  "if (byName[\"DRF\"]) pm.environment.set(\"skill_drf_id\", byName[\"DRF\"]);",
                   "if (byName[\"React\"]) pm.environment.set(\"skill_react_id\", byName[\"React\"]);",
                   "if (byName[\"Figma\"]) pm.environment.set(\"skill_figma_id\", byName[\"Figma\"]);",
+                  "if (byName[\"Иллюстрация\"]) pm.environment.set(\"skill_illustration_id\", byName[\"Иллюстрация\"]);",
                   "pm.test(\"Seed skills can be discovered\", function () {",
                   "  pm.expect(byName).to.have.property(\"Python\");",
                   "  pm.expect(byName).to.have.property(\"Django\");",
-                  "  pm.expect(byName).to.have.property(\"DRF\");",
                   "  pm.expect(byName).to.have.property(\"React\");",
                   "  pm.expect(byName).to.have.property(\"Figma\");",
+                  "  pm.expect(byName).to.have.property(\"Иллюстрация\");",
                   "});"
                 ]
               }
@@ -450,7 +505,7 @@
           ]
         },
         {
-          "name": "Get projects and save demo project ID",
+          "name": "Get projects and save demo project IDs",
           "request": {
             "method": "GET",
             "header": [],
@@ -464,7 +519,7 @@
                 ""
               ]
             },
-            "description": "Discovers seeded demo project by title. Falls back to the first project if the seed title is not present."
+            "description": "Discovers both seeded demo projects by their stable titles."
           },
           "response": [],
           "event": [
@@ -486,12 +541,17 @@
                   "  pm.expect(items).to.be.an(\"array\");",
                   "});",
                   "",
-                  "const demo = items.find(item => item.title === \"Демо-проект TeamLab\") || items[0];",
-                  "pm.test(\"At least one project exists\", function () { pm.expect(demo).to.exist; });",
+                  "const demo = items.find(item => item.title === \"Демо-проект TeamLab\");",
+                  "const second = items.find(item => item.title === \"Второй проект для сравнения\");",
+                  "pm.test(\"Both seeded projects exist\", function () {",
+                  "  pm.expect(demo).to.exist;",
+                  "  pm.expect(second).to.exist;",
+                  "});",
                   "if (demo) {",
                   "  pm.environment.set(\"demo_project_id\", demo.id);",
-                  "  if (demo.title === \"Демо-проект TeamLab\") pm.environment.set(\"featured_project_id\", demo.id);",
-                  "}"
+                  "  pm.environment.set(\"featured_project_id\", demo.id);",
+                  "}",
+                  "if (second) pm.environment.set(\"second_project_id\", second.id);"
                 ]
               }
             }
@@ -537,8 +597,67 @@
                   "}",
                   "saveRole(\"Backend-разработчик\", \"backend_role_id\");",
                   "saveRole(\"Frontend-разработчик\", \"frontend_role_id\");",
-                  "saveRole(\"UI/UX-дизайнер\", \"designer_role_id\");",
-                  "pm.test(\"Project detail contains roles\", function () { pm.expect(roles.length).to.be.above(0); });"
+                  "saveRole(\"UX/UI-дизайнер\", \"designer_role_id\");",
+                  "pm.test(\"First project contains exactly its three seeded roles\", function () {",
+                  "  pm.expect(roles.map(item => item.specialization_name)).to.have.members([",
+                  "    \"Backend-разработчик\",",
+                  "    \"Frontend-разработчик\",",
+                  "    \"UX/UI-дизайнер\"",
+                  "  ]);",
+                  "});",
+                  "pm.test(\"First project has the expected owner\", function () {",
+                  "  pm.expect(String(json.owner_id)).to.eql(String(pm.environment.get(\"owner_user_id\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get second project detail and save illustrator role ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/projects/{{second_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{second_project_id}}",
+                ""
+              ]
+            },
+            "description": "Checks the second seeded project and saves its illustrator role ID."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.withBody;",
+                  "  pm.expect(function () { pm.response.json(); }).not.to.throw();",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const roles = json.roles || [];",
+                  "const illustrator = roles.find(item => item.specialization_name === \"Иллюстратор\");",
+                  "if (illustrator) pm.environment.set(\"illustrator_role_id\", illustrator.id);",
+                  "pm.test(\"Second project has the expected title and owner\", function () {",
+                  "  pm.expect(json.title).to.eql(\"Второй проект для сравнения\");",
+                  "  pm.expect(String(json.owner_id)).to.eql(String(pm.environment.get(\"second_project_owner_user_id\")));",
+                  "});",
+                  "pm.test(\"Illustrator role belongs only to the second project\", function () {",
+                  "  pm.expect(roles).to.have.lengthOf(1);",
+                  "  pm.expect(illustrator).to.exist;",
+                  "  pm.expect(String(illustrator.project_id)).to.eql(String(json.id));",
+                  "});"
                 ]
               }
             }
@@ -583,6 +702,7 @@
                   "",
                   "const byUsername = Object.fromEntries(items.map(item => [item.username, item.id]));",
                   "if (byUsername.demo_owner) pm.environment.set(\"owner_user_id\", byUsername.demo_owner);",
+                  "if (byUsername.second_project_owner) pm.environment.set(\"second_project_owner_user_id\", byUsername.second_project_owner);",
                   "if (byUsername.demo_backend) pm.environment.set(\"backend_user_id\", byUsername.demo_backend);",
                   "if (byUsername.demo_designer) pm.environment.set(\"designer_user_id\", byUsername.demo_designer);",
                   "if (byUsername.demo_member) pm.environment.set(\"member_user_id\", byUsername.demo_member);",
@@ -912,6 +1032,11 @@
                   "",
                   "pm.test(\"Project list items contain roles_preview\", function () {",
                   "  if (items.length) pm.expect(items[0]).to.have.property(\"roles_preview\");",
+                  "});",
+                  "pm.test(\"Both seeded projects are present in the catalog\", function () {",
+                  "  const titles = items.map(item => item.title);",
+                  "  pm.expect(titles).to.include(\"Демо-проект TeamLab\");",
+                  "  pm.expect(titles).to.include(\"Второй проект для сравнения\");",
                   "});"
                 ]
               }
@@ -958,6 +1083,13 @@
                   "",
                   "pm.test(\"Featured project response does not require featured_order\", function () {",
                   "  if (items.length) pm.expect(items[0]).to.not.have.property(\"featured_order\");",
+                  "});",
+                  "pm.test(\"Both seeded projects are featured in seed order\", function () {",
+                  "  const seeded = items.filter(item => [\"Демо-проект TeamLab\", \"Второй проект для сравнения\"].includes(item.title));",
+                  "  pm.expect(seeded.map(item => item.title)).to.eql([",
+                  "    \"Демо-проект TeamLab\",",
+                  "    \"Второй проект для сравнения\"",
+                  "  ]);",
                   "});"
                 ]
               }
@@ -1082,6 +1214,11 @@
                   "const items = Array.isArray(json) ? json : (json.results || []);",
                   "pm.test(\"Response is list or paginated list\", function () {",
                   "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "pm.test(\"Development filter keeps the first project and excludes the design project\", function () {",
+                  "  const ids = items.map(item => String(item.id));",
+                  "  pm.expect(ids).to.include(String(pm.environment.get(\"demo_project_id\")));",
+                  "  pm.expect(ids).to.not.include(String(pm.environment.get(\"second_project_id\")));",
                   "});"
                 ]
               }
@@ -1164,6 +1301,11 @@
                   "const items = Array.isArray(json) ? json : (json.results || []);",
                   "pm.test(\"Response is list or paginated list\", function () {",
                   "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "pm.test(\"Combined development and design filter contains both seeded projects\", function () {",
+                  "  const ids = items.map(item => String(item.id));",
+                  "  pm.expect(ids).to.include(String(pm.environment.get(\"demo_project_id\")));",
+                  "  pm.expect(ids).to.include(String(pm.environment.get(\"second_project_id\")));",
                   "});"
                 ]
               }
@@ -1246,6 +1388,11 @@
                   "const items = Array.isArray(json) ? json : (json.results || []);",
                   "pm.test(\"Response is list or paginated list\", function () {",
                   "  pm.expect(items).to.be.an(\"array\");",
+                  "});",
+                  "pm.test(\"Backend specialization filter excludes the illustrator project\", function () {",
+                  "  const ids = items.map(item => String(item.id));",
+                  "  pm.expect(ids).to.include(String(pm.environment.get(\"demo_project_id\")));",
+                  "  pm.expect(ids).to.not.include(String(pm.environment.get(\"second_project_id\")));",
                   "});"
                 ]
               }
@@ -1883,8 +2030,14 @@
                   "const json = pm.response.json();",
                   "pm.test(\"memberships is array\", function () { pm.expect(json.memberships).to.be.an(\"array\"); });",
                   "if (json.memberships && json.memberships.length) {",
-                  "  pm.environment.set(\"active_membership_id\", json.memberships[0].id);",
-                  "  pm.test(\"First membership is active\", function () { pm.expect(json.memberships[0].status).to.eql(\"active\"); });",
+                  "  const membership = json.memberships.find(item => String(item.project_id) === String(pm.environment.get(\"demo_project_id\")));",
+                  "  if (membership) pm.environment.set(\"active_membership_id\", membership.id);",
+                  "  pm.test(\"Active membership belongs to the first project\", function () {",
+                  "    pm.expect(membership).to.exist;",
+                  "    pm.expect(membership.status).to.eql(\"active\");",
+                  "    pm.expect(String(membership.project_role_id)).to.eql(String(pm.environment.get(\"frontend_role_id\")));",
+                  "    pm.expect(json.memberships.some(item => String(item.project_id) === String(pm.environment.get(\"second_project_id\")))).to.be.false;",
+                  "  });",
                   "}"
                 ]
               }
@@ -1933,8 +2086,14 @@
                   "const json = pm.response.json();",
                   "pm.test(\"invitations is array\", function () { pm.expect(json.invitations).to.be.an(\"array\"); });",
                   "if (json.invitations && json.invitations.length) {",
-                  "  pm.environment.set(\"designer_invitation_interest_id\", json.invitations[0].id);",
-                  "  pm.test(\"First invitation is pending\", function () { pm.expect(json.invitations[0].status).to.eql(\"pending\"); });",
+                  "  const invitation = json.invitations.find(item => String(item.project_id) === String(pm.environment.get(\"demo_project_id\")));",
+                  "  if (invitation) pm.environment.set(\"designer_invitation_interest_id\", invitation.id);",
+                  "  pm.test(\"Pending invitation belongs to the first project\", function () {",
+                  "    pm.expect(invitation).to.exist;",
+                  "    pm.expect(invitation.status).to.eql(\"pending\");",
+                  "    pm.expect(String(invitation.project_role_id)).to.eql(String(pm.environment.get(\"designer_role_id\")));",
+                  "    pm.expect(json.invitations.some(item => String(item.project_id) === String(pm.environment.get(\"second_project_id\")))).to.be.false;",
+                  "  });",
                   "}"
                 ]
               }
@@ -1986,9 +2145,13 @@
                   "  pm.expect(items).to.be.an(\"array\");",
                   "});",
                   "",
-                  "const pending = items.find(item => item.status === \"pending\");",
+                  "const pending = items.find(item => item.status === \"pending\" && String(item.project_id) === String(pm.environment.get(\"demo_project_id\")));",
                   "if (pending) pm.environment.set(\"backend_application_interest_id\", pending.id);",
-                  "pm.test(\"Applications list is readable\", function () { pm.expect(items).to.be.an(\"array\"); });"
+                  "pm.test(\"Pending application belongs to the first project backend role\", function () {",
+                  "  pm.expect(pending).to.exist;",
+                  "  pm.expect(String(pending.project_role_id)).to.eql(String(pm.environment.get(\"backend_role_id\")));",
+                  "  pm.expect(items.some(item => String(item.project_id) === String(pm.environment.get(\"second_project_id\")))).to.be.false;",
+                  "});"
                 ]
               }
             }
@@ -2127,7 +2290,7 @@
             "description": "Creates a project with nested roles per current contract. Does not send is_featured or featured_order. Saves created_project_id.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"title\": \"Postman Project {{$timestamp}}\",\n  \"description\": \"Created from Postman collection\",\n  \"problem\": \"Validate project create contract with nested roles.\",\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=\",\n  \"roles\": [\n    {\n      \"specialization_id\": \"{{specialization_ai_designer_id}}\",\n      \"tasks\": [\"Validate API contract\"],\n      \"benefits\": [\"Reusable Postman scenario\"],\n      \"skills\": [\n        {\"skill_id\": \"{{skill_figma_id}}\", \"description\": \"Design validation\", \"order\": 1}\n      ]\n    }\n  ]\n}",
+              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"title\": \"Postman Project {{$timestamp}}\",\n  \"description\": \"Created from Postman collection\",\n  \"problem\": \"Validate project create contract with nested roles.\",\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=\",\n  \"roles\": [\n    {\n      \"specialization_id\": \"{{specialization_backend_id}}\",\n      \"tasks\": [\"Validate API contract\"],\n      \"benefits\": [\"Reusable Postman scenario\"],\n      \"skills\": [\n        {\"skill_id\": \"{{skill_python_id}}\", \"description\": \"Backend validation\", \"order\": 1}\n      ]\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2257,8 +2420,12 @@
                   "  pm.expect(items).to.be.an(\"array\");",
                   "});",
                   "",
-                  "const app = items.find(item => item.source === \"application\" && item.status === \"pending\") || items[0];",
-                  "if (app) pm.environment.set(\"backend_application_interest_id\", app.id);"
+                  "const app = items.find(item => item.source === \"application\" && item.status === \"pending\");",
+                  "if (app) pm.environment.set(\"backend_application_interest_id\", app.id);",
+                  "pm.test(\"Seeded backend application uses the first project backend role\", function () {",
+                  "  pm.expect(app).to.exist;",
+                  "  pm.expect(String(app.project_role_id)).to.eql(String(pm.environment.get(\"backend_role_id\")));",
+                  "});"
                 ]
               }
             }
@@ -2309,8 +2476,98 @@
                   "  pm.expect(items).to.be.an(\"array\");",
                   "});",
                   "",
-                  "const invitation = items.find(item => item.source === \"invitation\" && item.status === \"pending\") || items[0];",
-                  "if (invitation) pm.environment.set(\"designer_invitation_interest_id\", invitation.id);"
+                  "const invitation = items.find(item => item.source === \"invitation\" && item.status === \"pending\");",
+                  "if (invitation) pm.environment.set(\"designer_invitation_interest_id\", invitation.id);",
+                  "pm.test(\"Seeded designer invitation uses the first project designer role\", function () {",
+                  "  pm.expect(invitation).to.exist;",
+                  "  pm.expect(String(invitation.project_role_id)).to.eql(String(pm.environment.get(\"designer_role_id\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second project applications are empty",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{second_project_owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{second_project_id}}/applications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{second_project_id}}",
+                "applications",
+                ""
+              ]
+            },
+            "description": "The seed intentionally creates no applications for the second project."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Second project has no applications\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\").and.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second project invitations are empty",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{second_project_owner_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/{{second_project_id}}/invitations/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "{{second_project_id}}",
+                "invitations",
+                ""
+              ]
+            },
+            "description": "The seed intentionally creates no invitations for the second project."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "const items = Array.isArray(json) ? json : (json.results || []);",
+                  "pm.test(\"Second project has no invitations\", function () {",
+                  "  pm.expect(items).to.be.an(\"array\").and.empty;",
+                  "});"
                 ]
               }
             }
@@ -3110,7 +3367,7 @@
             "description": "Participants cannot create projects. Expected 403.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"title\": \"Postman Project {{$timestamp}}\",\n  \"description\": \"Created from Postman collection\",\n  \"problem\": \"Validate project create contract with nested roles.\",\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=\",\n  \"roles\": [\n    {\n      \"specialization_id\": \"{{specialization_ai_designer_id}}\",\n      \"tasks\": [\"Validate API contract\"],\n      \"benefits\": [\"Reusable Postman scenario\"],\n      \"skills\": [\n        {\"skill_id\": \"{{skill_figma_id}}\", \"description\": \"Design validation\", \"order\": 1}\n      ]\n    }\n  ]\n}",
+              "raw": "{\n  \"field_id\": \"{{field_development_id}}\",\n  \"title\": \"Postman Project {{$timestamp}}\",\n  \"description\": \"Created from Postman collection\",\n  \"problem\": \"Validate project create contract with nested roles.\",\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=\",\n  \"roles\": [\n    {\n      \"specialization_id\": \"{{specialization_backend_id}}\",\n      \"tasks\": [\"Validate API contract\"],\n      \"benefits\": [\"Reusable Postman scenario\"],\n      \"skills\": [\n        {\"skill_id\": \"{{skill_python_id}}\", \"description\": \"Backend validation\", \"order\": 1}\n      ]\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

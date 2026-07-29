@@ -1,0 +1,957 @@
+{
+  "fields": [
+    {
+      "key": "design",
+      "name": "Дизайн",
+      "is_featured": true,
+      "featured_order": 1
+    },
+    {
+      "key": "audio-music",
+      "name": "Звук и музыка",
+      "is_featured": true,
+      "featured_order": 2
+    },
+    {
+      "key": "content",
+      "name": "Контент",
+      "is_featured": true,
+      "featured_order": 3
+    },
+    {
+      "key": "marketing",
+      "name": "Маркетинг и продвижение",
+      "is_featured": true,
+      "featured_order": 4
+    },
+    {
+      "key": "development",
+      "name": "Разработка",
+      "is_featured": true,
+      "featured_order": 5
+    },
+    {
+      "key": "production",
+      "name": "Съёмки и продакшн",
+      "is_featured": true,
+      "featured_order": 6
+    },
+    {
+      "key": "product",
+      "name": "Продукт",
+      "is_featured": true,
+      "featured_order": 7
+    }
+  ],
+  "specializations": [
+    {
+      "name": "UX/UI-дизайнер",
+      "field": "design"
+    },
+    {
+      "name": "Продуктовый дизайнер",
+      "field": "design"
+    },
+    {
+      "name": "Графический дизайнер",
+      "field": "design"
+    },
+    {
+      "name": "Иллюстратор",
+      "field": "design"
+    },
+    {
+      "name": "Моушн-дизайнер",
+      "field": "design"
+    },
+    {
+      "name": "Художник",
+      "field": "design"
+    },
+    {
+      "name": "Звукорежиссёр",
+      "field": "audio-music"
+    },
+    {
+      "name": "Саунд-дизайнер",
+      "field": "audio-music"
+    },
+    {
+      "name": "Композитор",
+      "field": "audio-music"
+    },
+    {
+      "name": "Музыкальный продюсер",
+      "field": "audio-music"
+    },
+    {
+      "name": "Музыкант-исполнитель",
+      "field": "audio-music"
+    },
+    {
+      "name": "Копирайтер",
+      "field": "content"
+    },
+    {
+      "name": "Контент-редактор",
+      "field": "content"
+    },
+    {
+      "name": "Сценарист",
+      "field": "content"
+    },
+    {
+      "name": "Контент-креатор",
+      "field": "content"
+    },
+    {
+      "name": "Маркетолог",
+      "field": "marketing"
+    },
+    {
+      "name": "SMM-специалист",
+      "field": "marketing"
+    },
+    {
+      "name": "Performance-маркетолог",
+      "field": "marketing"
+    },
+    {
+      "name": "PR-менеджер",
+      "field": "marketing"
+    },
+    {
+      "name": "Frontend-разработчик",
+      "field": "development"
+    },
+    {
+      "name": "Backend-разработчик",
+      "field": "development"
+    },
+    {
+      "name": "Fullstack-разработчик",
+      "field": "development"
+    },
+    {
+      "name": "Мобильный разработчик",
+      "field": "development"
+    },
+    {
+      "name": "Разработчик игр",
+      "field": "development"
+    },
+    {
+      "name": "Разработчик ПО",
+      "field": "development"
+    },
+    {
+      "name": "Продюсер",
+      "field": "production"
+    },
+    {
+      "name": "Режиссёр",
+      "field": "production"
+    },
+    {
+      "name": "Видеооператор",
+      "field": "production"
+    },
+    {
+      "name": "Монтажёр",
+      "field": "production"
+    },
+    {
+      "name": "Актёр",
+      "field": "production"
+    },
+    {
+      "name": "Менеджер продукта",
+      "field": "product"
+    },
+    {
+      "name": "Продуктовый аналитик",
+      "field": "product"
+    },
+    {
+      "name": "UX-исследователь",
+      "field": "product"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Figma",
+      "slug": "figma",
+      "fields": [
+        "design",
+        "product"
+      ]
+    },
+    {
+      "name": "Adobe Photoshop",
+      "slug": "adobe-photoshop",
+      "fields": [
+        "design",
+        "content",
+        "production"
+      ]
+    },
+    {
+      "name": "Adobe Illustrator",
+      "slug": "adobe-illustrator",
+      "fields": [
+        "design"
+      ]
+    },
+    {
+      "name": "Procreate",
+      "slug": "procreate",
+      "fields": [
+        "design"
+      ]
+    },
+    {
+      "name": "Adobe After Effects",
+      "slug": "adobe-after-effects",
+      "fields": [
+        "design",
+        "production"
+      ]
+    },
+    {
+      "name": "Miro",
+      "slug": "miro",
+      "fields": [
+        "design",
+        "product",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Maze",
+      "slug": "maze",
+      "fields": [
+        "design",
+        "product"
+      ]
+    },
+    {
+      "name": "Проектирование сложных интерфейсов",
+      "slug": "complex-interface-design",
+      "fields": [
+        "design"
+      ]
+    },
+    {
+      "name": "Вайрфреймы",
+      "slug": "wireframing",
+      "fields": [
+        "design",
+        "product"
+      ]
+    },
+    {
+      "name": "Интерактивное прототипирование",
+      "slug": "interactive-prototyping",
+      "fields": [
+        "design",
+        "product"
+      ]
+    },
+    {
+      "name": "Адаптивный дизайн",
+      "slug": "responsive-design",
+      "fields": [
+        "design",
+        "development"
+      ]
+    },
+    {
+      "name": "Дизайн-системы",
+      "slug": "design-systems",
+      "fields": [
+        "design",
+        "development"
+      ]
+    },
+    {
+      "name": "Информационная архитектура",
+      "slug": "information-architecture",
+      "fields": [
+        "design",
+        "content",
+        "product"
+      ]
+    },
+    {
+      "name": "Пользовательские сценарии",
+      "slug": "user-flows",
+      "fields": [
+        "design",
+        "product"
+      ]
+    },
+    {
+      "name": "UX-исследования",
+      "slug": "ux-research",
+      "fields": [
+        "design",
+        "product"
+      ]
+    },
+    {
+      "name": "Типографика",
+      "slug": "typography",
+      "fields": [
+        "design",
+        "content"
+      ]
+    },
+    {
+      "name": "Айдентика",
+      "slug": "visual-identity",
+      "fields": [
+        "design",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Иллюстрация",
+      "slug": "illustration",
+      "fields": [
+        "design"
+      ]
+    },
+    {
+      "name": "Моушн-графика",
+      "slug": "motion-graphics",
+      "fields": [
+        "design",
+        "production"
+      ]
+    },
+    {
+      "name": "Запись звука",
+      "slug": "sound-recording",
+      "fields": [
+        "audio-music",
+        "production"
+      ]
+    },
+    {
+      "name": "Аудиомонтаж",
+      "slug": "audio-editing",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Сведение",
+      "slug": "mixing",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Мастеринг",
+      "slug": "mastering",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Саунд-дизайн",
+      "slug": "sound-design",
+      "fields": [
+        "audio-music",
+        "development"
+      ]
+    },
+    {
+      "name": "Композиция",
+      "slug": "music-composition",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Аранжировка",
+      "slug": "arrangement",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Ableton Live",
+      "slug": "ableton-live",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Logic Pro",
+      "slug": "logic-pro",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Pro Tools",
+      "slug": "pro-tools",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Инструментальное исполнение",
+      "slug": "instrument-performance",
+      "fields": [
+        "audio-music"
+      ]
+    },
+    {
+      "name": "Вокальное исполнение",
+      "slug": "vocal-performance",
+      "fields": [
+        "audio-music",
+        "production"
+      ]
+    },
+    {
+      "name": "Копирайтинг",
+      "slug": "copywriting",
+      "fields": [
+        "content",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Редактура",
+      "slug": "editing",
+      "fields": [
+        "content"
+      ]
+    },
+    {
+      "name": "Корректура",
+      "slug": "proofreading",
+      "fields": [
+        "content"
+      ]
+    },
+    {
+      "name": "Сценарное письмо",
+      "slug": "scriptwriting",
+      "fields": [
+        "content",
+        "production"
+      ]
+    },
+    {
+      "name": "Сторителлинг",
+      "slug": "storytelling",
+      "fields": [
+        "content",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Тональность коммуникации",
+      "slug": "tone-of-voice",
+      "fields": [
+        "content",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Контент-планирование",
+      "slug": "content-planning",
+      "fields": [
+        "content",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Редакционное планирование",
+      "slug": "editorial-planning",
+      "fields": [
+        "content"
+      ]
+    },
+    {
+      "name": "SEO-копирайтинг",
+      "slug": "seo-copywriting",
+      "fields": [
+        "content",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Лонгриды",
+      "slug": "long-form-content",
+      "fields": [
+        "content"
+      ]
+    },
+    {
+      "name": "Короткий контент",
+      "slug": "short-form-content",
+      "fields": [
+        "content",
+        "marketing",
+        "production"
+      ]
+    },
+    {
+      "name": "Контент-маркетинг",
+      "slug": "content-marketing",
+      "fields": [
+        "marketing",
+        "content"
+      ]
+    },
+    {
+      "name": "SMM",
+      "slug": "social-media-marketing",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "Комьюнити-менеджмент",
+      "slug": "community-management",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "Performance-маркетинг",
+      "slug": "performance-marketing",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "Google Ads",
+      "slug": "google-ads",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "Meta Ads",
+      "slug": "meta-ads",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "SEO",
+      "slug": "seo",
+      "fields": [
+        "marketing",
+        "content"
+      ]
+    },
+    {
+      "name": "Email-маркетинг",
+      "slug": "email-marketing",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "Веб-аналитика",
+      "slug": "web-analytics",
+      "fields": [
+        "marketing",
+        "product"
+      ]
+    },
+    {
+      "name": "UTM-разметка",
+      "slug": "utm-tagging",
+      "fields": [
+        "marketing",
+        "product"
+      ]
+    },
+    {
+      "name": "A/B testing",
+      "slug": "ab-testing",
+      "fields": [
+        "marketing",
+        "product"
+      ]
+    },
+    {
+      "name": "Планирование кампаний",
+      "slug": "campaign-planning",
+      "fields": [
+        "marketing",
+        "production"
+      ]
+    },
+    {
+      "name": "PR-коммуникации",
+      "slug": "pr-communications",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "Работа со СМИ",
+      "slug": "media-outreach",
+      "fields": [
+        "marketing"
+      ]
+    },
+    {
+      "name": "HTML",
+      "slug": "html",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "CSS",
+      "slug": "css",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "JavaScript",
+      "slug": "javascript",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "TypeScript",
+      "slug": "typescript",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "React",
+      "slug": "react",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "REST API",
+      "slug": "rest-api",
+      "fields": [
+        "development",
+        "product"
+      ]
+    },
+    {
+      "name": "Интеграция API",
+      "slug": "api-integration",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Python",
+      "slug": "python",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Django",
+      "slug": "django",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Node.js",
+      "slug": "node-js",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "PostgreSQL",
+      "slug": "postgresql",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "SQL",
+      "slug": "sql",
+      "fields": [
+        "development",
+        "product"
+      ]
+    },
+    {
+      "name": "Git",
+      "slug": "git",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Тестирование",
+      "slug": "testing",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "CI/CD",
+      "slug": "ci-cd",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Docker",
+      "slug": "docker",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Скриптовая автоматизация",
+      "slug": "automation-scripting",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Разработка ботов",
+      "slug": "bot-development",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "React Native",
+      "slug": "react-native",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Unity",
+      "slug": "unity",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Unreal Engine",
+      "slug": "unreal-engine",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Разработка desktop-приложений",
+      "slug": "desktop-application-development",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Архитектура ПО",
+      "slug": "software-architecture",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Проектирование баз данных",
+      "slug": "database-design",
+      "fields": [
+        "development"
+      ]
+    },
+    {
+      "name": "Режиссура",
+      "slug": "directing",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Планирование кадров",
+      "slug": "shot-planning",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Раскадровка",
+      "slug": "storyboarding",
+      "fields": [
+        "production",
+        "design",
+        "content"
+      ]
+    },
+    {
+      "name": "Операторская работа",
+      "slug": "camera-operation",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Постановка света",
+      "slug": "lighting-setup",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Видеомонтаж",
+      "slug": "video-editing",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Цветокоррекция",
+      "slug": "color-grading",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Adobe Premiere Pro",
+      "slug": "adobe-premiere-pro",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "DaVinci Resolve",
+      "slug": "davinci-resolve",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Управление продакшном",
+      "slug": "production-management",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Создание Reels",
+      "slug": "reels-production",
+      "fields": [
+        "production",
+        "content",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Работа в кадре",
+      "slug": "on-camera-performance",
+      "fields": [
+        "production"
+      ]
+    },
+    {
+      "name": "Продуктовое discovery",
+      "slug": "product-discovery",
+      "fields": [
+        "product"
+      ]
+    },
+    {
+      "name": "Планирование roadmap",
+      "slug": "roadmapping",
+      "fields": [
+        "product"
+      ]
+    },
+    {
+      "name": "Управление backlog",
+      "slug": "backlog-management",
+      "fields": [
+        "product"
+      ]
+    },
+    {
+      "name": "JTBD",
+      "slug": "jtbd",
+      "fields": [
+        "product"
+      ]
+    },
+    {
+      "name": "Пользовательские истории",
+      "slug": "user-stories",
+      "fields": [
+        "product",
+        "development"
+      ]
+    },
+    {
+      "name": "Проверка гипотез",
+      "slug": "hypothesis-testing",
+      "fields": [
+        "product",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Продуктовая аналитика",
+      "slug": "product-analytics",
+      "fields": [
+        "product"
+      ]
+    },
+    {
+      "name": "Событийная аналитика",
+      "slug": "event-tracking",
+      "fields": [
+        "product",
+        "marketing"
+      ]
+    },
+    {
+      "name": "Анализ метрик",
+      "slug": "metrics-analysis",
+      "fields": [
+        "product"
+      ]
+    },
+    {
+      "name": "Пользовательские интервью",
+      "slug": "user-interviews",
+      "fields": [
+        "product",
+        "design"
+      ]
+    },
+    {
+      "name": "Юзабилити-тестирование",
+      "slug": "usability-testing",
+      "fields": [
+        "product",
+        "design"
+      ]
+    },
+    {
+      "name": "Синтез исследований",
+      "slug": "research-synthesis",
+      "fields": [
+        "product",
+        "design"
+      ]
+    }
+  ]
+}

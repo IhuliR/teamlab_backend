@@ -9,6 +9,7 @@ from django.core.management.utils import get_random_secret_key
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 ROOT_DIR = BASE_DIR.parent
+DATA_DIR = BASE_DIR/ 'data'
 STATIC_URL = "static/"
 
 STATICFILES_DIRS = [
