@@ -328,7 +328,12 @@ class Command(BaseCommand):
         )
         return project_role
 
-    def create_projects_roles(self, projects, specializations_by_name, skills_by_slug):
+    def create_projects_roles(
+            self,
+            projects,
+            specializations_by_name,
+            skills_by_slug
+    ):
         demo_project_backend_role = self.create_project_role(
             project=projects['demo_project'],
             specialization=specializations_by_name['Backend-разработчик'],

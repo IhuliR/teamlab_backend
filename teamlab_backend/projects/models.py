@@ -310,13 +310,6 @@ class ProjectMembership(models.Model):
         verbose_name = 'Участие в проекте'
         verbose_name_plural = 'Участия в проекте'
         ordering = ('user', 'project_role')
-        constraints = [
-            models.UniqueConstraint(
-                fields=['project_role'],
-                condition=models.Q(status='active'),
-                name='unique_active_membership_per_project_role'
-            )
-        ]
     
     def __str__(self):
         return f'{self.user} - {self.project_role}: {self.status}'
