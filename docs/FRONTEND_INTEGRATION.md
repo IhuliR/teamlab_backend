@@ -446,7 +446,7 @@ Favorites предназначены для participant. Повторное до
 - `docs/FAQ.md` - частые вопросы по MVP-решениям.
 - `docs/ARCHITECTURE.md` - архитектурные границы backend-а.
 - `docs/STYLE_GUIDE.md` - правила API/backend-стиля.
-- `docs/AGENTS.md` - типовые риски и запреты для изменений.
+- `docs/DOMAIN_INVARIANTS.md` - типовые риски и запреты для изменений.
 - `docs/api/teamlab_api_schema_8.yml` - главный OpenAPI-контракт.
 - `postman_collection/teamlab.postman_collection.json` - demo-flow запросов.
 - `postman_collection/teamlab.postman_environment.json` - локальное Postman окружение.
