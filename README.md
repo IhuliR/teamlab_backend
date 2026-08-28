@@ -27,7 +27,7 @@ TeamLab — платформа для формирования команд по
 ## Стек
 
 - **Backend:** Python, Django 5.1, Django REST Framework, Simple JWT, django-filter, django-cors-headers.
-- **Database:** SQLite в текущей локальной конфигурации.
+- **Database:** SQLite в текущей конфигурации; переход на PostgreSQL планируется перед deployment.
 - **Testing:** pytest, pytest-django.
 - **API contract:** OpenAPI 3.0, Postman collection.
 
