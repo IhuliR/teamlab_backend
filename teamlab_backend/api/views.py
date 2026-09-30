@@ -54,6 +54,7 @@ from .filters import (
     UserFilter,
     SkillFilter
 )
+from .mixins import PaginatedActionMixin
 from projects.services import (
     accept_role_interest,
     reject_role_interest,
@@ -88,6 +89,7 @@ class SkillListView(
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
     permission_classes = (IsAuthenticatedOrReadOnly,)
+    pagination_class = None
     filterset_class = SkillFilter
     filter_backends = (
         DjangoFilterBackend,
@@ -106,6 +108,7 @@ class FieldListView(
     queryset = Field.objects.all()
     serializer_class = FieldSerializer
     permission_classes = (AllowAny,)
+    pagination_class = None
     filter_backends = (
         filters.SearchFilter,
         filters.OrderingFilter,
@@ -130,6 +133,7 @@ class SpecializationListView(
     queryset = Specialization.objects.select_related('field')
     serializer_class = SpecializationSerializer
     permission_classes = (AllowAny,)
+    pagination_class = None
     filter_backends = (
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -142,11 +146,12 @@ class SpecializationListView(
 
 
 class ProjectViewSet(
+    PaginatedActionMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
-    viewsets.GenericViewSet
+    viewsets.GenericViewSet,
 ):
     queryset = Project.objects.all()
     http_method_names = ('get', 'post', 'patch', 'head', 'options')
@@ -243,13 +248,7 @@ class ProjectViewSet(
             status=Project.Status.OPEN,
         ).order_by('featured_order', '-created_at')
 
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return self.get_paginated_action_response(queryset)
     
     @action(detail=True, methods=('get', 'post'), url_path='applications')
     def applications(self, request, pk=None):
@@ -275,12 +274,10 @@ class ProjectViewSet(
                 'user__skills__skill',
             ).order_by('-created_at')
 
-            serializer = ProjectApplicationCardSerializer(
+            return self.get_paginated_action_response(
                 queryset,
-                many=True,
-                context=self.get_serializer_context(),
+                serializer_class=ProjectApplicationCardSerializer,
             )
-            return Response(serializer.data)
         
         interest = create_project_application(
             project=project,
@@ -313,12 +310,10 @@ class ProjectViewSet(
                 'project_role__specialization',
             ).order_by('-created_at')
 
-            serializer = ProjectInvitationCardSerializer(
+            return self.get_paginated_action_response(
                 queryset,
-                many=True,
-                context=self.get_serializer_context(),
+                serializer_class=ProjectInvitationCardSerializer,
             )
-            return Response(serializer.data)
         
         input_serializer = ProjectInvitationCreateSerializer(
             data=request.data,
@@ -340,6 +335,7 @@ class ProjectViewSet(
 
 
 class UserViewSet(
+    PaginatedActionMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
@@ -484,13 +480,7 @@ class UserViewSet(
             'project_role__specialization',
         ).order_by('-created_at')
 
-        serializer = CurrentUserApplicationCardSerializer(
-            applications,
-            many=True,
-            context=self.get_serializer_context(),
-        )
-
-        return Response(serializer.data)
+        return self.get_paginated_action_response(applications)
 
     @action(
         detail=False,
@@ -521,18 +511,14 @@ class UserViewSet(
             'project_role__specialization',
         ).order_by('-created_at')
 
-        serializer = CurrentUserNotificationSerializer(
-            queryset,
-            many=True,
-            context=self.get_serializer_context(),
-        )
-        return Response(serializer.data)
+        return self.get_paginated_action_response(queryset)
     
 
 class CurrentUserPortfolioWorkListCreateView(
     generics.ListCreateAPIView,
 ):
     permission_classes = (IsAuthenticated,)
+    pagination_class = None
 
     def get_queryset(self):
         return PortfolioWork.objects.filter(
@@ -569,6 +555,7 @@ class CurrentUserFavoriteProjectListCreateView(
     generics.ListCreateAPIView,
 ):
     permission_classes = (IsAuthenticated,)
+    pagination_class = None
 
     def get_queryset(self):
         return FavoriteProject.objects.filter(
@@ -658,6 +645,7 @@ class ProjectRoleViewSet(
 ):
     queryset = ProjectRole.objects.all()
     http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
+    pagination_class = None
 
     def get_queryset(self):
         return ProjectRole.objects.select_related(
