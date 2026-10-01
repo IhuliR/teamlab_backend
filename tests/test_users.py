@@ -511,7 +511,10 @@ def test_my_applications_returns_pending_applications(
     response = api_request(backend_client, 'get', '/api/v1/users/me/applications/')
 
     assert response.status_code == 200
-    assert any(item['id'] == pending_application.pk for item in response.json())
+    assert any(
+        item['id'] == pending_application.pk
+        for item in results(response.json())
+    )
 
 
 def test_owner_notifications_return_pending_applications(
@@ -522,7 +525,10 @@ def test_owner_notifications_return_pending_applications(
     response = api_request(owner_client, 'get', '/api/v1/users/me/notifications/')
 
     assert response.status_code == 200
-    assert any(item['id'] == pending_application.pk for item in response.json())
+    assert any(
+        item['id'] == pending_application.pk
+        for item in results(response.json())
+    )
 
 
 def test_participant_notifications_return_pending_invitations(
@@ -533,4 +539,7 @@ def test_participant_notifications_return_pending_invitations(
     response = api_request(designer_client, 'get', '/api/v1/users/me/notifications/')
 
     assert response.status_code == 200
-    assert any(item['id'] == pending_invitation.pk for item in response.json())
+    assert any(
+        item['id'] == pending_invitation.pk
+        for item in results(response.json())
+    )
