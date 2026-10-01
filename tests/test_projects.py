@@ -320,6 +320,26 @@ def test_project_create_does_not_allow_public_featured_control(
     assert 'featured_order' not in response.json()
 
 
+def test_owner_can_create_project_with_nullable_problem_and_image(
+    owner_client,
+    api_request,
+    project_payload,
+):
+    payload = dict(project_payload, problem=None, image=None)
+
+    response = api_request(
+        owner_client,
+        'post',
+        '/api/v1/projects/',
+        data=payload,
+    )
+
+    assert response.status_code == 201
+    project = Project.objects.get(pk=response.json()['id'])
+    assert project.problem is None
+    assert not project.image
+
+
 def test_owner_can_patch_own_project(owner_client, api_request, project):
     response = api_request(
         owner_client,
@@ -366,6 +386,37 @@ def test_project_patch_does_not_allow_featured_control(
     assert project.featured_order == 0
 
 
+def test_owner_can_patch_project_nullable_problem_and_image(
+    owner_client,
+    api_request,
+    project,
+):
+    response = api_request(
+        owner_client,
+        'patch',
+        f'/api/v1/projects/{project.pk}/',
+        data={'problem': None, 'image': None},
+    )
+
+    assert response.status_code == 200
+    project.refresh_from_db()
+    assert project.problem is None
+    assert not project.image
+
+    response = api_request(
+        owner_client,
+        'patch',
+        f'/api/v1/projects/{project.pk}/',
+        data={'title': 'Title without nullable fields'},
+    )
+
+    assert response.status_code == 200
+    project.refresh_from_db()
+    assert project.title == 'Title without nullable fields'
+    assert project.problem is None
+    assert not project.image
+
+
 def test_project_create_rejects_duplicate_role_specialization(
     owner_client,
     api_request,
@@ -383,3 +434,27 @@ def test_project_create_rejects_duplicate_role_specialization(
 
     assert response.status_code == 400
     assert ProjectRole.objects.filter(project__title=project_payload['title']).count() == 0
+
+
+def test_project_create_rejects_nested_duplicate_role_skill(
+    owner_client,
+    api_request,
+    project_payload,
+):
+    role = dict(project_payload['roles'][0])
+    skill = role['skills'][0]
+    role['skills'] = [
+        skill,
+        dict(skill, order=2),
+    ]
+    payload = dict(project_payload, roles=[role])
+
+    response = api_request(
+        owner_client,
+        'post',
+        '/api/v1/projects/',
+        data=payload,
+    )
+
+    assert response.status_code == 400
+    assert Project.objects.filter(title=project_payload['title']).count() == 0

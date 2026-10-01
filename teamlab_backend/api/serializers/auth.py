@@ -136,7 +136,13 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
             raise InvalidToken(error.args[0])
 
         user_id = refresh[api_settings.USER_ID_CLAIM]
-        user = User.objects.get(**{api_settings.USER_ID_FIELD: user_id})
+
+        try:
+            user = User.objects.get(**{api_settings.USER_ID_FIELD: user_id})
+        except User.DoesNotExist:
+            raise InvalidToken(
+                'Пользователь не найден.'
+            ) from None
 
         data = super().validate(attrs)
         data['user'] = AuthUserSerializer(user).data

@@ -189,6 +189,107 @@ def test_user_can_patch_current_profile(
     assert participant_backend_user.skills.get().skill_id == python_skill.pk
 
 
+def test_user_can_patch_allowed_social_links(
+    backend_client,
+    api_request,
+    participant_backend_user,
+):
+    response = api_request(
+        backend_client,
+        'patch',
+        '/api/v1/users/me/',
+        data={'social_links': {'github': 'teamlab', 'telegram': '@teamlab'}},
+    )
+
+    assert response.status_code == 200
+    participant_backend_user.refresh_from_db()
+    assert participant_backend_user.social_links == {
+        'github': 'teamlab',
+        'telegram': '@teamlab',
+    }
+
+
+def test_user_can_clear_social_links_with_empty_object(
+    backend_client,
+    api_request,
+    participant_backend_user,
+):
+    participant_backend_user.social_links = {'github': 'teamlab'}
+    participant_backend_user.save(update_fields=('social_links',))
+
+    response = api_request(
+        backend_client,
+        'patch',
+        '/api/v1/users/me/',
+        data={'social_links': {}},
+    )
+
+    assert response.status_code == 200
+    participant_backend_user.refresh_from_db()
+    assert participant_backend_user.social_links == {}
+
+
+def test_user_patch_rejects_unknown_social_link_key(
+    backend_client,
+    api_request,
+):
+    response = api_request(
+        backend_client,
+        'patch',
+        '/api/v1/users/me/',
+        data={'social_links': {'linkedin': 'teamlab'}},
+    )
+
+    assert response.status_code == 400
+    assert 'social_links' in response.json()
+
+
+def test_user_patch_rejects_null_social_links(
+    backend_client,
+    api_request,
+):
+    response = api_request(
+        backend_client,
+        'patch',
+        '/api/v1/users/me/',
+        data={'social_links': None},
+    )
+
+    assert response.status_code == 400
+    assert 'social_links' in response.json()
+
+
+@pytest.mark.parametrize(
+    'invalid_value',
+    [
+        123,
+        {'nested': 'value'},
+        ['teamlab'],
+        True,
+    ],
+)
+def test_user_patch_rejects_non_string_social_link_values(
+    backend_client,
+    api_request,
+    participant_backend_user,
+    invalid_value,
+):
+    participant_backend_user.social_links = {'github': 'teamlab'}
+    participant_backend_user.save(update_fields=('social_links',))
+
+    response = api_request(
+        backend_client,
+        'patch',
+        '/api/v1/users/me/',
+        data={'social_links': {'github': invalid_value}},
+    )
+
+    assert response.status_code == 400
+    assert 'social_links' in response.json()
+    participant_backend_user.refresh_from_db()
+    assert participant_backend_user.social_links == {'github': 'teamlab'}
+
+
 def test_user_search_matches_display_name(
     api_client,
     api_request,
@@ -515,6 +616,102 @@ def test_my_applications_returns_pending_applications(
         item['id'] == pending_application.pk
         for item in results(response.json())
     )
+
+
+def test_my_applications_returns_all_application_statuses_by_default(
+    backend_client,
+    api_request,
+    participant_backend_user,
+    pending_application,
+    frontend_project_role,
+    designer_project_role,
+):
+    accepted = RoleInterest.objects.create(
+        user=participant_backend_user,
+        project_role=frontend_project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.ACCEPTED,
+    )
+    rejected = RoleInterest.objects.create(
+        user=participant_backend_user,
+        project_role=designer_project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.REJECTED,
+    )
+
+    response = api_request(
+        backend_client,
+        'get',
+        '/api/v1/users/me/applications/?limit=2',
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data['count'] == 3
+    assert len(data['results']) == 2
+    ids = {item['id'] for item in data['results']}
+    assert ids <= {pending_application.pk, accepted.pk, rejected.pk}
+
+
+@pytest.mark.parametrize(
+    ('status_filter', 'expected_fixture'),
+    [
+        ('pending', 'pending_application'),
+        ('accepted', 'accepted_application'),
+        ('rejected', 'rejected_application'),
+    ],
+)
+def test_my_applications_can_be_filtered_by_status(
+    backend_client,
+    api_request,
+    participant_backend_user,
+    frontend_project_role,
+    designer_project_role,
+    pending_application,
+    status_filter,
+    expected_fixture,
+):
+    accepted_application = RoleInterest.objects.create(
+        user=participant_backend_user,
+        project_role=frontend_project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.ACCEPTED,
+    )
+    rejected_application = RoleInterest.objects.create(
+        user=participant_backend_user,
+        project_role=designer_project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.REJECTED,
+    )
+    expected = {
+        'pending_application': pending_application,
+        'accepted_application': accepted_application,
+        'rejected_application': rejected_application,
+    }[expected_fixture]
+
+    response = api_request(
+        backend_client,
+        'get',
+        f'/api/v1/users/me/applications/?status={status_filter}',
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in results(response.json())}
+    assert ids == {expected.pk}
+
+
+def test_my_applications_rejects_invalid_status(
+    backend_client,
+    api_request,
+):
+    response = api_request(
+        backend_client,
+        'get',
+        '/api/v1/users/me/applications/?status=unknown',
+    )
+
+    assert response.status_code == 400
+    assert 'status' in response.json()
 
 
 def test_owner_notifications_return_pending_applications(

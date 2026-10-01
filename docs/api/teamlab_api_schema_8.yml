@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: TeamLab API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     API MVP-платформы TeamLab.
 
@@ -42,6 +42,19 @@ tags:
     description: Action endpoints для завершения участия
 
 paths:
+  /api/v1/:
+    get:
+      summary: Корень API
+      description: Автоматический discovery endpoint DRF DefaultRouter со ссылками на основные коллекции.
+      operationId: apiRoot
+      responses:
+        '200':
+          description: Карта основных collection endpoints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiRoot'
+
   /api/v1/auth/token/login/:
     post:
       tags: [Auth]
@@ -87,6 +100,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenRefreshResponse'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
 
@@ -160,7 +175,7 @@ paths:
         - name: ordering
           in: query
           description: |
-            Сортировка минимум по `created_at`, `updated_at`, `username`.
+            Сортировка по `created_at`, `updated_at` или `username`.
             Пример: `ordering=-created_at`.
           schema:
             type: string
@@ -198,6 +213,8 @@ paths:
                     search_status: looking_for_team
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
     post:
       tags: [Users]
       summary: Регистрация пользователя
@@ -364,6 +381,7 @@ paths:
             type: string
         - name: ordering
           in: query
+          description: Сортировка по `name` или `created_at`; префикс `-` задаёт обратный порядок.
           schema:
             type: string
         - name: field_ids
@@ -380,6 +398,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Skill'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
 
   /api/v1/specializations/:
     get:
@@ -399,6 +419,11 @@ paths:
           in: query
           schema:
             type: integer
+        - name: ordering
+          in: query
+          description: Сортировка по `name` или `created_at`; префикс `-` задаёт обратный порядок.
+          schema:
+            type: string
       responses:
         '200':
           description: Список специализаций
@@ -408,6 +433,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Specialization'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
 
   /api/v1/fields/:
     get:
@@ -421,6 +448,11 @@ paths:
       parameters:
         - name: search
           in: query
+          schema:
+            type: string
+        - name: ordering
+          in: query
+          description: Сортировка по `name` или `created_at`; префикс `-` задаёт обратный порядок.
           schema:
             type: string
       responses:
@@ -502,7 +534,7 @@ paths:
         - name: ordering
           in: query
           description: |
-            Сортировка минимум по `created_at`, `updated_at`, `title`.
+            Сортировка по `created_at`, `updated_at` или `title`.
             Пример: `ordering=-created_at`.
           schema:
             type: string
@@ -513,14 +545,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedProjects'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
     post:
       tags: [Projects]
       summary: Создать проект с ролями
       description: |
         Создаёт проект и вложенные роли. `roles` обязателен и должен содержать
         минимум одну роль. В одном проекте не может быть две ProjectRole с одной
-        specialization. `is_featured` и `featured_order` не принимаются публичным API
-        и управляются администратором через админку/служебные инструменты.
+        specialization. В `skills` каждой роли не могут повторяться `skill_id`
+        или `order`; `order` начинается с 1. `is_featured` и `featured_order`
+        не принимаются публичным API и управляются администратором через
+        админку/служебные инструменты.
       operationId: createProject
       security:
         - BearerAuth: []
@@ -557,6 +595,8 @@ paths:
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
 
   /api/v1/projects/featured/:
     get:
@@ -579,6 +619,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedProjects'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
 
   /api/v1/projects/{project_id}/:
     get:
@@ -640,21 +682,21 @@ paths:
     get:
       tags: [Projects]
       summary: Входящие заявки проекта
-      description: Owner получает RoleInterest(source=application) по конкретному проекту с вложенной карточкой пользователя.
+      description: Owner получает pending RoleInterest(source=application) по конкретному проекту с вложенной карточкой пользователя.
       operationId: listProjectApplications
       security:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/ProjectIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
       responses:
         '200':
           description: Список заявок проекта
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProjectApplicationCard'
+                $ref: '#/components/schemas/PaginatedProjectApplications'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
@@ -690,8 +732,6 @@ paths:
           $ref: '#/components/responses/ForbiddenResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
-        '409':
-          $ref: '#/components/responses/ConflictResponse'
 
   /api/v1/projects/{project_id}/invitations/:
     get:
@@ -703,15 +743,15 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/ProjectIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
       responses:
         '200':
           description: Список приглашений проекта
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProjectInvitationCard'
+                $ref: '#/components/schemas/PaginatedProjectInvitations'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
@@ -754,21 +794,24 @@ paths:
           $ref: '#/components/responses/ForbiddenResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
-        '409':
-          $ref: '#/components/responses/ConflictResponse'
 
   /api/v1/project-roles/:
     get:
       tags: [Project Roles]
       summary: Список ролей проектов
+      description: |
+        Непагинированный список ролей. `project_id` и `specialization_id`
+        можно передавать одновременно; в этом случае применяются оба фильтра.
       operationId: listProjectRoles
       parameters:
         - name: project_id
           in: query
+          description: Фильтр по ID проекта.
           schema:
             type: integer
         - name: specialization_id
           in: query
+          description: Фильтр по ID специализации роли.
           schema:
             type: integer
       responses:
@@ -777,7 +820,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProjectRolesListResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectRole'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
     post:
       tags: [Project Roles]
       summary: Создать роль проекта
@@ -785,6 +832,7 @@ paths:
         Создаёт роль/направление внутри проекта. Наличие роли означает, что по ней
         можно откликаться и приглашать. В одном проекте не может быть две ProjectRole
         с одной specialization; это не ограничивает число active participants на одной роли.
+        В `skills` не могут повторяться `skill_id` или `order`; `order` начинается с 1.
       operationId: createProjectRole
       security:
         - BearerAuth: []
@@ -807,8 +855,6 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/ForbiddenResponse'
-        '404':
-          $ref: '#/components/responses/NotFoundResponse'
 
   /api/v1/project-roles/{role_id}/:
     get:
@@ -832,6 +878,7 @@ paths:
       description: |
         В одном проекте не может быть две ProjectRole с одной specialization.
         Одна ProjectRole может иметь сколько угодно active participants.
+        В `skills` не могут повторяться `skill_id` или `order`; `order` начинается с 1.
       operationId: updateProjectRole
       security:
         - BearerAuth: []
@@ -876,6 +923,8 @@ paths:
           description: Роль удалена
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/ForbiddenResponse'
         '404':
@@ -909,8 +958,6 @@ paths:
           $ref: '#/components/responses/ForbiddenResponse'
         '404':
           $ref: '#/components/responses/NotFoundResponse'
-        '409':
-          $ref: '#/components/responses/ConflictResponse'
 
   /api/v1/role-interests/{interest_id}/reject/:
     post:
@@ -1015,13 +1062,19 @@ paths:
     get:
       tags: [Me]
       summary: Мои заявки
-      description: Возвращает RoleInterest(source=application) текущего пользователя.
+      description: |
+        Возвращает все RoleInterest(source=application) текущего пользователя.
+        Без `status` в выдачу входят `pending`, `accepted` и `rejected`;
+        параметр `status` фильтрует список по одному из этих значений.
       operationId: listMyApplications
       security:
         - BearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
         - name: status
           in: query
+          description: Фильтр по статусу заявки. Неизвестное значение возвращает 400.
           schema:
             $ref: '#/components/schemas/RoleInterestStatus'
       responses:
@@ -1030,11 +1083,13 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CurrentUserApplicationCard'
+                $ref: '#/components/schemas/PaginatedCurrentUserApplications'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
 
   /api/v1/users/me/notifications/:
     get:
@@ -1046,17 +1101,20 @@ paths:
       operationId: listMyNotifications
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
       responses:
         '200':
           description: Список уведомлений
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/NotificationCard'
+                $ref: '#/components/schemas/PaginatedNotifications'
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
 
   /api/v1/users/me/portfolio-works/:
     get:
@@ -1090,11 +1148,11 @@ paths:
               $ref: '#/components/schemas/PortfolioWorkCreateRequest'
       responses:
         '201':
-          description: Работа портфолио создана
+          description: Работа портфолио создана (ответ write-serializer без user_id и timestamps)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortfolioWork'
+                $ref: '#/components/schemas/PortfolioWorkWriteResponse'
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
@@ -1117,11 +1175,11 @@ paths:
               $ref: '#/components/schemas/PortfolioWorkUpdateRequest'
       responses:
         '200':
-          description: Работа портфолио обновлена
+          description: Работа портфолио обновлена (ответ write-serializer без user_id и timestamps)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortfolioWork'
+                $ref: '#/components/schemas/PortfolioWorkWriteResponse'
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
         '401':
@@ -1187,8 +1245,6 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/ForbiddenResponse'
-        '409':
-          $ref: '#/components/responses/ConflictResponse'
 
   /api/v1/users/me/favorite-projects/{project_id}/:
     delete:
@@ -1225,10 +1281,12 @@ components:
     LimitParam:
       name: limit
       in: query
+      description: Размер страницы. Значения больше 100 ограничиваются backend до 100.
       schema:
         type: integer
         minimum: 1
         default: 10
+        maximum: 100
     UserIdParam:
       name: user_id
       in: path
@@ -1291,35 +1349,52 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/DetailMessage'
-    ConflictResponse:
-      description: Конфликт бизнес-правил
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DetailMessage'
-
   schemas:
+    ApiRoot:
+      type: object
+      required: [skills, fields, specializations, projects, project-roles, users]
+      properties:
+        skills:
+          type: string
+          format: uri
+        fields:
+          type: string
+          format: uri
+        specializations:
+          type: string
+          format: uri
+        projects:
+          type: string
+          format: uri
+        project-roles:
+          type: string
+          format: uri
+        users:
+          type: string
+          format: uri
+
     AccountType:
       type: string
       enum: [participant, owner]
     UserLevel:
       type: string
-      enum: [junior, middle, senior]
+      description: Пустая строка также принимается полем профиля из-за `blank=True` в текущей модели.
+      enum: [junior, middle, senior, '']
     WorkFormat:
       type: string
-      enum: [remote, hybrid]
+      description: Пустая строка также принимается полем профиля из-за `blank=True` в текущей модели.
+      enum: [remote, hybrid, '']
     EmploymentType:
       type: string
-      enum: [full_time, part_time, combined]
+      description: Пустая строка также принимается полем профиля из-за `blank=True` в текущей модели.
+      enum: [full_time, part_time, combined, '']
     SearchStatus:
       type: string
-      enum: [looking_for_team, looking_for_members, not_looking]
+      description: Пустая строка также принимается полем профиля из-за `blank=True` в текущей модели.
+      enum: [looking_for_team, looking_for_members, not_looking, '']
     ProfileVisibility:
       type: string
       enum: [public, matched_only, hidden]
-    Period:
-      type: string
-      enum: [day, week, month, year]
     UserSkillLevel:
       type: string
       enum: [basic, middle, advanced]
@@ -1343,13 +1418,20 @@ components:
         detail:
           type: string
     ValidationError:
-      type: object
-      additionalProperties:
-        type: array
-        items:
-          type: string
+      description: |
+        Стандартное тело DRF ValidationError. В зависимости от источника ошибки
+        корнем может быть объект полей или массив; значения могут быть строками,
+        массивами и вложенными объектами.
+      oneOf:
+        - type: object
+          additionalProperties: true
+        - type: array
+          items: {}
     SocialLinks:
       type: object
+      description: |
+        Допустим пустой объект. Значения — произвольные строки без дополнительной
+        URL-валидации; неизвестные ключи и `null` отклоняются.
       additionalProperties: false
       properties:
         instagram:
@@ -1490,8 +1572,8 @@ components:
             type: string
         link:
           type: string
-          format: uri
           nullable: true
+          description: Может быть `null` или пустой строкой; непустое значение валидируется backend как URL.
         created_at:
           type: string
           format: date-time
@@ -1523,8 +1605,8 @@ components:
             type: string
         link:
           type: string
-          format: uri
           nullable: true
+          description: Может быть `null` или пустой строкой; непустое значение валидируется backend как URL.
     PortfolioWorkUpdateRequest:
       type: object
       properties:
@@ -1547,8 +1629,37 @@ components:
             type: string
         link:
           type: string
-          format: uri
           nullable: true
+          description: Может быть `null` или пустой строкой; непустое значение валидируется backend как URL.
+
+    PortfolioWorkWriteResponse:
+      type: object
+      description: Фактический ответ PortfolioWorkWriteSerializer для POST и PATCH.
+      required: [id, title, task, solution, image, technologies, link]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+        task:
+          type: string
+          nullable: true
+        solution:
+          type: string
+          nullable: true
+        image:
+          type: string
+          nullable: true
+        technologies:
+          type: array
+          nullable: true
+          items:
+            type: string
+        link:
+          type: string
+          nullable: true
+          description: Может быть `null` или пустой строкой; непустое значение валидируется backend как URL.
 
     AuthUser:
       type: object
@@ -1632,11 +1743,12 @@ components:
           nullable: true
         city:
           type: string
-          nullable: true
           description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         workload_hours_per_week:
           type: integer
           nullable: true
+          minimum: 1
+          maximum: 168
         work_format:
           allOf:
             - $ref: '#/components/schemas/WorkFormat'
@@ -1694,7 +1806,6 @@ components:
           description: Отображаемое имя пользователя в интерфейсе.
         bio:
           type: string
-          nullable: true
         specialization_id:
           type: integer
           nullable: true
@@ -1709,6 +1820,8 @@ components:
         workload_hours_per_week:
           type: integer
           nullable: true
+          minimum: 1
+          maximum: 168
         work_format:
           allOf:
             - $ref: '#/components/schemas/WorkFormat'
@@ -1723,7 +1836,6 @@ components:
           nullable: true
         city:
           type: string
-          nullable: true
           description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         avatar:
           type: string
@@ -1819,7 +1931,6 @@ components:
           description: Отображаемое имя пользователя в интерфейсе.
         bio:
           type: string
-          nullable: true
         specialization_id:
           type: integer
           nullable: true
@@ -1834,6 +1945,8 @@ components:
         workload_hours_per_week:
           type: integer
           nullable: true
+          minimum: 1
+          maximum: 168
         work_format:
           allOf:
             - $ref: '#/components/schemas/WorkFormat'
@@ -1848,7 +1961,6 @@ components:
           nullable: true
         city:
           type: string
-          nullable: true
           description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         avatar:
           type: string
@@ -1937,33 +2049,46 @@ components:
           description: Отображаемое имя пользователя в интерфейсе.
         bio:
           type: string
-          nullable: true
         specialization_id:
           type: integer
           nullable: true
         level:
-          $ref: '#/components/schemas/UserLevel'
+          allOf:
+            - $ref: '#/components/schemas/UserLevel'
+          nullable: true
         workload_hours_per_week:
           type: integer
           nullable: true
+          minimum: 1
+          maximum: 168
         work_format:
-          $ref: '#/components/schemas/WorkFormat'
+          allOf:
+            - $ref: '#/components/schemas/WorkFormat'
+          nullable: true
         employment_type:
-          $ref: '#/components/schemas/EmploymentType'
+          allOf:
+            - $ref: '#/components/schemas/EmploymentType'
+          nullable: true
         search_status:
-          $ref: '#/components/schemas/SearchStatus'
+          allOf:
+            - $ref: '#/components/schemas/SearchStatus'
+          nullable: true
         profile_visibility:
           $ref: '#/components/schemas/ProfileVisibility'
         notification_enabled:
           type: boolean
         city:
           type: string
-          nullable: true
           description: Город пользователя. Свободная строка; frontend может предлагать autocomplete-подсказки, но backend не валидирует значение по справочнику.
         social_links:
           $ref: '#/components/schemas/SocialLinks'
+        avatar:
+          type: string
+          nullable: true
+          description: Изображение в формате, принимаемом Base64ImageField; `null` удаляет аватар.
         skills:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/UserSkillInput'
     AvatarUpdateRequest:
@@ -1998,9 +2123,6 @@ components:
         id:
           type: integer
           readOnly: true
-        project_role_id:
-          type: integer
-          readOnly: true
         skill_id:
           type: integer
         name:
@@ -2014,6 +2136,7 @@ components:
     ProjectRoleSkillInput:
       type: object
       required: [skill_id, description, order]
+      description: В пределах одной роли значения `skill_id` и `order` должны быть уникальны.
       properties:
         skill_id:
           type: integer
@@ -2033,7 +2156,6 @@ components:
           type: integer
         specialization_name:
           type: string
-          nullable: true
           readOnly: true
         skills:
           type: array
@@ -2063,7 +2185,6 @@ components:
           type: integer
         specialization_name:
           type: string
-          nullable: true
           readOnly: true
         tasks:
           type: array
@@ -2105,7 +2226,9 @@ components:
     ProjectRoleCreateInput:
       type: object
       required: [specialization_id, tasks, benefits, skills]
-      description: В одном проекте specialization может быть представлена только одной ProjectRole.
+      description: |
+        В одном проекте specialization может быть представлена только одной ProjectRole.
+        В `skills` не могут повторяться `skill_id` или `order`.
       properties:
         specialization_id:
           type: integer
@@ -2132,10 +2255,15 @@ components:
             project_id:
               type: integer
         - $ref: '#/components/schemas/ProjectRoleCreateInput'
-      description: В одном проекте specialization может быть представлена только одной ProjectRole.
+      description: |
+        В одном проекте specialization может быть представлена только одной ProjectRole.
+        В `skills` не могут повторяться `skill_id` или `order`.
     ProjectRoleUpdateRequest:
       type: object
-      description: В одном проекте specialization может быть представлена только одной ProjectRole.
+      description: |
+        PATCH допускает только переданные поля. В одном проекте specialization
+        может быть представлена только одной ProjectRole. В `skills` не могут
+        повторяться `skill_id` или `order`.
       properties:
         specialization_id:
           type: integer
@@ -2154,15 +2282,6 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/ProjectRoleSkillInput'
-    ProjectRolesListResponse:
-      type: object
-      required: [results]
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProjectRole'
-
     ProjectListItem:
       type: object
       required: [id, owner_id, field_id, title, description, problem, image, status, is_favorited, roles_preview, created_at, updated_at]
@@ -2341,6 +2460,7 @@ components:
       description: |
         `is_featured` и `featured_order` не принимаются публичным create API.
         Вложенные роли не могут повторять одну specialization внутри проекта.
+        В `skills` каждой роли не могут повторяться `skill_id` или `order`.
       properties:
         field_id:
           type: integer
@@ -2361,7 +2481,7 @@ components:
             $ref: '#/components/schemas/ProjectRoleCreateInput'
     ProjectUpdateRequest:
       type: object
-      description: "`is_featured` и `featured_order` не принимаются публичным update API."
+      description: PATCH допускает только переданные поля; `is_featured` и `featured_order` не принимаются публичным update API.
       properties:
         field_id:
           type: integer
@@ -2413,7 +2533,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         source:
           $ref: '#/components/schemas/RoleInterestSource'
         status:
@@ -2470,7 +2589,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         source:
           $ref: '#/components/schemas/RoleInterestSource'
         status:
@@ -2510,7 +2628,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         source:
           $ref: '#/components/schemas/RoleInterestSource'
         status:
@@ -2552,7 +2669,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         source:
           $ref: '#/components/schemas/RoleInterestSource'
         status:
@@ -2588,7 +2704,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -2604,6 +2719,145 @@ components:
         project_role_id: 1
         project_role_name: Backend-разработчик
         created_at: '2026-04-24T13:00:00Z'
+
+    PaginatedProjectApplications:
+      type: object
+      required: [count, next, previous, results]
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectApplicationCard'
+      example:
+        count: 1
+        next: null
+        previous: null
+        results:
+          - id: 4
+            user:
+              id: 2
+              username: ivan_backend
+              display_name: Иван Backend
+              avatar: null
+              specialization_id: 1
+              specialization_name: Backend-разработчик
+              level: middle
+              city: Санкт-Петербург
+              workload_hours_per_week: 20
+              work_format: remote
+              employment_type: part_time
+              skills: []
+              search_status: looking_for_team
+            project_role_id: 1
+            project_role_name: Backend-разработчик
+            source: application
+            status: pending
+            created_at: '2026-04-24T13:00:00Z'
+            updated_at: '2026-04-24T13:00:00Z'
+
+    PaginatedProjectInvitations:
+      type: object
+      required: [count, next, previous, results]
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectInvitationCard'
+      example:
+        count: 1
+        next: null
+        previous: null
+        results:
+          - id: 5
+            user_id: 2
+            username: ivan_backend
+            project_role_id: 1
+            project_role_name: Backend-разработчик
+            source: invitation
+            status: pending
+            created_at: '2026-04-24T13:20:00Z'
+            updated_at: '2026-04-24T13:20:00Z'
+
+    PaginatedCurrentUserApplications:
+      type: object
+      required: [count, next, previous, results]
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrentUserApplicationCard'
+      example:
+        count: 1
+        next: null
+        previous: null
+        results:
+          - id: 4
+            user_id: 2
+            project_id: 1
+            project_title: Платформа наставничества SkillBridge
+            project_role_id: 1
+            project_role_name: Backend-разработчик
+            source: application
+            status: accepted
+            created_at: '2026-04-24T13:00:00Z'
+            updated_at: '2026-04-24T14:00:00Z'
+
+    PaginatedNotifications:
+      type: object
+      required: [count, next, previous, results]
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationCard'
+      example:
+        count: 1
+        next: null
+        previous: null
+        results:
+          - id: 4
+            source: application
+            status: pending
+            user_id: 2
+            username: ivan_backend
+            project_id: 1
+            project_title: Платформа наставничества SkillBridge
+            project_role_id: 1
+            project_role_name: Backend-разработчик
+            created_at: '2026-04-24T13:00:00Z'
+
     RoleInterestActionResponse:
       type: object
       required: [id, user_id, username, project_id, project_title, project_role_id, project_role_name, source, status, membership_id, membership_status, reviewed_at, created_at, updated_at]
@@ -2623,7 +2877,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         source:
           $ref: '#/components/schemas/RoleInterestSource'
         status:
@@ -2682,7 +2935,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         status:
           $ref: '#/components/schemas/ProjectMembershipStatus'
         joined_at:
@@ -2732,7 +2984,6 @@ components:
           type: integer
         project_role_name:
           type: string
-          nullable: true
         status:
           $ref: '#/components/schemas/ProjectMembershipStatus'
     MyProjectsResponse:
@@ -2769,35 +3020,6 @@ components:
             created_at: '2026-04-24T13:20:00Z'
             updated_at: '2026-04-24T13:20:00Z'
 
-    FavoriteProjectRolePreview:
-      type: object
-      required: [id, specialization_id, specialization_name]
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        specialization_id:
-          type: integer
-        specialization_name:
-          type: string
-          nullable: true
-          readOnly: true
-    FavoriteProjectProject:
-      type: object
-      required: [id, title, image, roles_preview]
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        title:
-          type: string
-        image:
-          type: string
-          nullable: true
-        roles_preview:
-          type: array
-          items:
-            $ref: '#/components/schemas/FavoriteProjectRolePreview'
     FavoriteProject:
       type: object
       required: [id, user_id, project_id, project, created_at]
@@ -2810,7 +3032,7 @@ components:
         project_id:
           type: integer
         project:
-          $ref: '#/components/schemas/FavoriteProjectProject'
+          $ref: '#/components/schemas/ProjectListItem'
         created_at:
           type: string
           format: date-time
@@ -2821,12 +3043,26 @@ components:
         project_id: 1
         project:
           id: 1
+          owner_id: 1
+          field_id: 1
           title: Платформа наставничества SkillBridge
+          description: Платформа для подбора наставников студентам.
+          problem: Начинающим разработчикам сложно найти наставничество.
           image: https://cdn.teamlab.example/project_images/skillbridge.png
+          status: open
+          is_favorited: true
           roles_preview:
             - id: 1
               specialization_id: 1
               specialization_name: Backend-разработчик
+              skills:
+                - id: 1
+                  skill_id: 1
+                  name: Python
+                  description: Разработка REST API.
+                  order: 1
+          created_at: '2026-03-10T08:00:00Z'
+          updated_at: '2026-04-21T12:00:00Z'
         created_at: '2026-04-01T10:00:00Z'
     FavoriteProjectCreateRequest:
       type: object

@@ -133,3 +133,29 @@ def test_refresh_rotates_token_pair_and_blacklists_previous_refresh(
     assert second_data['access']
     assert second_data['refresh']
     assert second_data['user']['id'] == owner.pk
+
+
+def test_refresh_for_deleted_user_returns_auth_error(
+    api_client,
+    api_request,
+    owner,
+    password,
+):
+    login_response = api_request(
+        api_client,
+        'post',
+        '/api/v1/auth/token/login/',
+        data={'username': owner.username, 'password': password},
+    )
+    assert login_response.status_code == 200
+    refresh = login_response.json()['refresh']
+    owner.delete()
+
+    response = api_request(
+        api_client,
+        'post',
+        '/api/v1/auth/token/refresh/',
+        data={'refresh': refresh},
+    )
+
+    assert response.status_code == 401

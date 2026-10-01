@@ -4,7 +4,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, mixins, status, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
@@ -51,6 +51,7 @@ from .serializers import (
 )
 from .filters import (
     ProjectFilter,
+    ProjectRoleFilter,
     UserFilter,
     SkillFilter
 )
@@ -473,8 +474,19 @@ class UserViewSet(
         applications = RoleInterest.objects.filter(
             user=request.user,
             source=RoleInterest.Source.APPLICATION,
-            status=RoleInterest.Status.PENDING,
-        ).select_related(
+        )
+
+        status_filter = request.query_params.get('status')
+
+        if status_filter:
+            if status_filter not in RoleInterest.Status.values:
+                raise ValidationError({
+                    'status': 'Недопустимое значение статуса.'
+                })
+
+            applications = applications.filter(status=status_filter)
+
+        applications = applications.select_related(
             'project_role',
             'project_role__project',
             'project_role__specialization',
@@ -560,7 +572,14 @@ class CurrentUserFavoriteProjectListCreateView(
     def get_queryset(self):
         return FavoriteProject.objects.filter(
             user=self.request.user
-        ).select_related('project').order_by('-created_at')
+        ).select_related(
+            'project'
+        ).prefetch_related(
+            'project__roles',
+            'project__roles__specialization',
+            'project__roles__skill_requirements',
+            'project__roles__skill_requirements__skill',
+        ).order_by('-created_at')
     
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -646,6 +665,8 @@ class ProjectRoleViewSet(
     queryset = ProjectRole.objects.all()
     http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
     pagination_class = None
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = ProjectRoleFilter
 
     def get_queryset(self):
         return ProjectRole.objects.select_related(

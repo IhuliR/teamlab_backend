@@ -187,3 +187,68 @@ def test_base64_image_is_accepted_for_portfolio_work(
 
     assert response.status_code == 201
     assert response.json()['image']
+
+
+def test_portfolio_work_accepts_nullable_technologies_and_link(
+    backend_client,
+    api_request,
+):
+    response = api_request(
+        backend_client,
+        'post',
+        '/api/v1/users/me/portfolio-works/',
+        data={
+            'title': 'Nullable work',
+            'technologies': None,
+            'link': None,
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data['technologies'] is None
+    assert data['link'] is None
+
+
+def test_portfolio_work_accepts_empty_technologies_and_blank_link(
+    backend_client,
+    api_request,
+):
+    response = api_request(
+        backend_client,
+        'post',
+        '/api/v1/users/me/portfolio-works/',
+        data={
+            'title': 'Empty values work',
+            'technologies': [],
+            'link': '',
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data['technologies'] == []
+    assert data['link'] == ''
+
+
+def test_portfolio_patch_does_not_clear_missing_nullable_fields(
+    backend_client,
+    api_request,
+    portfolio_work,
+):
+    portfolio_work.technologies = ['Python']
+    portfolio_work.link = 'https://example.com/work'
+    portfolio_work.save(update_fields=('technologies', 'link'))
+
+    response = api_request(
+        backend_client,
+        'patch',
+        f'/api/v1/users/me/portfolio-works/{portfolio_work.pk}/',
+        data={'title': 'Updated without nullable fields'},
+    )
+
+    assert response.status_code == 200
+    portfolio_work.refresh_from_db()
+    assert portfolio_work.title == 'Updated without nullable fields'
+    assert portfolio_work.technologies == ['Python']
+    assert portfolio_work.link == 'https://example.com/work'
