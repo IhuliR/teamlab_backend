@@ -1,7 +1,7 @@
 import django_filters
 from django.contrib.auth import get_user_model
 
-from projects.models import Project
+from projects.models import Project, ProjectRole
 from users.models import Skill
 
 
@@ -82,4 +82,20 @@ class SkillFilter(django_filters.FilterSet):
         model = Skill
         fields = (
             'field_ids',
+        )
+
+
+class ProjectRoleFilter(django_filters.FilterSet):
+    project_id = django_filters.NumberFilter(
+        field_name='project_id',
+    )
+    specialization_id = django_filters.NumberFilter(
+        field_name='specialization_id',
+    )
+
+    class Meta:
+        model = ProjectRole
+        fields = (
+            'project_id',
+            'specialization_id',
         )

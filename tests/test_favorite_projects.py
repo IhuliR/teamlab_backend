@@ -1,5 +1,8 @@
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
+from projects.models import Project
 from users.models import FavoriteProject
 
 
@@ -69,6 +72,7 @@ def test_favorite_list_contains_nested_project_card_with_roles_preview(
     api_request,
     favorite_project,
     backend_project_role,
+    project_role_skill,
 ):
     response = api_request(
         backend_client,
@@ -80,8 +84,17 @@ def test_favorite_list_contains_nested_project_card_with_roles_preview(
     item = next(item for item in response.json() if item['id'] == favorite_project.pk)
     assert item['project_id'] == favorite_project.project_id
     assert item['project']['id'] == favorite_project.project_id
-    assert 'roles_preview' in item['project']
+    assert item['project']['owner_id'] == favorite_project.project.owner_id
+    assert item['project']['field_id'] == favorite_project.project.field_id
+    assert item['project']['title'] == favorite_project.project.title
+    assert item['project']['description'] == favorite_project.project.description
+    assert item['project']['problem'] == favorite_project.project.problem
+    assert item['project']['status'] == favorite_project.project.status
+    assert item['project']['is_favorited'] is True
     assert item['project']['roles_preview'][0]['id'] == backend_project_role.pk
+    assert item['project']['roles_preview'][0]['skills'][0]['id'] == (
+        project_role_skill.pk
+    )
 
 
 def test_user_sees_only_own_favorites(
@@ -107,6 +120,40 @@ def test_user_sees_only_own_favorites(
     ids = {item['id'] for item in response.json()}
     assert favorite_project.pk in ids
     assert other_favorite.pk not in ids
+
+
+def test_favorite_list_uses_prefetched_project_list_resources(
+    backend_client,
+    api_request,
+    participant_backend_user,
+    owner,
+    field,
+    favorite_project,
+):
+    for index in range(3):
+        project = Project.objects.create(
+            owner=owner,
+            field=field,
+            title=f'Favorite project {index}',
+            description='Project description',
+            problem='Project problem',
+        )
+        FavoriteProject.objects.create(
+            user=participant_backend_user,
+            project=project,
+        )
+
+    with CaptureQueriesContext(connection) as captured:
+        response = api_request(
+            backend_client,
+            'get',
+            '/api/v1/users/me/favorite-projects/',
+        )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 4
+    assert len(captured) <= 8
+    assert all(item['project']['is_favorited'] is True for item in response.json())
 
 
 def test_delete_favorite_by_project_id(

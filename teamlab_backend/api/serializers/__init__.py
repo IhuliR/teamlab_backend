@@ -17,7 +17,6 @@ from .users import (
     PortfolioWorkWriteSerializer,
     CurrentUserDetailSerializer,
     CurrentUserUpdateSerializer,
-    FavoriteProjectCardSerializer,
     FavoriteProjectCreateSerializer,
     FavoriteProjectReadSerializer
 )

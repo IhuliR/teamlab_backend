@@ -14,7 +14,11 @@ from users.services import (
     replace_user_skills,
     user_has_active_participation_or_pending_interests
 )
-from .projects import FavoriteProjectRolePreviewSerializer
+from .projects import (
+    FavoriteProjectRolePreviewSerializer,
+    ProjectListSerializer,
+)
+from ..constants import ALLOWED_SOCIAL_LINK_KEYS
 
 User = get_user_model()
 
@@ -118,8 +122,13 @@ class PortfolioWorkWriteSerializer(serializers.ModelSerializer):
         child=serializers.CharField(),
         required=False,
         default=list,
+        allow_null=True,
     )
-    link = serializers.URLField(required=False, allow_blank=True)
+    link = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = PortfolioWork
@@ -442,6 +451,28 @@ class CurrentUserUpdateSerializer(serializers.ModelSerializer):
             'skills',
         )
 
+    def validate_social_links(self, value):
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError(
+                'Социальные ссылки должны быть объектом.'
+            )
+
+        unknown_keys = set(value) - ALLOWED_SOCIAL_LINK_KEYS
+
+        if unknown_keys:
+            raise serializers.ValidationError(
+                'Недопустимые социальные сети: '
+                f'{", ".join(sorted(unknown_keys))}.'
+            )
+        if any(not isinstance(link, str) for link in value.values()):
+
+            raise serializers.ValidationError(
+                'Значения социальных ссылок должны быть строками.'
+            )
+
+        return value
+
     def validate(self, attrs):
         new_specialization = attrs.get(
             'specialization',
@@ -485,24 +516,6 @@ class CurrentUserUpdateSerializer(serializers.ModelSerializer):
             replace_user_skills(instance, skills_data)
 
         return instance
-
-
-class FavoriteProjectCardSerializer(serializers.ModelSerializer):
-    roles_preview = FavoriteProjectRolePreviewSerializer(
-        source='roles',
-        many=True,
-        read_only=True
-    )
-
-    class Meta:
-        model = Project
-        fields = (
-            'id',
-            'title',
-            'image',
-            'roles_preview'
-        )
-        read_only_fields = fields
 
 
 class FavoriteProjectCreateSerializer(serializers.ModelSerializer):
@@ -550,7 +563,7 @@ class FavoriteProjectCreateSerializer(serializers.ModelSerializer):
 class FavoriteProjectReadSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(read_only=True)
     project_id = serializers.IntegerField(read_only=True)
-    project = FavoriteProjectCardSerializer(read_only=True)
+    project = ProjectListSerializer(read_only=True)
 
     class Meta:
         model = FavoriteProject
@@ -562,3 +575,15 @@ class FavoriteProjectReadSerializer(serializers.ModelSerializer):
             'created_at',
         )
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        request = self.context.get('request')
+
+        if (
+            request is not None
+            and request.user.is_authenticated
+            and instance.user_id == request.user.id
+        ):
+            instance.project._is_favorited_for_request_user = True
+
+        return super().to_representation(instance)

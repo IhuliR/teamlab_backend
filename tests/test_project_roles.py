@@ -69,6 +69,118 @@ def test_cannot_create_duplicate_role_specialization(
     ).count() == 1
 
 
+def test_role_create_rejects_duplicate_skill_id(
+    owner_client,
+    api_request,
+    role_payload,
+):
+    skill = role_payload['skills'][0]
+    payload = dict(
+        role_payload,
+        skills=[
+            skill,
+            dict(skill, order=2),
+        ],
+    )
+
+    response = api_request(
+        owner_client,
+        'post',
+        '/api/v1/project-roles/',
+        data=payload,
+    )
+
+    assert response.status_code == 400
+    assert ProjectRole.objects.filter(
+        project_id=role_payload['project_id'],
+        specialization_id=role_payload['specialization_id'],
+    ).count() == 0
+
+
+def test_role_create_rejects_duplicate_skill_order(
+    owner_client,
+    api_request,
+    role_payload,
+    python_skill,
+):
+    skill = role_payload['skills'][0]
+    payload = dict(
+        role_payload,
+        skills=[
+            skill,
+            {
+                'skill_id': python_skill.pk,
+                'description': 'Python support',
+                'order': skill['order'],
+            },
+        ],
+    )
+
+    response = api_request(
+        owner_client,
+        'post',
+        '/api/v1/project-roles/',
+        data=payload,
+    )
+
+    assert response.status_code == 400
+    assert ProjectRole.objects.filter(
+        project_id=role_payload['project_id'],
+        specialization_id=role_payload['specialization_id'],
+    ).count() == 0
+
+
+def test_role_create_rejects_non_positive_skill_order(
+    owner_client,
+    api_request,
+    role_payload,
+):
+    skill = role_payload['skills'][0]
+    payload = dict(
+        role_payload,
+        skills=[dict(skill, order=0)],
+    )
+
+    response = api_request(
+        owner_client,
+        'post',
+        '/api/v1/project-roles/',
+        data=payload,
+    )
+
+    assert response.status_code == 400
+
+
+def test_role_update_rejects_duplicate_skill_order(
+    owner_client,
+    api_request,
+    backend_project_role,
+    python_skill,
+    django_skill,
+):
+    response = api_request(
+        owner_client,
+        'patch',
+        f'/api/v1/project-roles/{backend_project_role.pk}/',
+        data={
+            'skills': [
+                {
+                    'skill_id': python_skill.pk,
+                    'description': 'Python backend',
+                    'order': 1,
+                },
+                {
+                    'skill_id': django_skill.pk,
+                    'description': 'Django backend',
+                    'order': 1,
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+
+
 def test_owner_can_patch_role_in_own_project(
     owner_client,
     api_request,
@@ -200,3 +312,86 @@ def test_historical_membership_does_not_block_role_delete(
     assert response.status_code == 204
     assert not ProjectRole.objects.filter(pk=role_id).exists()
     assert not RoleInterest.objects.filter(pk=interest_id).exists()
+
+
+def test_project_roles_can_be_filtered_by_project_id(
+    api_client,
+    api_request,
+    project,
+    another_project,
+    backend_project_role,
+    designer_project_role,
+):
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/project-roles/?project_id={project.pk}',
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in response.json()}
+    assert backend_project_role.pk in ids
+    assert designer_project_role.pk in ids
+
+    response = api_request(
+        api_client,
+        'get',
+        f'/api/v1/project-roles/?project_id={another_project.pk}',
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_project_roles_can_be_filtered_by_specialization_id(
+    api_client,
+    api_request,
+    backend_project_role,
+    designer_project_role,
+):
+    response = api_request(
+        api_client,
+        'get',
+        (
+            '/api/v1/project-roles/?specialization_id='
+            f'{backend_project_role.specialization_id}'
+        ),
+    )
+
+    assert response.status_code == 200
+    ids = {item['id'] for item in response.json()}
+    assert backend_project_role.pk in ids
+    assert designer_project_role.pk not in ids
+
+
+def test_project_roles_can_be_filtered_by_project_and_specialization(
+    api_client,
+    api_request,
+    project,
+    backend_project_role,
+    designer_project_role,
+):
+    response = api_request(
+        api_client,
+        'get',
+        (
+            f'/api/v1/project-roles/?project_id={project.pk}'
+            f'&specialization_id={backend_project_role.specialization_id}'
+        ),
+    )
+
+    assert response.status_code == 200
+    ids = [item['id'] for item in response.json()]
+    assert ids == [backend_project_role.pk]
+
+    response = api_request(
+        api_client,
+        'get',
+        (
+            f'/api/v1/project-roles/?project_id={project.pk}'
+            '&specialization_id=999999'
+        ),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []

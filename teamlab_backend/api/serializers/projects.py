@@ -42,7 +42,7 @@ class ProjectRoleSkillInputSerializer(serializers.Serializer):
         queryset=Skill.objects.all(),
     )
     description = serializers.CharField()
-    order = serializers.IntegerField()
+    order = serializers.IntegerField(min_value=1)
 
 
 class ProjectRoleReadSerializer(serializers.ModelSerializer):
@@ -115,6 +115,28 @@ class ProjectRoleBaseInputSerializer(serializers.Serializer):
         allow_empty=False,
         write_only=True,
     )
+
+    def validate_skills(self, skills):
+        skill_ids = [item['skill'] for item in skills]
+        orders = [item['order'] for item in skills]
+
+        errors = []
+
+        if len(skill_ids) != len(set(skill_ids)):
+            errors.append(
+                'Навыки в одной роли не должны повторяться.'
+            )
+
+        if len(orders) != len(set(orders)):
+            errors.append(
+                'Порядок навыков в одной роли не должен повторяться.'
+            )
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return skills
+
 
 
 class ProjectRoleNestedInputSerializer(ProjectRoleBaseInputSerializer):
@@ -229,6 +251,9 @@ class ProjectBaseReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
     
     def get_is_favorited(self, obj):
+        if hasattr(obj, '_is_favorited_for_request_user'):
+            return obj._is_favorited_for_request_user
+
         request = self.context.get('request')
 
         if request is None or not request.user.is_authenticated:
@@ -420,8 +445,8 @@ class ProjectCreateSerializer(serializers.Serializer):
     )
     title = serializers.CharField()
     description = serializers.CharField()
-    problem = serializers.CharField()
-    image = Base64ImageField()
+    problem = serializers.CharField(allow_null=True)
+    image = Base64ImageField(allow_null=True)
     roles = ProjectRoleNestedInputSerializer(
         many=True,
         allow_empty=False,
@@ -457,7 +482,7 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
         source='field',
         queryset=Field.objects.all(),
     )
-    image = Base64ImageField()
+    image = Base64ImageField(allow_null=True)
 
     class Meta:
         model = Project
