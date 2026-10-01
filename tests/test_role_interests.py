@@ -2,7 +2,7 @@ import pytest
 
 from projects.models import ProjectMembership, RoleInterest
 
-from .utils import assert_missing_or_method_not_allowed
+from .utils import assert_missing_or_method_not_allowed, results
 
 
 pytestmark = pytest.mark.django_db
@@ -21,7 +21,10 @@ def test_owner_can_list_project_applications(
     )
 
     assert response.status_code == 200
-    assert any(item['id'] == pending_application.pk for item in response.json())
+    assert any(
+        item['id'] == pending_application.pk
+        for item in results(response.json())
+    )
 
 
 def test_non_owner_cannot_list_project_applications(
@@ -164,7 +167,10 @@ def test_owner_can_list_project_invitations(
     )
 
     assert response.status_code == 200
-    assert any(item['id'] == pending_invitation.pk for item in response.json())
+    assert any(
+        item['id'] == pending_invitation.pk
+        for item in results(response.json())
+    )
 
 
 def test_non_owner_cannot_list_project_invitations(
