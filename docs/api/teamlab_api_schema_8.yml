@@ -105,6 +105,42 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
 
+  /api/v1/auth/token/blacklist/:
+    post:
+      tags: [Auth]
+      summary: Выйти из текущей сессии
+      description: |
+        Добавляет переданный refresh-токен в blacklist. После успешного ответа
+        refresh-токен нельзя использовать для получения новой пары токенов.
+        Связанный access-токен не отзывается и остаётся действительным до истечения
+        его срока жизни. Другие refresh-токены пользователя не затрагиваются.
+
+        После запроса frontend должен удалить локально сохранённые access- и
+        refresh-токены, в том числе если refresh-токен уже просрочен или отозван.
+      operationId: tokenBlacklist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+      responses:
+        '200':
+          description: Refresh-токен отозван
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyObject'
+              example: {}
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          description: Refresh-токен невалиден, просрочен или уже отозван
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenError'
+
   /api/v1/users/:
     get:
       tags: [Users]
@@ -1417,6 +1453,15 @@ components:
       properties:
         detail:
           type: string
+    TokenError:
+      type: object
+      required: [detail, code]
+      properties:
+        detail:
+          type: string
+        code:
+          type: string
+          example: token_not_valid
     ValidationError:
       description: |
         Стандартное тело DRF ValidationError. В зависимости от источника ошибки
@@ -1702,6 +1747,17 @@ components:
       properties:
         refresh:
           type: string
+    TokenBlacklistRequest:
+      type: object
+      required: [refresh]
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          description: Refresh-токен текущей сессии.
+    EmptyObject:
+      type: object
+      additionalProperties: false
     TokenRefreshResponse:
       type: object
       required: [access, refresh, user]
