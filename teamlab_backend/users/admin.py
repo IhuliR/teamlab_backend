@@ -60,6 +60,19 @@ class TeamlabUserAdmin(UserAdmin):
         PortfolioWorkInline,
         FavoriteProjectInline,
     )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        (
+            'Данные TeamLab',
+            {
+                'fields': (
+                    'email',
+                    'display_name',
+                    'account_type',
+                    'specialization',
+                ),
+            },
+        ),
+    )
     fieldsets = UserAdmin.fieldsets + (
         (
             'Данные TeamLab',
@@ -67,6 +80,7 @@ class TeamlabUserAdmin(UserAdmin):
                 'fields': (
                     'display_name',
                     'account_type',
+                    'is_email_verified',
                     'specialization',
                     'level',
                     'workload_hours_per_week',
@@ -91,6 +105,7 @@ class TeamlabUserAdmin(UserAdmin):
         'account_type',
         'specialization',
         'email',
+        'is_email_verified',
         'created_at',
         'updated_at',
     )
@@ -102,6 +117,7 @@ class TeamlabUserAdmin(UserAdmin):
     )
     list_filter = UserAdmin.list_filter + (
         'account_type',
+        'is_email_verified',
         'specialization',
         'created_at',
         'updated_at',

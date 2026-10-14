@@ -1,4 +1,7 @@
 import pytest
+from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory
 
 from projects.models import ProjectMembership, RoleInterest
 from users.models import UserSkill
@@ -7,6 +10,24 @@ from .utils import results
 
 
 pytestmark = pytest.mark.django_db
+
+
+def test_admin_add_form_requires_email_and_account_type(password):
+    User = get_user_model()
+    admin_user = User.objects.create_superuser(
+        username='admin',
+        email='admin@example.com',
+        password=password,
+        account_type=User.AccountType.OWNER,
+    )
+    request = RequestFactory().get('/admin/users/user/add/')
+    request.user = admin_user
+
+    form = admin.site._registry[User].get_form(request)
+
+    assert form.base_fields['email'].required is True
+    assert form.base_fields['account_type'].required is True
+    assert 'is_email_verified' not in form.base_fields
 
 
 def test_user_list_is_public_without_private_fields(
@@ -85,6 +106,7 @@ def test_owner_registration_does_not_require_specialization(api_client, api_requ
             'email': 'new_owner@example.com',
             'password': 'StrongPass123!',
             'account_type': 'owner',
+            'is_email_verified': True,
         },
     )
 
@@ -94,6 +116,72 @@ def test_owner_registration_does_not_require_specialization(api_client, api_requ
     assert data['display_name'] == 'New Owner'
     assert data['email'] == 'new_owner@example.com'
     assert data['account_type'] == 'owner'
+    assert 'is_email_verified' not in data
+
+    user = get_user_model().objects.get(username='new_owner')
+    assert user.is_email_verified is False
+
+
+def test_registration_normalizes_email_domain(api_client, api_request):
+    response = api_request(
+        api_client,
+        'post',
+        '/api/v1/users/',
+        data={
+            'username': 'normalized_email_owner',
+            'email': 'MixedCase@EXAMPLE.COM',
+            'password': 'StrongPass123!',
+            'account_type': 'owner',
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()['email'] == 'MixedCase@example.com'
+
+
+def test_user_cannot_set_email_verified_through_profile_api(
+    backend_client,
+    api_request,
+    participant_backend_user,
+):
+    response = api_request(
+        backend_client,
+        'patch',
+        '/api/v1/users/me/',
+        data={'is_email_verified': True},
+    )
+
+    assert response.status_code == 200
+    participant_backend_user.refresh_from_db()
+    assert participant_backend_user.is_email_verified is False
+    assert 'is_email_verified' not in response.json()
+
+
+@pytest.mark.parametrize('use_update_fields', (False, True))
+def test_changing_email_resets_verified_status(owner, use_update_fields):
+    owner.is_email_verified = True
+    owner.save(update_fields=('is_email_verified',))
+
+    owner.email = 'changed@example.com'
+    if use_update_fields:
+        owner.save(update_fields=('email',))
+    else:
+        owner.save()
+
+    owner.refresh_from_db()
+    assert owner.email == 'changed@example.com'
+    assert owner.is_email_verified is False
+
+
+def test_saving_same_email_preserves_verified_status(owner):
+    owner.is_email_verified = True
+    owner.save(update_fields=('is_email_verified',))
+
+    owner.email = owner.email
+    owner.save(update_fields=('email',))
+
+    owner.refresh_from_db()
+    assert owner.is_email_verified is True
 
 
 def test_registration_validates_password_strength(
