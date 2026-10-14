@@ -1,5 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenBlacklistView
 
 from .views import (
     CurrentUserAvatarView,
@@ -75,6 +76,11 @@ auth_patterns = [
         'token/refresh/',
         TokenRefreshWithUserView.as_view(),
         name='token_refresh',
+    ),
+    path(
+        'token/blacklist/',
+        TokenBlacklistView.as_view(),
+        name='token_blacklist',
     ),
 ]
 

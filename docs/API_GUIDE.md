@@ -33,6 +33,8 @@ JWT login выполняется через `POST /api/v1/auth/token/login/` п�
 
 Email сохраняется как контактное/будущее поле, но не является login identifier в MVP. `POST /api/v1/auth/token/refresh/` принимает текущий refresh token и возвращает новую пару `access + refresh` вместе с `user`. После успешного обновления frontend должен сохранить оба новых токена; старый refresh token повторно использовать нельзя.
 
+Logout выполняется через `POST /api/v1/auth/token/blacklist/` с телом `{ "refresh": "<current-jwt-refresh>" }`. Backend отзывает только этот refresh token; другие сессии пользователя продолжают работать. Access token остаётся действительным до истечения срока жизни, поэтому frontend должен удалить оба локальных токена после попытки logout, даже если backend вернул ошибку для уже просроченного или отозванного refresh token.
+
 ### Публичные каталоги и подборки
 
 Публичные каталоги: `GET /api/v1/projects/`, `GET /api/v1/projects/featured/`, `GET /api/v1/projects/{project_id}/`, `GET /api/v1/users/`, `GET /api/v1/users/{user_id}/`, `GET /api/v1/fields/`, `GET /api/v1/fields/featured/`, `GET /api/v1/specializations/`, `GET /api/v1/skills/`.
@@ -124,6 +126,7 @@ Repeated invitations для той же пары `(user, project_role)` в MVP �
 | `/api/v1/users/set_password/` | POST | Смена пароля текущего пользователя. |
 | `/api/v1/auth/token/login/` | POST | JWT login. |
 | `/api/v1/auth/token/refresh/` | POST | Rotation JWT-пары: новый `access`, новый `refresh` и `user`. |
+| `/api/v1/auth/token/blacklist/` | POST | Logout: отзыв refresh-токена текущей сессии. |
 
 ### Projects and roles
 
