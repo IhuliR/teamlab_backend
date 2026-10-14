@@ -71,6 +71,7 @@ class User(AbstractUser):
         max_length=MAX_EMAIL_LEN,
         verbose_name='Почта'
     )
+    # Задел для будущей верификации email; пока подтверждение не реализовано.
     is_email_verified = models.BooleanField(
         default=False,
         verbose_name='Почта подтверждена'
@@ -167,6 +168,10 @@ class User(AbstractUser):
         return self.username
 
     def save(self, *args, **kwargs):
+        """Сбрасывает подтверждение email при изменении адреса.
+
+        Механизм подтверждения пока не реализован.
+        """
         update_fields = kwargs.get('update_fields')
         email_is_being_saved = update_fields is None
         if update_fields is not None:
