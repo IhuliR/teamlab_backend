@@ -71,6 +71,10 @@ class User(AbstractUser):
         max_length=MAX_EMAIL_LEN,
         verbose_name='Почта'
     )
+    is_email_verified = models.BooleanField(
+        default=False,
+        verbose_name='Почта подтверждена'
+    )
     bio = models.TextField(
         blank=True,
         verbose_name='Описание'
@@ -161,6 +165,27 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        email_is_being_saved = update_fields is None
+        if update_fields is not None:
+            email_is_being_saved = 'email' in update_fields
+
+        if self.pk and self.is_email_verified and email_is_being_saved:
+            previous_email = type(self).objects.filter(
+                pk=self.pk,
+            ).values_list('email', flat=True).first()
+
+            if previous_email is not None and previous_email != self.email:
+                self.is_email_verified = False
+
+                if update_fields is not None:
+                    kwargs['update_fields'] = set(update_fields) | {
+                        'is_email_verified',
+                    }
+
+        super().save(*args, **kwargs)
 
 
 class Skill(models.Model):
