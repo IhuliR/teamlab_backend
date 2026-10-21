@@ -38,7 +38,7 @@ TeamLab развивается как командный продуктовый 
 ## Стек
 
 - **Backend:** Python, Django 5.1, Django REST Framework, Simple JWT, django-filter, django-cors-headers.
-- **Database:** SQLite в текущей конфигурации; переход на PostgreSQL планируется перед deployment.
+- **Database:** PostgreSQL 17 в Docker Compose; Django запускается локально.
 - **Testing:** pytest, pytest-django.
 - **API contract:** OpenAPI 3.0, Postman collection.
 
@@ -71,7 +71,7 @@ postman_collection/  коллекция и локальное окружение
 
 ## Локальный запуск
 
-Требуется установленный Python.
+Требуются Python и Docker Compose. Django запускается локально, PostgreSQL — в Docker.
 
 ```bash
 git clone https://github.com/IhuliR/teamlab_backend.git
@@ -88,12 +88,31 @@ pip install -r teamlab_backend/requirements.txt
 .\venv\Scripts\Activate.ps1
 ```
 
-Создайте `.env` в корне репозитория:
+Создайте `.env` в корне репозитория из примера:
+
+```bash
+cp .env.example .env
+```
+
+Укажите в `.env` локальные `SECRET_KEY` и `POSTGRES_PASSWORD`. Полный набор переменных:
 
 ```env
 DEBUG=True
 SECRET_KEY=replace-with-a-local-secret
 ALLOWED_HOSTS=localhost,127.0.0.1
+POSTGRES_DB=teamlab
+POSTGRES_USER=teamlab
+POSTGRES_PASSWORD=replace-with-a-local-password
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+Если порт `5432` уже занят, задайте `DB_PORT=5433` в `.env`. Этот же порт будет использоваться и для Docker Compose, и для локального Django.
+
+Запустите PostgreSQL из корня репозитория и дождитесь готовности контейнера:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml up -d db
 ```
 
 Подготовьте базу и запустите backend:

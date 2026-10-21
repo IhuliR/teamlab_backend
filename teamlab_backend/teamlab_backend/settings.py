@@ -1,8 +1,7 @@
-import os
 from datetime import timedelta
 from pathlib import Path
 
-from dotenv import load_dotenv
+import environ
 from django.core.management.utils import get_random_secret_key
 
 
@@ -12,15 +11,20 @@ ROOT_DIR = BASE_DIR.parent
 DATA_DIR = BASE_DIR/ 'data'
 STATIC_URL = "static/"
 
+env = environ.Env(
+    DEBUG=(bool, False),
+    ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1']),
+    DB_PORT=(int, 5432),
+)
+environ.Env.read_env(ROOT_DIR / '.env')
+
 STATICFILES_DIRS = [
     ("api", PROJECT_ROOT / "docs" / "api"),
 ]
 
-load_dotenv(ROOT_DIR / '.env')
+DEBUG = env.bool('DEBUG')
 
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
-
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = env('SECRET_KEY', default='')
 
 if not SECRET_KEY:
     if DEBUG:
@@ -28,14 +32,7 @@ if not SECRET_KEY:
     else:
         raise RuntimeError('SECRET_KEY must be set when DEBUG=False')
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv(
-        'ALLOWED_HOSTS',
-        'localhost,127.0.0.1'
-    ).split(',')
-    if host.strip()
-]
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -94,14 +91,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'teamlab_backend.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('POSTGRES_DB'),
+        'USER': env('POSTGRES_USER'),
+        'PASSWORD': env('POSTGRES_PASSWORD'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env.int('DB_PORT'),
     }
 }
 
