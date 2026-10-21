@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.*
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+teamlab_backend/db.sqlite3
+teamlab_backend/db.sqlite3-*
+teamlab_backend/media
+teamlab_backend/static

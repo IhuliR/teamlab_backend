@@ -28,7 +28,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='skill',
             name='slug',
-            field=models.SlugField(blank=True, null=True, verbose_name='Слаг'),
+            field=models.CharField(
+                blank=True,
+                max_length=50,
+                null=True,
+                verbose_name='Слаг',
+            ),
         ),
         migrations.RunPython(
             fill_skill_slugs,
