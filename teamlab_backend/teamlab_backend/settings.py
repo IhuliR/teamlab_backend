@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'projects.apps.ProjectsConfig',
     'api.apps.ApiConfig',
+    'images.apps.ImagesConfig',
 ]
 
 MIDDLEWARE = [
@@ -171,4 +172,10 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+}
+
+IMAGE_UPLOAD_LIMITS = {
+    'user_avatar': 1 * 1024 * 1024,
+    'project_image': 2 * 1024 * 1024,
+    'portfolio_image': 2 * 1024 * 1024,
 }
