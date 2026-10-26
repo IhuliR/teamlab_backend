@@ -132,6 +132,25 @@ STATIC_ROOT = Path('/backend_static/static')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+    'media_s3': {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'bucket_name': env('AWS_STORAGE_BUCKET_NAME'),
+            'endpoint_url': env('AWS_S3_ENDPOINT_URL'),
+            'region_name': env('AWS_S3_REGION_NAME'),
+            'querystring_auth': True,
+            'file_overwrite': False,
+        },
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'

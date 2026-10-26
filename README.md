@@ -39,6 +39,7 @@ TeamLab развивается как командный продуктовый 
 
 - **Backend:** Python, Django 5.1, Django REST Framework, Simple JWT, django-filter, django-cors-headers.
 - **Database:** PostgreSQL 17 в Docker Compose; Django запускается локально.
+- **Object storage:** Yandex Object Storage (S3-совместимый), `boto3` и `django-storages`.
 - **Testing:** pytest, pytest-django.
 - **API contract:** OpenAPI 3.0, Postman collection.
 
@@ -131,6 +132,26 @@ demo_backend / DemoPass123!
 demo_designer / DemoPass123!
 demo_member / DemoPass123!
 ```
+
+## Yandex Object Storage (S3)
+
+S3 подготовлен для хранения медиа в Yandex Object Storage через `boto3` и `django-storages`. Создайте приватный бакет, сервисный аккаунт с ролью `storage.editor` для этого бакета (или каталога) и его статический ключ доступа. Секретный ключ сохраняется только в локальном `.env` и не добавляется в Git.
+
+Добавьте в `.env` значения, выданные Yandex Cloud:
+
+```env
+AWS_ACCESS_KEY_ID=<static-access-key-id>
+AWS_SECRET_ACCESS_KEY=<static-access-key-secret>
+AWS_STORAGE_BUCKET_NAME=<bucket-name>
+AWS_S3_ENDPOINT_URL=<s3-compatible-endpoint>
+AWS_S3_REGION_NAME=ru-central1
+```
+
+В настройках бакета добавьте CORS-правило для локального frontend: `http://localhost:5173` и `http://127.0.0.1:5173`. Для отображения объектов достаточно разрешить `GET` и `HEAD`; методы загрузки добавляйте только при прямой загрузке из браузера.
+
+Также включите Lifecycle Rule: префикс `temporary/`, удаление объектов через 1 день. Это защищает бакет от накопления временных файлов.
+
+Сейчас `media_s3` — отдельный storage alias для явного использования в новом коде. `default` остаётся локальным `FileSystemStorage`, поэтому существующие `ImageField` и API загрузки продолжают работать с локальным `media/`; URL и контракты API не меняются автоматически.
 
 ## API
 
