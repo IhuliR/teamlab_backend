@@ -35,12 +35,12 @@ class ImageUploadCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 'target_id': 'Укажите ID проекта или работы партфолио.',
             })
-        
+
         max_size = settings.IMAGE_UPLOAD_LIMITS[kind]
 
         if attrs['size_bytes'] > max_size:
             raise serializers.ValidationError({
                 'size_bytes': 'Размер изображения превышает лимит.'
             })
-        
+
         return attrs

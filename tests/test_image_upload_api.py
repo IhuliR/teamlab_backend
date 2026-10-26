@@ -3,6 +3,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from botocore.exceptions import NoCredentialsError
 from django.conf import settings
 
 from images.models import ImageUpload
@@ -156,4 +157,86 @@ def test_foreign_project_image_upload_is_forbidden(
 
     assert response.status_code == 403
     generate_upload_url_mock.assert_not_called()
+    assert ImageUpload.objects.count() == 0
+
+
+def test_presigned_post_credentials_error_returns_service_unavailable(
+    generate_upload_url_mock,
+    owner_client,
+    api_request,
+    avatar_upload_payload,
+):
+    generate_upload_url_mock.side_effect = NoCredentialsError()
+
+    response = api_request(
+        owner_client,
+        'post',
+        IMAGE_UPLOADS_URL,
+        data=avatar_upload_payload,
+    )
+
+    assert response.status_code == 503
+    generate_upload_url_mock.assert_called_once()
+    assert ImageUpload.objects.count() == 0
+
+
+def test_deleted_target_between_checks_returns_not_found(
+    generate_upload_url_mock,
+    owner_client,
+    api_request,
+    project,
+):
+    target_id = project.pk
+
+    def delete_target(**kwargs):
+        project.delete()
+        return PRESIGNED_UPLOAD
+
+    generate_upload_url_mock.side_effect = delete_target
+
+    response = api_request(
+        owner_client,
+        'post',
+        IMAGE_UPLOADS_URL,
+        data={
+            'kind': ImageUpload.Kind.PROJECT_IMAGE,
+            'target_id': target_id,
+            'content_type': 'image/jpeg',
+            'size_bytes': 12_345,
+        },
+    )
+
+    assert response.status_code == 404
+    generate_upload_url_mock.assert_called_once()
+    assert ImageUpload.objects.count() == 0
+
+
+def test_target_owner_change_between_checks_is_forbidden(
+    generate_upload_url_mock,
+    owner_client,
+    api_request,
+    project,
+    participant_backend_user,
+):
+    def change_target_owner(**kwargs):
+        project.owner = participant_backend_user
+        project.save(update_fields=['owner'])
+        return PRESIGNED_UPLOAD
+
+    generate_upload_url_mock.side_effect = change_target_owner
+
+    response = api_request(
+        owner_client,
+        'post',
+        IMAGE_UPLOADS_URL,
+        data={
+            'kind': ImageUpload.Kind.PROJECT_IMAGE,
+            'target_id': project.pk,
+            'content_type': 'image/jpeg',
+            'size_bytes': 12_345,
+        },
+    )
+
+    assert response.status_code == 403
+    generate_upload_url_mock.assert_called_once()
     assert ImageUpload.objects.count() == 0

@@ -19,7 +19,7 @@ class ImageUpload(models.Model):
         USER_AVATAR = 'user_avatar', 'аватар'
         PROJECT_IMAGE = 'project_image', 'изображение проекта'
         PORTFOLIO_IMAGE = 'portfolio_image', 'изображение портфолио'
-    
+
     class Status(models.TextChoices):
         AWAITING_UPLOAD = 'awaiting_upload', 'Ожидает загрузки'
         QUEUED = 'queued', 'В очереди'
@@ -179,7 +179,7 @@ class ImageUpload(models.Model):
                 name='image_upload_valid_target'
             )
         ]
-    
+
     def __str__(self):
         return (
             f'Загружаемое изображение id: {self.id}, '

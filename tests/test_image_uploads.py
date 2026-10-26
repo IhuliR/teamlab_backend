@@ -2,11 +2,12 @@ from unittest.mock import patch
 
 import pytest
 from django.conf import settings
+from django.http import Http404
 from django.utils import timezone
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import PermissionDenied
 
 from images.models import ImageUpload
-from images.services import create_image_upload
+from images.services import create_image_upload, generate_upload_url
 
 
 PRESIGNED_UPLOAD = {
@@ -55,6 +56,40 @@ def assert_upload(
     assert (upload.expires_at - created_before).total_seconds() == pytest.approx(
         settings.IMAGE_PRESIGN_TTL_SECONDS,
         abs=1,
+    )
+
+
+def test_generate_upload_url_uses_expected_presigned_post_policy():
+    temporary_key = 'temporary/upload-id/image'
+    content_type = 'image/webp'
+    max_size = settings.IMAGE_UPLOAD_LIMITS[ImageUpload.Kind.PROJECT_IMAGE]
+
+    with patch('images.services.boto3.client') as boto3_client:
+        s3 = boto3_client.return_value
+        s3.generate_presigned_post.return_value = PRESIGNED_UPLOAD
+
+        result = generate_upload_url(
+            key=temporary_key,
+            content_type=content_type,
+            max_size=max_size,
+        )
+
+    options = settings.STORAGES['media_s3']['OPTIONS']
+    assert result == PRESIGNED_UPLOAD
+    boto3_client.assert_called_once_with(
+        's3',
+        endpoint_url=options['endpoint_url'],
+        region_name=options['region_name'],
+    )
+    s3.generate_presigned_post.assert_called_once_with(
+        Bucket=options['bucket_name'],
+        Key=temporary_key,
+        Fields={'Content-Type': content_type},
+        Conditions=[
+            {'Content-Type': content_type},
+            ['content-length-range', 1, max_size],
+        ],
+        ExpiresIn=settings.IMAGE_PRESIGN_TTL_SECONDS,
     )
 
 
@@ -183,7 +218,7 @@ def test_create_image_upload_for_missing_target_raises_not_found(
     kind,
     target_id,
 ):
-    with pytest.raises(NotFound):
+    with pytest.raises(Http404):
         create_image_upload(
             user=owner,
             validated_data=upload_data(kind, target_id=target_id),
