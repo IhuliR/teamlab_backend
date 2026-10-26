@@ -152,6 +152,8 @@ STORAGES = {
     },
 }
 
+IMAGE_PRESIGN_TTL_SECONDS = 300
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
