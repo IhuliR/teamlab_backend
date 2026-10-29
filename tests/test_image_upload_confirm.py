@@ -7,7 +7,7 @@ import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, transaction
 from django.db.models.signals import post_save
 from django.utils import timezone
 
@@ -83,6 +83,62 @@ def test_confirm_image_upload_queues_upload_and_saves_metadata(
     uploaded_object_metadata_mock.assert_called_once_with(
         key=image_upload.temporary_key,
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_confirm_api_dispatches_processing_only_after_outer_commit(
+    owner_client,
+    api_request,
+    image_upload,
+):
+    with (
+        patch(
+            'images.services.get_uploaded_object_metadata',
+            return_value=UPLOADED_METADATA,
+        ),
+        patch('images.tasks.process_uploaded_image.delay') as delay_mock,
+    ):
+        with transaction.atomic():
+            response = api_request(
+                owner_client,
+                'post',
+                confirm_url(image_upload.pk),
+            )
+
+            assert response.status_code == 200
+            assert response.json()['status'] == ImageUpload.Status.QUEUED
+            delay_mock.assert_not_called()
+
+        delay_mock.assert_called_once_with(str(image_upload.pk))
+
+    image_upload.refresh_from_db()
+    assert image_upload.status == ImageUpload.Status.QUEUED
+    assert image_upload.last_dispatched_at is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_confirm_keeps_upload_recoverable_when_dispatch_fails(
+    owner,
+    image_upload,
+):
+    with (
+        patch(
+            'images.services.get_uploaded_object_metadata',
+            return_value=UPLOADED_METADATA,
+        ),
+        patch(
+            'images.tasks.process_uploaded_image.delay',
+            side_effect=ConnectionError('Redis unavailable'),
+        ),
+    ):
+        upload = confirm_image_upload(
+            user=owner,
+            upload_id=image_upload.pk,
+        )
+
+    upload.refresh_from_db()
+    assert upload.status == ImageUpload.Status.QUEUED
+    assert upload.last_dispatched_at is None
 
 
 def test_confirm_queued_upload_is_idempotent_without_s3_head(
@@ -353,10 +409,13 @@ def test_concurrent_confirms_queue_upload_once(owner, image_upload):
         dispatch_uid='test_concurrent_image_upload_confirmation',
     )
     try:
-        with patch(
-            'images.services.get_uploaded_object_metadata',
-            side_effect=metadata_after_both_requests_start,
-        ) as metadata_mock:
+        with (
+            patch(
+                'images.services.get_uploaded_object_metadata',
+                side_effect=metadata_after_both_requests_start,
+            ) as metadata_mock,
+            patch('images.tasks.process_uploaded_image.delay') as delay_mock,
+        ):
             with ThreadPoolExecutor(max_workers=2) as executor:
                 futures = [
                     executor.submit(confirm_in_separate_connection)
@@ -377,3 +436,4 @@ def test_concurrent_confirms_queue_upload_once(owner, image_upload):
     assert image_upload.etag == UPLOADED_ETAG
     assert transitions == [ImageUpload.Status.QUEUED]
     assert metadata_mock.call_count == 2
+    delay_mock.assert_called_once_with(str(image_upload.pk))

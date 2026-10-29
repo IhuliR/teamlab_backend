@@ -29,7 +29,6 @@ class ImageUpload(models.Model):
         EXPIRED = 'expired', 'Истекло'
         SUPERSEDED = 'superseded', 'Заменено новой загрузкой'
 
-
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -152,6 +151,11 @@ class ImageUpload(models.Model):
         blank=True,
         default='',
         verbose_name='Описание ошибки',
+    )
+    last_dispatched_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Время последней отправки задачи',
     )
 
     class Meta:
