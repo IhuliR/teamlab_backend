@@ -1,9 +1,14 @@
-import boto3
+import logging
 import uuid
 from datetime import timedelta
+from functools import partial
+
+import boto3
 
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import storages
 from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -16,6 +21,9 @@ from .models import ImageUpload
 from .exceptions import StorageUnavailable
 from projects.models import Project
 from users.models import PortfolioWork
+
+
+logger = logging.getLogger(__name__)
 
 
 def generate_upload_url(
@@ -156,6 +164,23 @@ def validate_upload_confirmation(upload: ImageUpload) -> bool:
     return True
 
 
+def dispatch_image_processing(*, upload_id, dispatched_at):
+    from .tasks import process_uploaded_image
+
+    try:
+        process_uploaded_image.delay(str(upload_id))
+    except Exception:
+        ImageUpload.objects.filter(
+            pk=upload_id,
+            status=ImageUpload.Status.QUEUED,
+            last_dispatched_at=dispatched_at,
+        ).update(last_dispatched_at=None)
+        logger.exception(
+            'Не удалось отправить изображение %s на обработку.',
+            upload_id,
+        )
+
+
 def confirm_image_upload(*, user, upload_id):
     upload = get_object_or_404(
         ImageUpload,
@@ -216,13 +241,65 @@ def confirm_image_upload(*, user, upload_id):
         upload.actual_content_type = actual_content_type
         upload.etag = metadata['ETag']
         upload.status = ImageUpload.Status.QUEUED
+        dispatched_at = timezone.now()
+        upload.last_dispatched_at = dispatched_at
         upload.save(
             update_fields=[
                 'actual_size',
                 'actual_content_type',
                 'etag',
                 'status',
+                'last_dispatched_at',
             ],
         )
+        transaction.on_commit(partial(
+            dispatch_image_processing,
+            upload_id=upload.pk,
+            dispatched_at=dispatched_at,
+        ))
 
     return upload
+
+
+def download_image(
+    *,
+    key: str,
+    max_size: int,
+    expected_etag: str,
+    expected_size: int,
+) -> bytes:
+    options = settings.STORAGES['media_s3']['OPTIONS']
+
+    s3 = boto3.client(
+        's3',
+        endpoint_url=options['endpoint_url'],
+        region_name=options['region_name'],
+    )
+    response = s3.get_object(
+        Bucket=options['bucket_name'],
+        Key=key,
+        IfMatch=expected_etag,
+    )
+    body = response['Body']
+
+    try:
+        content_length = response['ContentLength']
+        if content_length != expected_size or content_length > max_size:
+            raise ValueError('Размер файла не соответствует подтверждённому.')
+
+        data = body.read(max_size + 1)
+
+        if len(data) != content_length:
+            raise ValueError('Недопустимый размер файла.')
+
+        return data
+
+    finally:
+        body.close()
+
+
+def save_processed_image(*, key: str, image_bytes: bytes) -> str:
+    storage = storages['media_s3']
+    content = ContentFile(image_bytes)
+    content.content_type = 'image/webp'
+    return storage.save(key, content)

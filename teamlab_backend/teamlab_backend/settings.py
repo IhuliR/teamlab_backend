@@ -147,7 +147,7 @@ STORAGES = {
             'endpoint_url': env('AWS_S3_ENDPOINT_URL'),
             'region_name': env('AWS_S3_REGION_NAME'),
             'querystring_auth': True,
-            'file_overwrite': False,
+            'file_overwrite': True,
         },
     },
 }
@@ -180,4 +180,23 @@ IMAGE_UPLOAD_LIMITS = {
     'user_avatar': 1 * 1024 * 1024,
     'project_image': 2 * 1024 * 1024,
     'portfolio_image': 2 * 1024 * 1024,
+}
+
+CELERY_BROKER_URL = env(
+    'CELERY_BROKER_URL',
+    default='redis://127.0.0.1:6380/0',
+)
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULE = {
+    'recover-queued-images': {
+        'task': 'images.tasks.recover_queued_images',
+        'schedule': 60.0,
+    },
+    'recover-stuck-images': {
+        'task': 'images.tasks.recover_stuck_images',
+        'schedule': 60.0,
+    },
 }
