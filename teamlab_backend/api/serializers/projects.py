@@ -3,6 +3,8 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
+from images.serializers import S3ImageRepresentationMixin
+from images.services import replace_image_with_local
 from projects.models import (
     Project,
     ProjectMembership,
@@ -228,7 +230,10 @@ class ProjectRoleUpdateSerializer(ProjectRoleBaseInputSerializer):
         return instance
     
 
-class ProjectBaseReadSerializer(serializers.ModelSerializer):
+class ProjectBaseReadSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
     owner_id = serializers.IntegerField(read_only=True)
     field_id = serializers.IntegerField(read_only=True)
     is_favorited = serializers.SerializerMethodField()
@@ -477,7 +482,10 @@ class ProjectCreateSerializer(serializers.Serializer):
         )
 
 
-class ProjectUpdateSerializer(serializers.ModelSerializer):
+class ProjectUpdateSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
     field_id = serializers.PrimaryKeyRelatedField(
         source='field',
         queryset=Field.objects.all(),
@@ -494,6 +502,23 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
             'image',
             'status',
         )
+
+    def update(self, instance, validated_data):
+        image = validated_data.pop('image', serializers.empty)
+        if image is not serializers.empty:
+            instance = replace_image_with_local(
+                target=instance,
+                user=self.context['request'].user,
+                image=image,
+            )
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if validated_data:
+            instance.save(update_fields=[*validated_data, 'updated_at'])
+
+        return instance
 
 
 class FavoriteProjectRolePreviewSerializer(serializers.ModelSerializer):

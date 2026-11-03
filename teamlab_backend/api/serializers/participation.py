@@ -1,23 +1,33 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from images.services import get_entity_image_url
 from .users import UserListSerializer
 from projects.models import ProjectMembership, RoleInterest
 
 
 User = get_user_model()
 
-class CurrentUserMembershipProjectCardSerializer(serializers.ModelSerializer):
+
+class ProjectImageRepresentationMixin:
+    def get_project_image(self, obj):
+        return get_entity_image_url(
+            obj.project_role.project,
+            request=self.context.get('request'),
+        )
+
+
+class CurrentUserMembershipProjectCardSerializer(
+    ProjectImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
+    project_image = serializers.SerializerMethodField()
     project_id = serializers.IntegerField(
         source='project_role.project_id',
         read_only=True,
     )
     project_title = serializers.CharField(
         source='project_role.project.title',
-        read_only=True,
-    )
-    project_image = serializers.ImageField(
-        source='project_role.project.image',
         read_only=True,
     )
     project_role_id = serializers.IntegerField(read_only=True)
@@ -40,17 +50,17 @@ class CurrentUserMembershipProjectCardSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class CurrentUserInvitedProjectCardSerializer(serializers.ModelSerializer):
+class CurrentUserInvitedProjectCardSerializer(
+    ProjectImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
+    project_image = serializers.SerializerMethodField()
     project_id = serializers.IntegerField(
         source='project_role.project_id',
         read_only=True,
     )
     project_title = serializers.CharField(
         source='project_role.project.title',
-        read_only=True,
-    )
-    project_image = serializers.ImageField(
-        source='project_role.project.image',
         read_only=True,
     )
     project_role_id = serializers.IntegerField(read_only=True)

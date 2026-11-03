@@ -1,10 +1,19 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import ImageUploadCreateSerializer
-from .services import create_image_upload, confirm_image_upload
+from .models import ImageUpload
+from .serializers import (
+    ImageUploadCreateSerializer,
+    ImageUploadStatusSerializer,
+)
+from .services import (
+    attach_image_upload,
+    create_image_upload,
+    confirm_image_upload,
+)
 
 
 class ImageUploadCreateView(APIView):
@@ -43,3 +52,37 @@ class ImageUploadConfirmView(APIView):
             'upload_id': str(upload.id),
             'status': upload.status,
         })
+
+
+class ImageUploadDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, upload_id):
+        upload = get_object_or_404(
+            ImageUpload,
+            pk=upload_id,
+            owner=request.user,
+        )
+
+        serializer = ImageUploadStatusSerializer(upload)
+        return Response(serializer.data)
+
+
+class ImageUploadAttachView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, upload_id):
+        candidate = get_object_or_404(
+            ImageUpload,
+            pk=upload_id,
+            owner=request.user,
+        )
+        response_data = dict(
+            ImageUploadStatusSerializer(candidate).data,
+        )
+        upload = attach_image_upload(
+            user=request.user,
+            upload_id=upload_id,
+        )
+        response_data['status'] = upload.status
+        return Response(response_data)

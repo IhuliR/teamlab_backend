@@ -91,6 +91,7 @@ def test_process_uploaded_image_transitions_to_ready_and_saves_both_keys(
             'images.tasks.save_processed_image',
             side_effect=return_requested_key,
         ) as save_mock,
+        patch('images.tasks.delete_image_object') as delete_mock,
     ):
         result = process_uploaded_image.run(str(queued_upload.pk))
 
@@ -120,6 +121,30 @@ def test_process_uploaded_image_transitions_to_ready_and_saves_both_keys(
         call(key=final_key, image_bytes=WEBP_BYTES),
         call(key=thumbnail_key, image_bytes=THUMBNAIL_BYTES),
     ]
+    delete_mock.assert_called_once_with(queued_upload.temporary_key)
+
+
+def test_temporary_cleanup_failure_keeps_processed_image_ready(queued_upload):
+    with (
+        patch('images.tasks.download_image', return_value=SOURCE_BYTES),
+        patch(
+            'images.tasks.process_image',
+            return_value=(WEBP_BYTES, THUMBNAIL_BYTES),
+        ),
+        patch(
+            'images.tasks.save_processed_image',
+            side_effect=lambda *, key, image_bytes: key,
+        ),
+        patch(
+            'images.tasks.delete_image_object',
+            side_effect=ConnectionError('S3 unavailable'),
+        ),
+    ):
+        result = process_uploaded_image.run(str(queued_upload.pk))
+
+    queued_upload.refresh_from_db()
+    assert queued_upload.status == ImageUpload.Status.READY
+    assert result['id'] == str(queued_upload.pk)
 
 
 @pytest.mark.parametrize(

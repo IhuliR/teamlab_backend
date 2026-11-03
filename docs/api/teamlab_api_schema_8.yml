@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: TeamLab API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     API MVP-платформы TeamLab.
 
@@ -40,6 +40,8 @@ tags:
     description: Action endpoints для заявок и приглашений
   - name: Memberships
     description: Action endpoints для завершения участия
+  - name: Images
+    description: Прямая загрузка, обработка и привязка изображений
 
 paths:
   /api/v1/:
@@ -377,6 +379,112 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
 
+  /api/v1/image-uploads/:
+    post:
+      tags: [Images]
+      summary: Создать сессию прямой загрузки изображения
+      operationId: createImageUpload
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageUploadCreateRequest'
+      responses:
+        '201':
+          description: Сессия и параметры presigned POST созданы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+        '503':
+          description: Object Storage временно недоступен
+
+  /api/v1/image-uploads/{upload_id}/:
+    get:
+      tags: [Images]
+      summary: Получить статус обработки изображения
+      operationId: retrieveImageUpload
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ImageUploadIdParam'
+      responses:
+        '200':
+          description: Статус и signed URLs готового изображения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadStatus'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+        '503':
+          description: Не удалось сформировать signed URL
+
+  /api/v1/image-uploads/{upload_id}/confirm/:
+    post:
+      tags: [Images]
+      summary: Подтвердить завершение прямой загрузки
+      operationId: confirmImageUpload
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ImageUploadIdParam'
+      responses:
+        '200':
+          description: Изображение поставлено в очередь обработки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadConfirmResponse'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+        '503':
+          description: Object Storage временно недоступен
+
+  /api/v1/image-uploads/{upload_id}/attach/:
+    post:
+      tags: [Images]
+      summary: Привязать готовое изображение или заменить текущее
+      operationId: attachImageUpload
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ImageUploadIdParam'
+      responses:
+        '200':
+          description: Изображение привязано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadStatus'
+        '400':
+          $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+        '503':
+          description: Не удалось сформировать signed URL
+
   /api/v1/users/set_password/:
     post:
       tags: [Me]
@@ -707,6 +815,25 @@ paths:
                 $ref: '#/components/schemas/ProjectDetail'
         '400':
           $ref: '#/components/responses/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+
+  /api/v1/projects/{project_id}/image/:
+    delete:
+      tags: [Projects]
+      summary: Отвязать текущее изображение проекта
+      operationId: deleteProjectImage
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectIdParam'
+      responses:
+        '204':
+          description: Изображение отвязано, очистка поставлена в очередь
         '401':
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
@@ -1238,6 +1365,23 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundResponse'
 
+  /api/v1/users/me/portfolio-works/{portfolio_work_id}/image/:
+    delete:
+      tags: [Me]
+      summary: Отвязать изображение работы портфолио
+      operationId: deleteMyPortfolioWorkImage
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PortfolioWorkIdParam'
+      responses:
+        '204':
+          description: Изображение отвязано, очистка поставлена в очередь
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundResponse'
+
   /api/v1/users/me/favorite-projects/:
     get:
       tags: [Me]
@@ -1359,6 +1503,13 @@ components:
       required: true
       schema:
         type: integer
+    ImageUploadIdParam:
+      name: upload_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
 
   responses:
     ValidationErrorResponse:
@@ -1386,6 +1537,101 @@ components:
           schema:
             $ref: '#/components/schemas/DetailMessage'
   schemas:
+    ImageUploadKind:
+      type: string
+      enum: [user_avatar, project_image, portfolio_image]
+    ImageUploadStatusValue:
+      type: string
+      enum:
+        - awaiting_upload
+        - queued
+        - processing
+        - ready
+        - attached
+        - failed
+        - expired
+        - superseded
+    ImageUploadCreateRequest:
+      type: object
+      required: [kind, content_type, size_bytes]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ImageUploadKind'
+        target_id:
+          type: integer
+          minimum: 1
+          description: Обязателен для проекта и портфолио, запрещён для аватара.
+        content_type:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        size_bytes:
+          type: integer
+          minimum: 1
+    ImageUploadCreateResponse:
+      type: object
+      required:
+        - upload_id
+        - status
+        - expires_at
+        - upload_url
+        - upload_fields
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ImageUploadStatusValue'
+        expires_at:
+          type: string
+          format: date-time
+        upload_url:
+          type: string
+          format: uri
+        upload_fields:
+          type: object
+          additionalProperties:
+            type: string
+    ImageUploadConfirmResponse:
+      type: object
+      required: [upload_id, status]
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ImageUploadStatusValue'
+    ImageUploadStatus:
+      type: object
+      required:
+        - upload_id
+        - kind
+        - status
+        - image_url
+        - thumbnail_url
+        - error_code
+        - error_message
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/ImageUploadKind'
+        status:
+          $ref: '#/components/schemas/ImageUploadStatusValue'
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+        thumbnail_url:
+          type: string
+          format: uri
+          nullable: true
+        error_code:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+
     ApiRoot:
       type: object
       required: [skills, fields, specializations, projects, project-roles, users]

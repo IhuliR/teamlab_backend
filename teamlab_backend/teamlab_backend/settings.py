@@ -153,6 +153,7 @@ STORAGES = {
 }
 
 IMAGE_PRESIGN_TTL_SECONDS = 300
+IMAGE_DOWNLOAD_URL_TTL_SECONDS = 3600
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -181,6 +182,7 @@ IMAGE_UPLOAD_LIMITS = {
     'project_image': 2 * 1024 * 1024,
     'portfolio_image': 2 * 1024 * 1024,
 }
+IMAGE_PRESIGNED_POST_OVERHEAD_BYTES = 16 * 1024
 
 CELERY_BROKER_URL = env(
     'CELERY_BROKER_URL',
@@ -198,5 +200,9 @@ CELERY_BEAT_SCHEDULE = {
     'recover-stuck-images': {
         'task': 'images.tasks.recover_stuck_images',
         'schedule': 60.0,
+    },
+    'cleanup-superseded-images': {
+        'task': 'images.tasks.cleanup_superseded_images',
+        'schedule': 600.0,
     },
 }

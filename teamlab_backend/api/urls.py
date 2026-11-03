@@ -7,6 +7,7 @@ from .views import (
     CurrentUserFavoriteProjectDeleteView,
     CurrentUserFavoriteProjectListCreateView,
     CurrentUserPortfolioWorkDetailView,
+    CurrentUserPortfolioWorkImageView,
     CurrentUserPortfolioWorkListCreateView,
     FieldListView,
     ProjectMembershipViewSet,
@@ -107,6 +108,11 @@ urlpatterns = [
         'users/me/portfolio-works/<int:portfolio_work_id>/',
         CurrentUserPortfolioWorkDetailView.as_view(),
         name='current_user_portfolio_work_detail',
+    ),
+    path(
+        'users/me/portfolio-works/<int:portfolio_work_id>/image/',
+        CurrentUserPortfolioWorkImageView.as_view(),
+        name='current_user_portfolio_work_image',
     ),
     path(
         'users/me/favorite-projects/',

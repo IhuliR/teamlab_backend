@@ -21,6 +21,7 @@ class ImageUpload(models.Model):
         PORTFOLIO_IMAGE = 'portfolio_image', 'изображение портфолио'
 
     class Status(models.TextChoices):
+        ATTACHED = 'attached', 'Привязано'
         AWAITING_UPLOAD = 'awaiting_upload', 'Ожидает загрузки'
         QUEUED = 'queued', 'В очереди'
         PROCESSING = 'processing', 'Обрабатывается'
@@ -177,7 +178,10 @@ class ImageUpload(models.Model):
                     | (
                         models.Q(kind='portfolio_image')
                         & models.Q(project__isnull=True)
-                        & models.Q(portfolio_work__isnull=False)
+                        & (
+                            models.Q(portfolio_work__isnull=False)
+                            | models.Q(status='superseded')
+                        )
                     )
                 ),
                 name='image_upload_valid_target'

@@ -18,7 +18,11 @@ from django.conf import settings
 from django.utils import timezone
 
 from .processing import process_image
-from .services import download_image, save_processed_image
+from .services import (
+    delete_image_object,
+    download_image,
+    save_processed_image,
+)
 from .models import ImageUpload
 from .constants import (
     MAX_PROCESSING_ATTEMPTS,
@@ -140,6 +144,15 @@ def process_uploaded_image(self, upload_id: str) -> dict:
                 raise RuntimeError(
                     'Статус загрузки изменился во время обработки.'
                 )
+
+        try:
+            delete_image_object(upload.temporary_key)
+        except Exception:
+            logger.exception(
+                'Не удалось удалить временный объект изображения %s. '
+                'Его удалит S3 Lifecycle.',
+                upload.pk,
+            )
 
     except ValueError:
         ImageUpload.objects.filter(
@@ -327,3 +340,84 @@ def recover_stuck_images() -> int:
         recovered += updated
 
     return recovered
+
+
+def _upload_is_attached(upload_id) -> bool:
+    from django.contrib.auth import get_user_model
+
+    from projects.models import Project
+    from users.models import PortfolioWork
+
+    User = get_user_model()
+    return (
+        User.objects.filter(avatar_upload_id=upload_id).exists()
+        or Project.objects.filter(image_upload_id=upload_id).exists()
+        or PortfolioWork.objects.filter(image_upload_id=upload_id).exists()
+    )
+
+
+@shared_task(bind=True, max_retries=3)
+def delete_superseded_image(self, upload_id: str) -> dict:
+    upload = ImageUpload.objects.filter(
+        pk=UUID(upload_id),
+        status=ImageUpload.Status.SUPERSEDED,
+    ).first()
+
+    if upload is None:
+        return {'deleted': False, 'reason': 'not_superseded'}
+
+    if _upload_is_attached(upload.pk):
+        logger.error(
+            'Отменено удаление используемого изображения %s.',
+            upload.pk,
+        )
+        return {'deleted': False, 'reason': 'still_attached'}
+
+    try:
+        if upload.final_key:
+            delete_image_object(upload.final_key)
+        if upload.thumbnail_key:
+            delete_image_object(upload.thumbnail_key)
+    except Exception as exc:
+        delay = 2 ** (self.request.retries + 1)
+        raise self.retry(exc=exc, countdown=delay)
+
+    updated = ImageUpload.objects.filter(
+        pk=upload.pk,
+        status=ImageUpload.Status.SUPERSEDED,
+    ).update(
+        final_key=None,
+        thumbnail_key=None,
+    )
+    return {'deleted': updated == 1}
+
+
+@shared_task
+def cleanup_superseded_images() -> int:
+    has_final_key = Q(final_key__isnull=False) & ~Q(final_key='')
+    has_thumbnail_key = (
+        Q(thumbnail_key__isnull=False) & ~Q(thumbnail_key='')
+    )
+    upload_ids = list(
+        ImageUpload.objects.filter(
+            has_final_key | has_thumbnail_key,
+            status=ImageUpload.Status.SUPERSEDED,
+        ).order_by('completed_at', 'created_at').values_list(
+            'pk',
+            flat=True,
+        )[:100]
+    )
+
+    published = 0
+    for upload_id in upload_ids:
+        try:
+            delete_superseded_image.delay(str(upload_id))
+        except Exception:
+            logger.exception(
+                'Не удалось повторно отправить удаление изображения %s.',
+                upload_id,
+            )
+        else:
+            published += 1
+
+    return published
