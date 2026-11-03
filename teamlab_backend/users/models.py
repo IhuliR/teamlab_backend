@@ -151,6 +151,14 @@ class User(AbstractUser):
         blank=True,
         verbose_name='Аватар'
     )
+    avatar_upload = models.OneToOneField(
+        'images.ImageUpload',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='avatar_user',
+        verbose_name='Загруженный аватар',
+    )
     social_links = models.JSONField(
         default=dict,
         blank=True,
@@ -290,6 +298,14 @@ class PortfolioWork(models.Model):
         null=True,
         blank=True,
         verbose_name='Изображение работы портфолио'
+    )
+    image_upload = models.OneToOneField(
+        'images.ImageUpload',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='portfolio_work_image',
+        verbose_name='Загруженное изображение',
     )
     technologies = models.JSONField(blank=True, null=True)
     link = models.URLField(blank=True, null=True)

@@ -101,6 +101,14 @@ class Project(models.Model):
         blank=True,
         verbose_name='Изображение'
     )
+    image_upload = models.OneToOneField(
+        'images.ImageUpload',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_image',
+        verbose_name='Загруженное изображение проекта',
+    )
     status = models.CharField(
         max_length=MAX_STATUS_LEN,
         choices=Status.choices,

@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, mixins, status, viewsets, filters
@@ -56,6 +57,7 @@ from .filters import (
     SkillFilter
 )
 from .mixins import PaginatedActionMixin
+from images.services import delete_portfolio_work, detach_image
 from projects.services import (
     accept_role_interest,
     reject_role_interest,
@@ -155,7 +157,7 @@ class ProjectViewSet(
     viewsets.GenericViewSet,
 ):
     queryset = Project.objects.all()
-    http_method_names = ('get', 'post', 'patch', 'head', 'options')
+    http_method_names = ('get', 'post', 'patch', 'delete', 'head', 'options')
 
     filter_backends = (
         DjangoFilterBackend,
@@ -178,6 +180,7 @@ class ProjectViewSet(
         return Project.objects.select_related(
             'owner',
             'field',
+            'image_upload',
         ).prefetch_related(
             'roles',
             'roles__specialization',
@@ -191,6 +194,7 @@ class ProjectViewSet(
             'partial_update',
             'applications',
             'invitations',
+            'image',
         ):
             return (IsAuthenticated(),)
         
@@ -242,6 +246,11 @@ class ProjectViewSet(
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=True, methods=('delete',), url_path='image')
+    def image(self, request, pk=None):
+        detach_image(target=self.get_object(), user=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=False, methods=('get',), url_path='featured')
     def featured(self, request):
         queryset = self.get_queryset().filter(
@@ -267,6 +276,7 @@ class ProjectViewSet(
                 status=RoleInterest.Status.PENDING,
             ).select_related(
                 'user',
+                'user__avatar_upload',
                 'user__specialization',
                 'project_role',
                 'project_role__specialization',
@@ -366,11 +376,33 @@ class UserViewSet(
         return User.objects.select_related(
             'specialization',
             'specialization__field',
+            'avatar_upload',
         ).prefetch_related(
             'skills',
             'skills__skill',
-            'portfolio_works',
+            Prefetch(
+                'portfolio_works',
+                queryset=PortfolioWork.objects.select_related(
+                    'image_upload',
+                ),
+            ),
         ).distinct()
+
+    def _get_current_user(self):
+        return User.objects.select_related(
+            'avatar_upload',
+            'specialization',
+            'specialization__field',
+        ).prefetch_related(
+            'skills',
+            'skills__skill',
+            Prefetch(
+                'portfolio_works',
+                queryset=PortfolioWork.objects.select_related(
+                    'image_upload',
+                ),
+            ),
+        ).get(pk=self.request.user.pk)
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -403,15 +435,17 @@ class UserViewSet(
     
     @action(detail=False, methods=('get', 'patch'), url_path='me')
     def me(self, request):
+        current_user = self._get_current_user()
+
         if request.method == 'GET':
             serializer = CurrentUserDetailSerializer(
-                request.user,
+                current_user,
                 context=self.get_serializer_context(),
             )
             return Response(serializer.data)
 
         serializer = CurrentUserUpdateSerializer(
-            request.user,
+            current_user,
             data=request.data,
             partial=True,
             context=self.get_serializer_context(),
@@ -420,7 +454,7 @@ class UserViewSet(
         serializer.save()
 
         response_serializer = CurrentUserDetailSerializer(
-            request.user,
+            self._get_current_user(),
             context=self.get_serializer_context(),
         )
         return Response(response_serializer.data)
@@ -438,6 +472,7 @@ class UserViewSet(
         ).select_related(
             'project_role',
             'project_role__project',
+            'project_role__project__image_upload',
             'project_role__specialization',
         ).order_by('-created_at')
 
@@ -448,6 +483,7 @@ class UserViewSet(
         ).select_related(
             'project_role',
             'project_role__project',
+            'project_role__project__image_upload',
             'project_role__specialization',
         ).order_by('-created_at')
 
@@ -535,7 +571,7 @@ class CurrentUserPortfolioWorkListCreateView(
     def get_queryset(self):
         return PortfolioWork.objects.filter(
             user=self.request.user,
-        ).order_by('-created_at')
+        ).select_related('image_upload').order_by('-created_at')
     
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -557,10 +593,26 @@ class CurrentUserPortfolioWorkDetailView(
     def get_queryset(self):
         return PortfolioWork.objects.filter(
             user=self.request.user,
-        )
+        ).select_related('image_upload')
     
     def get_serializer_class(self):
         return PortfolioWorkWriteSerializer
+
+    def perform_destroy(self, instance):
+        delete_portfolio_work(work=instance, user=self.request.user)
+
+
+class CurrentUserPortfolioWorkImageView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ('delete', 'head', 'options')
+    lookup_url_kwarg = 'portfolio_work_id'
+
+    def get_queryset(self):
+        return PortfolioWork.objects.filter(user=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        detach_image(target=self.get_object(), user=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CurrentUserFavoriteProjectListCreateView(
@@ -573,7 +625,8 @@ class CurrentUserFavoriteProjectListCreateView(
         return FavoriteProject.objects.filter(
             user=self.request.user
         ).select_related(
-            'project'
+            'project',
+            'project__image_upload',
         ).prefetch_related(
             'project__roles',
             'project__roles__specialization',
@@ -631,12 +684,7 @@ class CurrentUserAvatarView(generics.GenericAPIView):
         return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
-        user = self.get_object()
-
-        if user.avatar:
-            user.avatar.delete(save=False)
-            user.avatar = None
-            user.save(update_fields=('avatar',))
+        detach_image(target=self.get_object(), user=request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
     

@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
+from images.serializers import S3ImageRepresentationMixin
+from images.services import replace_image_with_local
 from projects.models import (
     Project,
     ProjectMembership,
@@ -29,6 +31,13 @@ class AvatarSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('avatar',)
+
+    def update(self, instance, validated_data):
+        return replace_image_with_local(
+            target=instance,
+            user=self.context['request'].user,
+            image=validated_data['avatar'],
+        )
 
 
 class UserSkillReadSerializer(serializers.ModelSerializer):
@@ -63,7 +72,12 @@ class UserSkillInputSerializer(serializers.Serializer):
     )
 
 
-class UserListSerializer(serializers.ModelSerializer):
+class UserListSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
+    s3_image_field = 'avatar'
+    s3_upload_field = 'avatar_upload'
     specialization_id = serializers.IntegerField(read_only=True)
     specialization_name = serializers.CharField(
         source='specialization.name',
@@ -94,10 +108,12 @@ class UserListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class PortfolioWorkReadSerializer(serializers.ModelSerializer):
+class PortfolioWorkReadSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
     user_id = serializers.IntegerField(read_only=True)
 
-    
     class Meta:
         model = PortfolioWork
         fields = (
@@ -115,7 +131,10 @@ class PortfolioWorkReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class PortfolioWorkWriteSerializer(serializers.ModelSerializer):
+class PortfolioWorkWriteSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
     id = serializers.IntegerField(read_only=True)
     image = Base64ImageField(required=False, allow_null=True)
     technologies = serializers.ListField(
@@ -150,8 +169,30 @@ class PortfolioWorkWriteSerializer(serializers.ModelSerializer):
             **validated_data,
         )
 
+    def update(self, instance, validated_data):
+        image = validated_data.pop('image', serializers.empty)
+        if image is not serializers.empty:
+            instance = replace_image_with_local(
+                target=instance,
+                user=self.context['request'].user,
+                image=image,
+            )
 
-class UserDetailSerializer(serializers.ModelSerializer):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if validated_data:
+            instance.save(update_fields=[*validated_data, 'updated_at'])
+
+        return instance
+
+
+class UserDetailSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
+    s3_image_field = 'avatar'
+    s3_upload_field = 'avatar_upload'
     specialization_id = serializers.IntegerField(read_only=True)
     specialization_name = serializers.CharField(
         source='specialization.name',
@@ -365,7 +406,12 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return None
 
 
-class CurrentUserDetailSerializer(serializers.ModelSerializer):
+class CurrentUserDetailSerializer(
+    S3ImageRepresentationMixin,
+    serializers.ModelSerializer,
+):
+    s3_image_field = 'avatar'
+    s3_upload_field = 'avatar_upload'
     specialization_id = serializers.IntegerField(read_only=True)
     specialization_name = serializers.CharField(
         source='specialization.name',
@@ -506,11 +552,20 @@ class CurrentUserUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         skills_data = validated_data.pop('skills', None)
+        avatar = validated_data.pop('avatar', serializers.empty)
+
+        if avatar is not serializers.empty:
+            instance = replace_image_with_local(
+                target=instance,
+                user=self.context['request'].user,
+                image=avatar,
+            )
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        instance.save()
+        if validated_data:
+            instance.save(update_fields=[*validated_data, 'updated_at'])
 
         if skills_data is not None:
             replace_user_skills(instance, skills_data)

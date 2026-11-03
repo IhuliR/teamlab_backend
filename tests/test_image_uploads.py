@@ -87,7 +87,11 @@ def test_generate_upload_url_uses_expected_presigned_post_policy():
         Fields={'Content-Type': content_type},
         Conditions=[
             {'Content-Type': content_type},
-            ['content-length-range', 1, max_size],
+            [
+                'content-length-range',
+                1,
+                max_size + settings.IMAGE_PRESIGNED_POST_OVERHEAD_BYTES,
+            ],
         ],
         ExpiresIn=settings.IMAGE_PRESIGN_TTL_SECONDS,
     )
