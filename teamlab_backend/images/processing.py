@@ -58,10 +58,13 @@ def process_image(image_bytes: bytes) -> tuple[bytes, bytes]:
         image = ImageOps.exif_transpose(source)
         image.load()
 
-        if image.mode not in ('RGB', 'RGBA'):
-            image = image.convert(
-                'RGBA' if 'A' in image.getbands() else 'RGB'
-            )
+        has_transparency = (
+            'A' in image.getbands()
+            or 'transparency' in image.info
+        )
+        target_mode = 'RGBA' if has_transparency else 'RGB'
+        if image.mode != target_mode:
+            image = image.convert(target_mode)
 
         thumbnail = ImageOps.fit(
             image,

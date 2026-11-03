@@ -34,6 +34,17 @@ from .constants import (
 logger = logging.getLogger(__name__)
 
 
+def _delete_uncommitted_outputs(keys: list[str]) -> None:
+    for key in dict.fromkeys(keys):
+        try:
+            delete_image_object(key)
+        except Exception:
+            logger.exception(
+                'Не удалось удалить незавершённый объект изображения %s.',
+                key,
+            )
+
+
 @shared_task(bind=True, max_retries=3)
 def process_uploaded_image(self, upload_id: str) -> dict:
     with transaction.atomic():
@@ -102,6 +113,9 @@ def process_uploaded_image(self, upload_id: str) -> dict:
             ]
         )
 
+    output_keys = []
+    outputs_committed = False
+
     try:
         image_bytes = download_image(
             key=upload.temporary_key,
@@ -116,14 +130,17 @@ def process_uploaded_image(self, upload_id: str) -> dict:
         )
         final_key = f'{base_key}/original.webp'
         thumbnail_key = f'{base_key}/thumbnail.webp'
+        output_keys.extend((final_key, thumbnail_key))
         saved_final_key = save_processed_image(
             key=final_key,
             image_bytes=webp_bytes
         )
+        output_keys.append(saved_final_key)
         saved_thumbnail_key = save_processed_image(
             key=thumbnail_key,
             image_bytes=thumbnail_bytes
         )
+        output_keys.append(saved_thumbnail_key)
 
         with transaction.atomic():
             updated = ImageUpload.objects.filter(
@@ -144,6 +161,8 @@ def process_uploaded_image(self, upload_id: str) -> dict:
                 raise RuntimeError(
                     'Статус загрузки изменился во время обработки.'
                 )
+
+        outputs_committed = True
 
         try:
             delete_image_object(upload.temporary_key)
@@ -246,6 +265,10 @@ def process_uploaded_image(self, upload_id: str) -> dict:
     except Exception:
         logger.exception('Ошибка обработки изображения: %s', upload.pk)
         raise
+
+    finally:
+        if not outputs_committed:
+            _delete_uncommitted_outputs(output_keys)
 
     return {
         'id': str(upload.pk),

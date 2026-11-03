@@ -72,6 +72,23 @@ def test_process_image_preserves_rgba_transparency():
     assert thumbnail_image.getchannel('A').getextrema() == (0, 0)
 
 
+def test_process_image_preserves_palette_transparency():
+    source_image = Image.new('P', (40, 30), 0)
+    source_image.putpalette([255, 0, 0] + [0, 0, 0] * 255)
+    source_image.info['transparency'] = 0
+    source_buffer = BytesIO()
+    source_image.save(source_buffer, format='PNG')
+
+    processed, thumbnail = process_image(source_buffer.getvalue())
+    processed_image = decoded_image(processed)
+    thumbnail_image = decoded_image(thumbnail)
+
+    assert processed_image.mode == 'RGBA'
+    assert processed_image.getchannel('A').getextrema() == (0, 0)
+    assert thumbnail_image.mode == 'RGBA'
+    assert thumbnail_image.getchannel('A').getextrema() == (0, 0)
+
+
 def test_process_image_applies_exif_orientation():
     exif = Image.Exif()
     exif[274] = 6

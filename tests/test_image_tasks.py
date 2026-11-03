@@ -147,6 +147,46 @@ def test_temporary_cleanup_failure_keeps_processed_image_ready(queued_upload):
     assert result['id'] == str(queued_upload.pk)
 
 
+def test_partial_output_write_is_cleaned_before_retry(queued_upload):
+    base_key = f'media/{queued_upload.pk}/g0/a1'
+    final_key = f'{base_key}/original.webp'
+    thumbnail_key = f'{base_key}/thumbnail.webp'
+    error = client_error(503)
+
+    process_uploaded_image.push_request(retries=0)
+    try:
+        with (
+            patch('images.tasks.download_image', return_value=SOURCE_BYTES),
+            patch(
+                'images.tasks.process_image',
+                return_value=(WEBP_BYTES, THUMBNAIL_BYTES),
+            ),
+            patch(
+                'images.tasks.save_processed_image',
+                side_effect=(final_key, error),
+            ),
+            patch('images.tasks.delete_image_object') as delete_mock,
+            patch.object(
+                process_uploaded_image,
+                'retry',
+                side_effect=Retry(),
+            ),
+        ):
+            with pytest.raises(Retry):
+                process_uploaded_image.run(str(queued_upload.pk))
+    finally:
+        process_uploaded_image.pop_request()
+
+    queued_upload.refresh_from_db()
+    assert queued_upload.status == ImageUpload.Status.QUEUED
+    assert queued_upload.final_key is None
+    assert queued_upload.thumbnail_key is None
+    assert delete_mock.call_args_list == [
+        call(final_key),
+        call(thumbnail_key),
+    ]
+
+
 @pytest.mark.parametrize(
     'existing_status',
     (
@@ -463,6 +503,7 @@ def test_final_update_rejects_stale_worker(queued_upload, changed_field):
             'images.tasks.save_processed_image',
             side_effect=save_after_state_change,
         ) as save_mock,
+        patch('images.tasks.delete_image_object') as delete_mock,
     ):
         with pytest.raises(
             RuntimeError,
@@ -475,3 +516,8 @@ def test_final_update_rejects_stale_worker(queued_upload, changed_field):
     assert queued_upload.final_key is None
     assert queued_upload.thumbnail_key is None
     assert save_mock.call_count == 2
+    base_key = f'media/{queued_upload.pk}/g0/a1'
+    assert delete_mock.call_args_list == [
+        call(f'{base_key}/original.webp'),
+        call(f'{base_key}/thumbnail.webp'),
+    ]
