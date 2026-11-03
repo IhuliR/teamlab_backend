@@ -72,7 +72,8 @@ postman_collection/  коллекция и локальное окружение
 
 ## Локальный запуск
 
-Требуются Python и Docker Compose. Django запускается локально, PostgreSQL — в Docker.
+Требуются Python и Docker Compose. Django и Celery запускаются локально,
+PostgreSQL и Redis — в Docker.
 
 ```bash
 git clone https://github.com/IhuliR/teamlab_backend.git
@@ -106,14 +107,21 @@ POSTGRES_USER=teamlab
 POSTGRES_PASSWORD=replace-with-a-local-password
 DB_HOST=localhost
 DB_PORT=5432
+CELERY_BROKER_URL=redis://127.0.0.1:6380/0
+
+AWS_ACCESS_KEY_ID=<static-access-key-id>
+AWS_SECRET_ACCESS_KEY=<static-access-key-secret>
+AWS_STORAGE_BUCKET_NAME=<bucket-name>
+AWS_S3_ENDPOINT_URL=https://storage.yandexcloud.net
+AWS_S3_REGION_NAME=ru-central1
 ```
 
 Если порт `5432` уже занят, задайте `DB_PORT=5433` в `.env`. Этот же порт будет использоваться и для Docker Compose, и для локального Django.
 
-Запустите PostgreSQL из корня репозитория и дождитесь готовности контейнера:
+Запустите PostgreSQL и Redis из корня репозитория и дождитесь готовности контейнеров:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml up -d db
+docker compose --env-file .env -f infra/docker-compose.yml up -d db redis
 ```
 
 Подготовьте базу и запустите backend:
@@ -122,6 +130,19 @@ docker compose --env-file .env -f infra/docker-compose.yml up -d db
 python teamlab_backend/manage.py migrate
 python teamlab_backend/manage.py seed_demo_data
 python teamlab_backend/manage.py runserver
+```
+
+Для обработки изображений запустите ещё два процесса в отдельных терминалах
+из каталога Django-проекта (при активированном `venv`):
+
+```bash
+cd teamlab_backend
+celery -A teamlab_backend worker --loglevel=INFO
+```
+
+```bash
+cd teamlab_backend
+celery -A teamlab_backend beat --loglevel=INFO
 ```
 
 `seed_demo_data` создаёт воспроизводимый набор данных для локальной разработки, frontend-интеграции и Postman. Локальные demo credentials:
@@ -133,9 +154,15 @@ demo_designer / DemoPass123!
 demo_member / DemoPass123!
 ```
 
-## Yandex Object Storage (S3)
+## Инфраструктура изображений
 
-S3 подготовлен для хранения медиа в Yandex Object Storage через `boto3` и `django-storages`. Создайте приватный бакет, сервисный аккаунт с ролью `storage.editor` для этого бакета (или каталога) и его статический ключ доступа. Секретный ключ сохраняется только в локальном `.env` и не добавляется в Git.
+Готовые изображения хранятся в приватном Yandex Object Storage через `boto3`
+и `django-storages`. PostgreSQL хранит upload-сессии и их статусы, Redis служит
+брокером, Celery Worker обрабатывает изображения, а Celery Beat восстанавливает
+зависшие задачи и повторно запускает очистку заменённых файлов.
+
+Создайте приватный бакет, сервисный аккаунт с ролью `storage.editor` на бакет
+или каталог и статический ключ доступа. Секретный ключ храните только в `.env`.
 
 Добавьте в `.env` значения, выданные Yandex Cloud:
 
@@ -143,15 +170,47 @@ S3 подготовлен для хранения медиа в Yandex Object St
 AWS_ACCESS_KEY_ID=<static-access-key-id>
 AWS_SECRET_ACCESS_KEY=<static-access-key-secret>
 AWS_STORAGE_BUCKET_NAME=<bucket-name>
-AWS_S3_ENDPOINT_URL=<s3-compatible-endpoint>
+AWS_S3_ENDPOINT_URL=https://storage.yandexcloud.net
 AWS_S3_REGION_NAME=ru-central1
 ```
 
-В настройках бакета добавьте CORS-правило для локального frontend: `http://localhost:5173` и `http://127.0.0.1:5173`. Для отображения объектов достаточно разрешить `GET` и `HEAD`; методы загрузки добавляйте только при прямой загрузке из браузера.
+В CORS бакета разрешите локальные origins `http://localhost:5173` и
+`http://127.0.0.1:5173`, методы `POST`, `GET` и `HEAD` и allowed headers `*`.
+Production origin добавляется отдельно. Не открывайте публичную запись в бакет:
+frontend получает короткоживущий presigned POST от backend.
 
-Также включите Lifecycle Rule: префикс `temporary/`, удаление объектов через 1 день. Это защищает бакет от накопления временных файлов.
+Добавьте Lifecycle Rule для префикса `temporary/` с удалением через 1 день. Worker
+обычно удаляет временный объект сразу после обработки, а правило удаляет остатки
+оборванных и неподтверждённых загрузок.
 
-Сейчас `media_s3` — отдельный storage alias для явного использования в новом коде. `default` остаётся локальным `FileSystemStorage`, поэтому существующие `ImageField` и API загрузки продолжают работать с локальным `media/`; URL и контракты API не меняются автоматически.
+Поток изображения: presigned POST в `temporary/` → проверка размера, MIME и ETag →
+Celery/Pillow → основной WebP исходных размеров и WebP-миниатюра 256x256 в
+`media/` → привязка к пользователю, проекту или портфолио. Поддерживаются JPEG,
+PNG и WebP; максимальная сторона — 2048 px. Signed URL готовых файлов действует
+1 час. При замене прежняя загрузка становится `superseded`; Worker удаляет оба
+готовых объекта с повторами, а Beat каждые 10 минут подбирает пропущенную очистку.
+
+`media_s3` используется только новым image lifecycle. `default` остаётся локальным
+`FileSystemStorage`, поэтому legacy Base64-поля и локальный `media/` совместимы с
+существующим API.
+
+Быстрая локальная проверка:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker-compose.yml exec redis redis-cli ping
+python teamlab_backend/manage.py check
+```
+
+При запущенном Worker команда из каталога `teamlab_backend/` должна вернуть ответ
+узла Celery:
+
+```bash
+celery -A teamlab_backend inspect ping
+```
+
+Полный клиентский сценарий описан в
+[инструкции по интеграции изображений](docs/IMAGE_UPLOADS_FRONTEND.md).
 
 ## API
 
@@ -185,5 +244,6 @@ pytest
 - [Backend architecture](docs/ARCHITECTURE.md)
 - [API guide](docs/API_GUIDE.md)
 - [Frontend integration](docs/FRONTEND_INTEGRATION.md)
+- [Image uploads: frontend integration](docs/IMAGE_UPLOADS_FRONTEND.md)
 - [OpenAPI schema](docs/api/teamlab_api_schema_8.yml)
 - [Postman collection](postman_collection/teamlab.postman_collection.json)
