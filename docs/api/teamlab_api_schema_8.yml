@@ -322,6 +322,8 @@ paths:
         active ProjectMembership, pending RoleInterest(source=application) или pending
         RoleInterest(source=invitation). Historical states (`rejected`, `accepted`,
         `left`, `removed`) сами по себе не блокируют смену specialization.
+        Поле `avatar` сохраняет legacy-контракт Base64; `null` удаляет текущий
+        локальный или S3-аватар и запускает асинхронную очистку S3.
       operationId: updateCurrentUser
       security:
         - BearerAuth: []
@@ -346,7 +348,12 @@ paths:
   /api/v1/users/me/avatar/:
     put:
       tags: [Me]
-      summary: Загрузить или заменить аватар
+      summary: Загрузить или заменить аватар через Base64
+      description: |
+        Legacy-эндпойнт. Принимает data URL в поле `avatar`. Если до этого был
+        привязан готовый `ImageUpload`, он переводится в `superseded`, а его
+        объекты удаляются фоновой задачей. Для новой прямой загрузки используйте
+        поток `/image-uploads/` и `attach`.
       operationId: uploadCurrentUserAvatar
       security:
         - BearerAuth: []
@@ -369,7 +376,10 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
     delete:
       tags: [Me]
-      summary: Удалить аватар
+      summary: Удалить или отвязать текущий аватар
+      description: |
+        Удаляет локальный Base64-аватар либо отвязывает S3-изображение текущего
+        пользователя. Повторный вызов допустим; очистка S3 выполняется асинхронно.
       operationId: deleteCurrentUserAvatar
       security:
         - BearerAuth: []
@@ -383,6 +393,17 @@ paths:
     post:
       tags: [Images]
       summary: Создать сессию прямой загрузки изображения
+      description: |
+        Создаёт принадлежащую текущему пользователю upload-сессию и возвращает
+        параметры presigned POST для прямой загрузки в Yandex Object Storage.
+        `target_id` запрещён для `user_avatar`, обязателен для `project_image`
+        и `portfolio_image` и должен указывать на принадлежащую пользователю
+        сущность. Допустимы JPEG, PNG и WebP. Лимит: 1 МиБ для аватара и 2 МиБ
+        для изображения проекта или портфолио. Сессия действует 5 минут.
+
+        Клиент должен добавить в `multipart/form-data` все пары из
+        `upload_fields`, затем файл в поле `file`, и отправить форму точно на
+        `upload_url`. После успешного ответа Object Storage вызовите `confirm`.
       operationId: createImageUpload
       security:
         - BearerAuth: []
@@ -408,12 +429,18 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundResponse'
         '503':
-          description: Object Storage временно недоступен
+          $ref: '#/components/responses/StorageUnavailableResponse'
 
   /api/v1/image-uploads/{upload_id}/:
     get:
       tags: [Images]
       summary: Получить статус обработки изображения
+      description: |
+        Polling доступен только владельцу upload-сессии. Для `queued` и
+        `processing` повторяйте запрос. В статусе `ready` доступны временные
+        подписанные `image_url` и `thumbnail_url`; в `failed` смотрите
+        `error_code` и `error_message`. URL действуют 1 час и должны считаться
+        непрозрачными временными значениями.
       operationId: retrieveImageUpload
       security:
         - BearerAuth: []
@@ -431,12 +458,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundResponse'
         '503':
-          description: Не удалось сформировать signed URL
+          $ref: '#/components/responses/StorageUnavailableResponse'
 
   /api/v1/image-uploads/{upload_id}/confirm/:
     post:
       tags: [Images]
       summary: Подтвердить завершение прямой загрузки
+      description: |
+        Тело запроса не требуется. Backend выполняет HEAD объекта и сверяет
+        фактические размер и Content-Type с create-запросом и лимитом типа.
+        Успешный переход `awaiting_upload -> queued` публикует Celery-задачу
+        после commit. Повторный confirm в `queued` идемпотентен. Ответ `400`
+        возвращается, если объект ещё не загружен, сессия истекла, статус не
+        допускает confirm либо метаданные не совпали.
       operationId: confirmImageUpload
       security:
         - BearerAuth: []
@@ -456,12 +490,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundResponse'
         '503':
-          description: Object Storage временно недоступен
+          $ref: '#/components/responses/StorageUnavailableResponse'
 
   /api/v1/image-uploads/{upload_id}/attach/:
     post:
       tags: [Images]
       summary: Привязать готовое изображение или заменить текущее
+      description: |
+        Тело запроса не требуется. Разрешено только владельцу upload-сессии и
+        текущему владельцу целевой сущности. `kind` и цель фиксируются при
+        create и повторно проверяются. Загрузка должна иметь статус `ready`.
+        Успешный переход `ready -> attached` заменяет текущее изображение;
+        прежнее S3-изображение переводится в `superseded` и удаляется фоновой
+        задачей. Повторный attach уже привязанной загрузки идемпотентен.
       operationId: attachImageUpload
       security:
         - BearerAuth: []
@@ -483,7 +524,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundResponse'
         '503':
-          description: Не удалось сформировать signed URL
+          $ref: '#/components/responses/StorageUnavailableResponse'
 
   /api/v1/users/set_password/:
     post:
@@ -794,7 +835,8 @@ paths:
       description: |
         Обновляет публично редактируемые поля проекта. `is_featured` и
         `featured_order` не принимаются публичным API и управляются администратором
-        через админку/служебные инструменты.
+        через админку/служебные инструменты. Поле `image` сохраняет legacy-контракт
+        Base64; новое значение заменяет текущее S3-изображение, а `null` удаляет его.
       operationId: updateProject
       security:
         - BearerAuth: []
@@ -826,6 +868,10 @@ paths:
     delete:
       tags: [Projects]
       summary: Отвязать текущее изображение проекта
+      description: |
+        Доступно только владельцу проекта. Удаляет локальное изображение либо
+        отвязывает текущий `ImageUpload`; S3-объекты удаляются асинхронно.
+        Сам проект не удаляется.
       operationId: deleteProjectImage
       security:
         - BearerAuth: []
@@ -1300,6 +1346,7 @@ paths:
     post:
       tags: [Me]
       summary: Добавить работу портфолио
+      description: Поле `image` необязательно и сохраняет legacy-формат Base64.
       operationId: createMyPortfolioWork
       security:
         - BearerAuth: []
@@ -1325,6 +1372,9 @@ paths:
     patch:
       tags: [Me]
       summary: Изменить работу портфолио
+      description: |
+        Поле `image` сохраняет legacy-контракт Base64; новое значение заменяет
+        текущее S3-изображение, а `null` удаляет его.
       operationId: updateMyPortfolioWork
       security:
         - BearerAuth: []
@@ -1352,6 +1402,9 @@ paths:
     delete:
       tags: [Me]
       summary: Удалить работу портфолио
+      description: |
+        Удаляет саму работу и её локальное либо S3-изображение. Очистка S3
+        выполняется асинхронно.
       operationId: deleteMyPortfolioWork
       security:
         - BearerAuth: []
@@ -1369,6 +1422,10 @@ paths:
     delete:
       tags: [Me]
       summary: Отвязать изображение работы портфолио
+      description: |
+        Доступно только владельцу работы портфолио. Удаляет локальное изображение
+        либо отвязывает текущий `ImageUpload`; S3-объекты удаляются асинхронно.
+        Сама работа портфолио не удаляется.
       operationId: deleteMyPortfolioWorkImage
       security:
         - BearerAuth: []
@@ -1536,10 +1593,21 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/DetailMessage'
+    StorageUnavailableResponse:
+      description: Yandex Object Storage временно недоступен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DetailMessage'
+          example:
+            detail: Хранилище временно недоступно.
   schemas:
     ImageUploadKind:
       type: string
       enum: [user_avatar, project_image, portfolio_image]
+      description: |
+        `user_avatar` — аватар текущего пользователя; `project_image` —
+        изображение проекта; `portfolio_image` — изображение работы портфолио.
     ImageUploadStatusValue:
       type: string
       enum:
@@ -1551,6 +1619,14 @@ components:
         - failed
         - expired
         - superseded
+      description: |
+        `awaiting_upload` — ожидается POST в S3; `queued` — задача поставлена
+        в очередь; `processing` — файл обрабатывается; `ready` — можно вызвать
+        attach; `attached` — изображение привязано; `failed` — обработка
+        завершилась ошибкой; `expired` — зарезервированный статус истёкшей
+        сессии (сейчас просроченный confirm возвращает `400` без перехода);
+        `superseded` — изображение заменено или отвязано и ожидает/завершило
+        очистку.
     ImageUploadCreateRequest:
       type: object
       required: [kind, content_type, size_bytes]
@@ -1564,9 +1640,19 @@ components:
         content_type:
           type: string
           enum: [image/jpeg, image/png, image/webp]
+          description: MIME-тип исходного файла и обязательное значение поля Content-Type в presigned POST.
         size_bytes:
           type: integer
           minimum: 1
+          maximum: 2097152
+          description: |
+            Точный размер исходного файла в байтах. Максимум 1048576 для
+            `user_avatar` и 2097152 для `project_image`/`portfolio_image`.
+      example:
+        kind: project_image
+        target_id: 42
+        content_type: image/jpeg
+        size_bytes: 734003
     ImageUploadCreateResponse:
       type: object
       required:
@@ -1589,8 +1675,18 @@ components:
           format: uri
         upload_fields:
           type: object
+          description: Непрозрачный набор полей; каждую пару нужно без изменений добавить в FormData перед полем `file`.
           additionalProperties:
             type: string
+      example:
+        upload_id: 1e575f20-a5d2-4cd6-92cf-728f817a34df
+        status: awaiting_upload
+        expires_at: '2026-11-03T12:05:00Z'
+        upload_url: https://storage.yandexcloud.net/teamlab-media
+        upload_fields:
+          Content-Type: image/jpeg
+          key: temporary/1e575f20-a5d2-4cd6-92cf-728f817a34df/image
+          policy: opaque-signed-policy
     ImageUploadConfirmResponse:
       type: object
       required: [upload_id, status]
@@ -1600,6 +1696,9 @@ components:
           format: uuid
         status:
           $ref: '#/components/schemas/ImageUploadStatusValue'
+      example:
+        upload_id: 1e575f20-a5d2-4cd6-92cf-728f817a34df
+        status: queued
     ImageUploadStatus:
       type: object
       required:
@@ -1622,15 +1721,27 @@ components:
           type: string
           format: uri
           nullable: true
+          description: Signed URL основного WebP; доступен только в `ready` и `attached`, действует 1 час.
         thumbnail_url:
           type: string
           format: uri
           nullable: true
+          description: Signed URL WebP-миниатюры 256x256; доступен только в `ready` и `attached`, действует 1 час.
         error_code:
           type: string
           nullable: true
+          description: Машиночитаемый код ошибки обработки; обычно заполнен только при `failed`.
         error_message:
           type: string
+          description: Сообщение об ошибке обработки или пустая строка.
+      example:
+        upload_id: 1e575f20-a5d2-4cd6-92cf-728f817a34df
+        kind: project_image
+        status: ready
+        image_url: https://storage.yandexcloud.net/teamlab-media/media/example/original.webp?X-Amz-Signature=...
+        thumbnail_url: https://storage.yandexcloud.net/teamlab-media/media/example/thumbnail.webp?X-Amz-Signature=...
+        error_code: null
+        error_message: ''
 
     ApiRoot:
       type: object
@@ -1856,6 +1967,8 @@ components:
         image:
           type: string
           nullable: true
+          format: uri
+          description: Signed S3 URL либо URL legacy-изображения; значение может изменяться и истекать.
         technologies:
           type: array
           nullable: true
@@ -1889,6 +2002,7 @@ components:
         image:
           type: string
           nullable: true
+          description: Необязательный legacy data URL, например `data:image/png;base64,...`.
         technologies:
           type: array
           nullable: true
@@ -1913,6 +2027,7 @@ components:
         image:
           type: string
           nullable: true
+          description: Необязательный legacy data URL; `null` удаляет текущее изображение.
         technologies:
           type: array
           nullable: true
@@ -1942,6 +2057,8 @@ components:
         image:
           type: string
           nullable: true
+          format: uri
+          description: Signed S3 URL либо URL legacy-изображения; значение может изменяться и истекать.
         technologies:
           type: array
           nullable: true
@@ -2032,6 +2149,7 @@ components:
           type: string
           format: uri
           nullable: true
+          description: Signed S3 URL либо URL legacy-аватара; значение может изменяться и истекать.
         specialization_id:
           type: integer
           nullable: true
@@ -2143,6 +2261,7 @@ components:
           type: string
           format: uri
           nullable: true
+          description: Signed S3 URL либо URL legacy-аватара; значение может изменяться и истекать.
         contacts_visible:
           type: boolean
           readOnly: true
@@ -2268,6 +2387,7 @@ components:
           type: string
           format: uri
           nullable: true
+          description: Signed S3 URL либо URL legacy-аватара; значение может изменяться и истекать.
         social_links:
           $ref: '#/components/schemas/SocialLinks'
         created_at:
@@ -2399,6 +2519,7 @@ components:
       properties:
         avatar:
           type: string
+          description: Legacy data URL, например `data:image/png;base64,...`.
     AvatarResponse:
       type: object
       required: [avatar]
@@ -2407,6 +2528,7 @@ components:
           type: string
           format: uri
           nullable: true
+          description: URL сохранённого legacy-аватара.
     SetPasswordRequest:
       type: object
       required: [new_password, current_password]
@@ -2609,6 +2731,8 @@ components:
         image:
           type: string
           nullable: true
+          format: uri
+          description: Signed S3 URL либо URL legacy-изображения; значение может изменяться и истекать.
         status:
           $ref: '#/components/schemas/ProjectStatus'
         is_favorited:
@@ -2672,6 +2796,8 @@ components:
         image:
           type: string
           nullable: true
+          format: uri
+          description: Signed S3 URL либо URL legacy-изображения; значение может изменяться и истекать.
         status:
           $ref: '#/components/schemas/ProjectStatus'
         is_favorited:
@@ -2776,6 +2902,7 @@ components:
         image:
           type: string
           nullable: true
+          description: Обязательный legacy data URL либо `null`.
         roles:
           type: array
           minItems: 1
@@ -2797,6 +2924,7 @@ components:
         image:
           type: string
           nullable: true
+          description: Необязательный legacy data URL; `null` удаляет текущее изображение.
         status:
           $ref: '#/components/schemas/ProjectStatus'
     PaginatedProjects:
