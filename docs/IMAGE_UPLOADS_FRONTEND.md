@@ -2,8 +2,8 @@
 
 Новый поток загружает файл напрямую из браузера в Yandex Object Storage, после
 чего backend проверяет объект, обрабатывает его через Celery/Pillow и привязывает
-готовое изображение к сущности. Все запросы к TeamLab API требуют JWT access
-token. Presigned POST в Object Storage отправляется без JWT.
+готовое изображение к сущности. Все запросы image lifecycle к TeamLab API
+требуют JWT access token. Presigned POST в Object Storage отправляется без JWT.
 
 ## Ограничения
 
