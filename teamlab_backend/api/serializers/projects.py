@@ -296,6 +296,35 @@ class ProjectListSerializer(ProjectBaseReadSerializer):
         read_only_fields = fields
 
 
+class ProjectMemberSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(
+        source='user.username',
+        read_only=True,
+    )
+    display_name = serializers.CharField(
+        source='user.display_name',
+        read_only=True,
+    )
+    project_role_id = serializers.IntegerField(read_only=True)
+    project_role_name = serializers.CharField(
+        source='project_role.specialization.name',
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = ProjectMembership
+        fields = (
+            'user_id',
+            'username',
+            'display_name',
+            'project_role_id',
+            'project_role_name',
+        )
+        read_only_fields = fields
+
+
 class ProjectDetailSerializer(ProjectBaseReadSerializer):
     roles = ProjectRoleReadSerializer(
         many=True,
@@ -308,6 +337,7 @@ class ProjectDetailSerializer(ProjectBaseReadSerializer):
     my_interest_source = serializers.SerializerMethodField()
     my_membership_id = serializers.SerializerMethodField()
     my_membership_status = serializers.SerializerMethodField()
+    members = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -329,6 +359,7 @@ class ProjectDetailSerializer(ProjectBaseReadSerializer):
             'my_interest_source',
             'my_membership_id',
             'my_membership_status',
+            'members',
             'created_at',
             'updated_at',
         )
@@ -441,6 +472,31 @@ class ProjectDetailSerializer(ProjectBaseReadSerializer):
     def get_my_membership_status(self, obj):
         membership = self._get_my_membership(obj)
         return membership.status if membership else None
+
+    def get_members(self, obj):
+        user = self._get_request_user()
+
+        if user is None or user.id != obj.owner_id:
+            return []
+
+        memberships = [
+            membership
+            for role in obj.roles.all()
+            for membership in getattr(role, 'active_memberships', ())
+        ]
+        memberships.sort(
+            key=lambda membership: (
+                membership.project_role_id,
+                membership.joined_at,
+                membership.id,
+            )
+        )
+
+        return ProjectMemberSerializer(
+            memberships,
+            many=True,
+            context=self.context,
+        ).data
 
 
 class ProjectCreateSerializer(serializers.Serializer):

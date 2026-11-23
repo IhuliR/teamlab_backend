@@ -816,7 +816,9 @@ paths:
         roles_preview здесь не возвращается. Для anonymous пользователя context fields
         возвращаются как `null`: `matching_role_id`, `matching_role_name`,
         `my_interest_id`, `my_interest_status`, `my_interest_source`,
-        `my_membership_id`, `my_membership_status`.
+        `my_membership_id`, `my_membership_status`. Поле `members` содержит активных
+        участников только в ответе владельцу проекта; для остальных пользователей
+        возвращается пустой массив.
       operationId: retrieveProject
       parameters:
         - $ref: '#/components/parameters/ProjectIdParam'
@@ -2750,13 +2752,41 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ProjectMember:
+      type: object
+      description: Активный участник проекта в представлении для владельца.
+      required:
+        - user_id
+        - username
+        - display_name
+        - project_role_id
+        - project_role_name
+      properties:
+        user_id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        display_name:
+          type: string
+          readOnly: true
+        project_role_id:
+          type: integer
+          readOnly: true
+        project_role_name:
+          type: string
+          nullable: true
+          readOnly: true
     ProjectDetail:
       type: object
       description: |
         Публичная детальная карточка проекта. Для anonymous пользователя context fields
         `matching_role_id`, `matching_role_name`, `my_interest_id`,
         `my_interest_status`, `my_interest_source`, `my_membership_id`,
-        `my_membership_status` возвращаются как `null`.
+        `my_membership_status` возвращаются как `null`. Поле `members` содержит
+        активных участников только для владельца проекта; остальные пользователи
+        получают пустой массив.
       required:
         - id
         - owner_id
@@ -2775,6 +2805,7 @@ components:
         - my_interest_source
         - my_membership_id
         - my_membership_status
+        - members
         - created_at
         - updated_at
       properties:
@@ -2838,6 +2869,14 @@ components:
             - $ref: '#/components/schemas/ProjectMembershipStatus'
           nullable: true
           readOnly: true
+        members:
+          type: array
+          readOnly: true
+          description: |
+            Активные участники проекта. Заполненный список доступен только владельцу
+            проекта; для остальных авторизованных пользователей и anonymous равен `[]`.
+          items:
+            $ref: '#/components/schemas/ProjectMember'
         created_at:
           type: string
           format: date-time
@@ -2880,6 +2919,12 @@ components:
         my_interest_source: application
         my_membership_id: null
         my_membership_status: null
+        members:
+          - user_id: 7
+            username: ivan_backend
+            display_name: Иван Петров
+            project_role_id: 41
+            project_role_name: Backend-разработчик
         created_at: '2026-03-10T08:00:00Z'
         updated_at: '2026-04-21T12:00:00Z'
     ProjectCreateRequest:

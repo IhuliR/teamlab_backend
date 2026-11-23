@@ -1,11 +1,39 @@
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
-from projects.models import Project, ProjectRole, ProjectRoleSkill
+from projects.models import (
+    Project,
+    ProjectMembership,
+    ProjectRole,
+    ProjectRoleSkill,
+    RoleInterest,
+)
 
 from .utils import results
 
 
 pytestmark = pytest.mark.django_db
+
+
+def create_membership(
+    user,
+    project_role,
+    status=ProjectMembership.Status.ACTIVE,
+):
+    interest = RoleInterest.objects.create(
+        user=user,
+        project_role=project_role,
+        source=RoleInterest.Source.APPLICATION,
+        status=RoleInterest.Status.ACCEPTED,
+    )
+    return ProjectMembership.objects.create(
+        user=user,
+        project_role=project_role,
+        role_interest=interest,
+        status=status,
+    )
 
 
 def test_project_list_is_public_and_contains_roles_preview(
@@ -93,6 +121,202 @@ def test_project_detail_for_member_returns_membership_context(
     assert data['matching_role_id'] == active_membership.project_role_id
     assert data['my_membership_id'] == active_membership.pk
     assert data['my_membership_status'] == 'active'
+
+
+def test_project_owner_sees_active_members_with_exact_contract(
+    owner_client,
+    api_request,
+    project,
+    active_membership,
+    participant_member_user,
+):
+    participant_member_user.display_name = 'Иван Петров'
+    participant_member_user.save(update_fields=('display_name',))
+
+    response = api_request(
+        owner_client,
+        'get',
+        f'/api/v1/projects/{project.pk}/',
+    )
+
+    assert response.status_code == 200
+    assert response.json()['members'] == [
+        {
+            'user_id': participant_member_user.pk,
+            'username': participant_member_user.username,
+            'display_name': 'Иван Петров',
+            'project_role_id': active_membership.project_role_id,
+            'project_role_name': (
+                active_membership.project_role.specialization.name
+            ),
+        }
+    ]
+    assert set(response.json()['members'][0]) == {
+        'user_id',
+        'username',
+        'display_name',
+        'project_role_id',
+        'project_role_name',
+    }
+
+
+def test_project_members_are_hidden_from_another_user(
+    backend_client,
+    api_request,
+    project,
+    active_membership,
+):
+    response = api_request(
+        backend_client,
+        'get',
+        f'/api/v1/projects/{project.pk}/',
+    )
+
+    assert response.status_code == 200
+    assert response.json()['members'] == []
+
+
+def test_project_members_are_hidden_from_anonymous_user(
+    anonymous_client,
+    api_request,
+    project,
+    active_membership,
+):
+    response = api_request(
+        anonymous_client,
+        'get',
+        f'/api/v1/projects/{project.pk}/',
+    )
+
+    assert response.status_code == 200
+    assert response.json()['members'] == []
+
+
+def test_project_members_are_empty_without_memberships(
+    owner_client,
+    api_request,
+    project,
+    backend_project_role,
+):
+    response = api_request(
+        owner_client,
+        'get',
+        f'/api/v1/projects/{project.pk}/',
+    )
+
+    assert response.status_code == 200
+    assert response.json()['members'] == []
+
+
+@pytest.mark.parametrize(
+    'membership_status',
+    (ProjectMembership.Status.LEFT, ProjectMembership.Status.REMOVED),
+)
+def test_project_members_exclude_inactive_memberships(
+    owner_client,
+    api_request,
+    create_user,
+    project,
+    backend_project_role,
+    membership_status,
+):
+    participant = create_user(
+        account_type='participant',
+        specialization=backend_project_role.specialization,
+    )
+    create_membership(participant, backend_project_role, membership_status)
+
+    response = api_request(
+        owner_client,
+        'get',
+        f'/api/v1/projects/{project.pk}/',
+    )
+
+    assert response.status_code == 200
+    assert response.json()['members'] == []
+
+
+def test_project_members_include_same_role_and_follow_stable_order(
+    owner_client,
+    api_request,
+    create_user,
+    project,
+    backend_project_role,
+    frontend_project_role,
+):
+    participants = [
+        create_user(
+            account_type='participant',
+            specialization=role.specialization,
+        )
+        for role in (
+            frontend_project_role,
+            backend_project_role,
+            backend_project_role,
+        )
+    ]
+    memberships = [
+        create_membership(participants[0], frontend_project_role),
+        create_membership(participants[1], backend_project_role),
+        create_membership(participants[2], backend_project_role),
+    ]
+    joined_at = timezone.now()
+    ProjectMembership.objects.filter(
+        pk__in=(memberships[1].pk, memberships[2].pk),
+    ).update(joined_at=joined_at)
+    for membership in memberships:
+        membership.refresh_from_db()
+
+    response = api_request(
+        owner_client,
+        'get',
+        f'/api/v1/projects/{project.pk}/',
+    )
+
+    assert response.status_code == 200
+    expected = sorted(
+        memberships,
+        key=lambda membership: (
+            membership.project_role_id,
+            membership.joined_at,
+            membership.id,
+        ),
+    )
+    assert [item['user_id'] for item in response.json()['members']] == [
+        membership.user_id for membership in expected
+    ]
+    assert sum(
+        item['project_role_id'] == backend_project_role.pk
+        for item in response.json()['members']
+    ) == 2
+
+
+def test_project_members_query_count_is_constant(
+    owner_client,
+    api_request,
+    create_user,
+    project,
+    backend_project_role,
+):
+    path = f'/api/v1/projects/{project.pk}/'
+
+    with CaptureQueriesContext(connection) as empty_queries:
+        empty_response = api_request(owner_client, 'get', path)
+
+    for _ in range(5):
+        participant = create_user(
+            account_type='participant',
+            specialization=backend_project_role.specialization,
+        )
+        create_membership(participant, backend_project_role)
+
+    with CaptureQueriesContext(connection) as populated_queries:
+        populated_response = api_request(owner_client, 'get', path)
+
+    assert empty_response.status_code == 200
+    assert populated_response.status_code == 200
+    assert len(populated_response.json()['members']) == 5
+    assert len(populated_queries) == len(empty_queries)
 
 
 def test_featured_projects_are_public_open_only(
