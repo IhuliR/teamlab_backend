@@ -177,7 +177,7 @@ class ProjectViewSet(
     ordering = ('-created_at',)
 
     def get_queryset(self):
-        return Project.objects.select_related(
+        queryset = Project.objects.select_related(
             'owner',
             'field',
             'image_upload',
@@ -186,7 +186,29 @@ class ProjectViewSet(
             'roles__specialization',
             'roles__skill_requirements',
             'roles__skill_requirements__skill',
-        ).distinct()
+        )
+
+        if self.action == 'retrieve' and self.request.user.is_authenticated:
+            active_memberships = ProjectMembership.objects.filter(
+                status=ProjectMembership.Status.ACTIVE,
+                project_role__project__owner=self.request.user,
+            ).select_related(
+                'user',
+                'project_role__specialization',
+            ).order_by(
+                'project_role_id',
+                'joined_at',
+                'id',
+            )
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    'roles__memberships',
+                    queryset=active_memberships,
+                    to_attr='active_memberships',
+                )
+            )
+
+        return queryset.distinct()
 
     def get_permissions(self):
         if self.action in (
